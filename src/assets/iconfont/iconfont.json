@@ -1,0 +1,170 @@
+{
+  "id": "4965977",
+  "name": "桃桃创作助手",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "44318755",
+      "name": "ollama",
+      "font_class": "ollama",
+      "unicode": "e633",
+      "unicode_decimal": 58931
+    },
+    {
+      "icon_id": "10867698",
+      "name": "studio",
+      "font_class": "studio",
+      "unicode": "e624",
+      "unicode_decimal": 58916
+    },
+    {
+      "icon_id": "44501812",
+      "name": "deepseek",
+      "font_class": "deepseek",
+      "unicode": "e608",
+      "unicode_decimal": 58888
+    },
+    {
+      "icon_id": "39053232",
+      "name": "Chatgpt",
+      "font_class": "Chatgpt",
+      "unicode": "e801",
+      "unicode_decimal": 59393
+    },
+    {
+      "icon_id": "44308677",
+      "name": "OpenRouter",
+      "font_class": "OpenRouter",
+      "unicode": "e67f",
+      "unicode_decimal": 59007
+    },
+    {
+      "icon_id": "1032410",
+      "name": "星星",
+      "font_class": "xingxing",
+      "unicode": "e642",
+      "unicode_decimal": 58946
+    },
+    {
+      "icon_id": "26708207",
+      "name": "设 置-树菜单设置",
+      "font_class": "setting",
+      "unicode": "e6a5",
+      "unicode_decimal": 59045
+    },
+    {
+      "icon_id": "44825581",
+      "name": "交替布局",
+      "font_class": "chuangzuo1",
+      "unicode": "e60b",
+      "unicode_decimal": 58891
+    },
+    {
+      "icon_id": "34453076",
+      "name": "view",
+      "font_class": "view",
+      "unicode": "e847",
+      "unicode_decimal": 59463
+    },
+    {
+      "icon_id": "11533118",
+      "name": "羽毛笔",
+      "font_class": "yumaobi",
+      "unicode": "e611",
+      "unicode_decimal": 58897
+    },
+    {
+      "icon_id": "12833533",
+      "name": "创作",
+      "font_class": "chuangzuo",
+      "unicode": "e627",
+      "unicode_decimal": 58919
+    },
+    {
+      "icon_id": "14835758",
+      "name": "列表视图",
+      "font_class": "viewList",
+      "unicode": "e65f",
+      "unicode_decimal": 58975
+    },
+    {
+      "icon_id": "26619450",
+      "name": "大纲",
+      "font_class": "dagang",
+      "unicode": "e681",
+      "unicode_decimal": 59009
+    },
+    {
+      "icon_id": "29052787",
+      "name": "翻书",
+      "font_class": "fanshu",
+      "unicode": "e744",
+      "unicode_decimal": 59204
+    },
+    {
+      "icon_id": "42575479",
+      "name": "preview",
+      "font_class": "preview",
+      "unicode": "e652",
+      "unicode_decimal": 58962
+    },
+    {
+      "icon_id": "44338905",
+      "name": "grid-add",
+      "font_class": "grid-add",
+      "unicode": "e66b",
+      "unicode_decimal": 58987
+    },
+    {
+      "icon_id": "3539164",
+      "name": "宇宙星球-13",
+      "font_class": "logo",
+      "unicode": "e600",
+      "unicode_decimal": 58880
+    },
+    {
+      "icon_id": "41162496",
+      "name": "魔法",
+      "font_class": "mofa",
+      "unicode": "e6bd",
+      "unicode_decimal": 59069
+    },
+    {
+      "icon_id": "42506924",
+      "name": "已保存",
+      "font_class": "yibaocun",
+      "unicode": "e6be",
+      "unicode_decimal": 59070
+    },
+    {
+      "icon_id": "44443035",
+      "name": "魔法",
+      "font_class": "mofa1",
+      "unicode": "e646",
+      "unicode_decimal": 58950
+    },
+    {
+      "icon_id": "1119329",
+      "name": "书",
+      "font_class": "shu",
+      "unicode": "e634",
+      "unicode_decimal": 58932
+    },
+    {
+      "icon_id": "6265230",
+      "name": "对话-实色",
+      "font_class": "talk-s",
+      "unicode": "e651",
+      "unicode_decimal": 58961
+    },
+    {
+      "icon_id": "12209755",
+      "name": "片段",
+      "font_class": "pianduan",
+      "unicode": "e6ce",
+      "unicode_decimal": 59086
+    }
+  ]
+}

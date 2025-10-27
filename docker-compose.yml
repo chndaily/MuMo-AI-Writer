@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  ai-novel-platform:
+    build: .
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/mumo-ai-writer
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    
+  # Optional: Add a reverse proxy with SSL
+  nginx-proxy:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl
+      - ./nginx-ssl.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - ai-novel-platform
+    restart: unless-stopped
+    profiles:
+      - ssl
+
+volumes:
+  mongodb_data:

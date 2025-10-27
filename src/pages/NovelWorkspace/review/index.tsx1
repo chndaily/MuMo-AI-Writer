@@ -1,0 +1,568 @@
+import React, { useState, useEffect } from 'react';
+import { Layout, Card, List, Typography, Tag, Space, Button, Divider, Empty, Timeline, Statistic, Row, Col, Collapse } from 'antd';
+import { 
+  FileTextOutlined, 
+  BookOutlined, 
+  UserOutlined, 
+  EnvironmentOutlined, 
+  BookFilled, 
+  ExperimentOutlined, 
+  ThunderboltOutlined,
+  CalendarOutlined,
+  BarChartOutlined,
+  EyeOutlined
+} from '@ant-design/icons';
+import { useNavigate, useParams } from 'react-router-dom';
+import { WritingRecord, NovelOutline, Character } from '#/novel';
+
+const { Title, Text } = Typography;
+const { Panel } = Collapse;
+
+const NovelReviewPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { novelId } = useParams<{ novelId: string }>();
+  
+  // 直接使用 databaseManager 获取数据
+  const [novels, setNovels] = useState<any[]>([]);
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [outlines, setOutlines] = useState<NovelOutline[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [cultures, setCultures] = useState<any[]>([]);
+  const [technologies, setTechnologies] = useState<any[]>([]);
+  const [magics, setMagics] = useState<any[]>([]);
+  const [histories, setHistories] = useState<any[]>([]);
+  const [writingRecords, setWritingRecords] = useState<WritingRecord[]>([]);
+  const [genres, setGenres] = useState<any[]>([]);
+  
+  const refreshNovels = async () => {
+    const { databaseManager } = await import('@/services/index');
+    const novelsData = await databaseManager.novels.getAllNovels();
+    setNovels(novelsData);
+  };
+  
+  const refreshCharacters = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const charactersData = await databaseManager.characters.getCharactersByNovelId(novelId);
+      setCharacters(charactersData);
+    }
+  };
+  
+  const refreshOutlines = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const outlinesData = await databaseManager.outlines.getOutlinesByNovelId(novelId);
+      setOutlines(outlinesData);
+    }
+  };
+  
+  const refreshLocations = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const locationsData = await databaseManager.locations.getLocationsByNovelId(novelId);
+      setLocations(locationsData);
+    }
+  };
+  
+  const refreshCultures = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const culturesData = await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'culture');
+      setCultures(culturesData);
+    }
+  };
+  
+  const refreshTechnologies = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const technologiesData = await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'technology');
+      setTechnologies(technologiesData);
+    }
+  };
+  
+  const refreshMagics = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const magicsData = await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'magic');
+      setMagics(magicsData);
+    }
+  };
+  
+  const refreshHistories = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const historiesData = await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'history');
+      setHistories(historiesData);
+    }
+  };
+  
+  const refreshWritingRecords = async (novelId?: string) => {
+    if (novelId) {
+      const { databaseManager } = await import('@/services/index');
+      const records = await databaseManager.writingRecords.getWritingRecordsByNovelId(novelId);
+      setWritingRecords(records);
+    }
+  };
+  
+  const refreshGenres = async () => {
+    const { databaseManager } = await import('@/services/index');
+    // 获取所有文化设定并过滤出类型
+    const allCultures = await databaseManager.worldSettings.getAllData('culture');
+    // 过滤出系统级别的类型
+    const genresData = allCultures
+      .filter(culture => culture.tags?.includes('genre'))
+      .map(culture => ({
+        id: culture.id,
+        name: culture.name,
+        displayName: culture.description || culture.name,
+        color: '#1890ff',
+        isActive: true,
+        createdAt: culture.createdAt,
+      }));
+    setGenres(genresData);
+  };
+
+  const [novelInfo, setNovelInfo] = useState<any>(null);
+  const [novelCharacters, setNovelCharacters] = useState<Character[]>([]);
+  const [novelOutlines, setNovelOutlines] = useState<NovelOutline[]>([]);
+  const [novelWritingRecords, setNovelWritingRecords] = useState<WritingRecord[]>([]);
+
+  // 获取小说信息
+  useEffect(() => {
+    if (novelId) {
+      // 刷新所有数据
+      refreshNovels();
+      refreshCharacters(novelId);
+      refreshOutlines(novelId);
+      refreshLocations(novelId);
+      refreshCultures(novelId);
+      refreshTechnologies(novelId);
+      refreshMagics(novelId);
+      refreshHistories(novelId);
+      refreshWritingRecords(novelId);
+      // 刷新类型数据
+      refreshGenres();
+    }
+  }, [novelId, refreshNovels, refreshCharacters, refreshOutlines, refreshLocations, 
+      refreshCultures, refreshTechnologies, refreshMagics, refreshHistories, refreshWritingRecords, refreshGenres]);
+
+  // 当novels数据更新后，获取当前小说信息
+  useEffect(() => {
+    if (novelId && novels.length > 0) {
+      // 获取当前小说信息
+      const novel = novels.find(n => n.id === novelId);
+      if (novel) {
+        setNovelInfo(novel);
+      }
+    }
+  }, [novelId, novels]);
+
+  // 当类型数据更新时，确保UI能正确更新
+  useEffect(() => {
+    console.log('类型数据更新:', genres);
+  }, [genres]);
+
+  // 更新小说相关数据
+  useEffect(() => {
+    if (novelId) {
+      setNovelCharacters(characters.filter(c => c.novelId === novelId));
+      setNovelOutlines(outlines.filter(o => o.novelId === novelId));
+      setNovelWritingRecords(writingRecords.filter(r => r.novelId === novelId));
+    }
+  }, [novelId, characters, outlines, writingRecords]);
+
+  // 获取记录类型的显示名称
+  const getRecordTypeDisplayName = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      'writing_session': '写作会话',
+      'idea': '创意',
+      'research': '研究',
+      'outline': '大纲',
+      'character_development': '角色发展',
+      'world_building': '世界观构建',
+      'plot_development': '情节发展'
+    };
+    
+    return typeMap[type] || '未知类型';
+  };
+
+  // 获取记录状态的显示名称
+  const getRecordStatusDisplayName = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'draft': '草稿',
+      'published': '已发布',
+      'archived': '已归档'
+    };
+    
+    return statusMap[status] || '未知状态';
+  };
+
+  // 获取角色类型的显示名称
+  const getCharacterRoleDisplayName = (role: string): string => {
+    const roleMap: Record<string, string> = {
+      'protagonist': '主角',
+      'antagonist': '反派',
+      'supporting': '配角',
+      'minor': '次要角色',
+      'side': '侧面角色',
+      'foil': '对照角色',
+      'mentor': '导师',
+      'loveInterest': '恋人',
+      'rival': '对手',
+      'neutral': '中立角色',
+      'keySupporting': '重要配角',
+      'minorSupporting': '次要配角',
+      'complexSupporting': '复杂配角'
+    };
+    
+    return roleMap[role] || '配角';
+  };
+
+  // 获取大纲类型的显示名称
+  const getOutlineTypeDisplayName = (type: string): string => {
+    const typeMap: Record<string, string> = {
+      'main': '主干',
+      'branch': '支线',
+      'character': '角色',
+      'location': '地点',
+      'event': '事件',
+      'chapter': '章节'
+    };
+    
+    return typeMap[type] || '其他';
+  };
+
+  // 获取小说类型的显示名称
+  const getGenreDisplayName = (genre: string): string => {
+    // 首先尝试从genres中查找匹配的类型
+    const genreInfo = genres.find(g => g.name === genre);
+    if (genreInfo) {
+      return genreInfo.displayName;
+    }
+    
+    // 如果在genres中找不到，使用默认的类型映射
+    const genreMap: Record<string, string> = {
+      'fantasy': '奇幻',
+      'scifi': '科幻',
+      'romance': '言情',
+      'mystery': '悬疑',
+      'thriller': '惊悚',
+      'horror': '恐怖',
+      'adventure': '冒险',
+      'historical': '历史',
+      'biography': '传记',
+      'urban': '都市',
+      'martial': '武侠',
+      'other': '其他'
+    };
+    
+    return genreMap[genre] || genre;
+  };
+
+  // 计算统计数据
+  const stats = {
+    totalChapters: novelOutlines.filter(o => o.type === 'chapter').length,
+    totalCharacters: novelCharacters.length,
+    totalWorldElements: locations.length + cultures.length + technologies.length + magics.length + histories.length,
+    totalWritingRecords: novelWritingRecords.length,
+    totalWords: novelInfo?.wordCount || 0
+  };
+
+  return (
+    <Layout style={{ height: '100%', overflow: 'hidden', backgroundColor: '#F9F9F9' }}>
+      <div style={{ padding: '24px', height: '100%', overflow: 'auto' }} className="w-full">
+        <div style={{ maxWidth: 1200, margin: '0 auto' }} className="w-full">
+          {/* 页面标题 */}
+          <div style={{ marginBottom: 24 }}>
+            <Title level={2}>
+              <EyeOutlined style={{ marginRight: 12 }} />
+              创作回顾
+            </Title>
+            <Text type="secondary">查看您的创作历程和项目统计</Text>
+          </div>
+
+          {/* 统计数据卡片 */}
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={4}>
+              <Card>
+                <Statistic 
+                  title="总字数" 
+                  value={stats.totalWords.toLocaleString()} 
+                  suffix="字"
+                  prefix={<FileTextOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={4}>
+              <Card>
+                <Statistic 
+                  title="章节数" 
+                  value={stats.totalChapters} 
+                  prefix={<BookOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={4}>
+              <Card>
+                <Statistic 
+                  title="角色数" 
+                  value={stats.totalCharacters} 
+                  prefix={<UserOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={4}>
+              <Card>
+                <Statistic 
+                  title="世界观元素" 
+                  value={stats.totalWorldElements} 
+                  prefix={<EnvironmentOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col span={4}>
+              <Card>
+                <Statistic 
+                  title="写作记录" 
+                  value={stats.totalWritingRecords} 
+                  prefix={<BookFilled />}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* 内容区域 */}
+          <div style={{ display: 'flex', gap: 24 }}>
+            {/* 左侧主要内容 */}
+            <div style={{ flex: 3 }}>
+              {/* 大纲时间线 */}
+              <Card 
+                title={
+                  <Space>
+                    <BookOutlined />
+                    <span>创作时间线</span>
+                  </Space>
+                }
+                extra={
+                  <Button 
+                    type="link" 
+                    onClick={() => navigate(`/novels/${novelId}/storyboard`)}
+                  >
+                    查看完整大纲
+                  </Button>
+                }
+              >
+                {novelOutlines.length > 0 ? (
+                  <Timeline>
+                    {novelOutlines
+                      .sort((a, b) => (a.order || 0) - (b.order || 0))
+                      .map(outline => (
+                        <Timeline.Item 
+                          key={outline.id}
+                          dot={<BookOutlined style={{ fontSize: '16px' }} />}
+                        >
+                          <div>
+                            <Text strong>{outline.title}</Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              {getOutlineTypeDisplayName(outline.type)} · {new Date(outline.createdAt).toLocaleDateString()}
+                            </Text>
+                            {outline.content && (
+                              <div style={{ marginTop: 8 }}>
+                                <Text type="secondary">
+                                  {outline.content.substring(0, 100)}
+                                  {outline.content.length > 100 ? '...' : ''}
+                                </Text>
+                              </div>
+                            )}
+                          </div>
+                        </Timeline.Item>
+                      ))
+                    }
+                  </Timeline>
+                ) : (
+                  <Empty 
+                    description="暂无大纲内容" 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                )}
+              </Card>
+
+              {/* 写作记录 */}
+              <Card 
+                title={
+                  <Space>
+                    <BookFilled />
+                    <span>写作记录</span>
+                  </Space>
+                }
+                style={{ marginTop: 24 }}
+                extra={
+                  <Button 
+                    type="link" 
+                    onClick={() => navigate(`/creation-center?novelId=${novelId}&section=writing-records`)}
+                  >
+                    查看所有记录
+                  </Button>
+                }
+              >
+                {novelWritingRecords.length > 0 ? (
+                  <List
+                    dataSource={novelWritingRecords.slice(0, 5)}
+                    renderItem={record => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={
+                            <Space>
+                              <Text strong>{record.title}</Text>
+                              <Tag color="blue">{getRecordTypeDisplayName(record.type)}</Tag>
+                              <Tag>{getRecordStatusDisplayName(record.status)}</Tag>
+                            </Space>
+                          }
+                          description={
+                            <div>
+                              <Text type="secondary">
+                                {record.content?.substring(0, 100)}
+                                {record.content && record.content.length > 100 ? '...' : ''}
+                              </Text>
+                              <br />
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                <CalendarOutlined style={{ marginRight: 4 }} />
+                                {new Date(record.createdAt).toLocaleString()} · 
+                                <span style={{ marginLeft: 8 }}>{record.wordCount} 字</span>
+                              </Text>
+                            </div>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                ) : (
+                  <Empty 
+                    description="暂无写作记录" 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                )}
+              </Card>
+            </div>
+
+            {/* 右侧侧边栏 */}
+            <div style={{ flex: 1 }}>
+              {/* 小说信息 */}
+              <Card 
+                title={
+                  <Space>
+                    <FileTextOutlined />
+                    <span>小说信息</span>
+                  </Space>
+                }
+              >
+                {novelInfo ? (
+                  <div>
+                    <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                      {novelInfo.coverImage ? (
+                        <img 
+                          src={novelInfo.coverImage} 
+                          alt={novelInfo.title} 
+                          style={{ width: '100%', borderRadius: 4 }}
+                        />
+                      ) : (
+                        <div style={{ 
+                          width: '100%', 
+                          height: 120, 
+                          backgroundColor: '#f0f0f0', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          borderRadius: 4
+                        }}>
+                          <BookOutlined style={{ fontSize: 32, color: '#ccc' }} />
+                        </div>
+                      )}
+                    </div>
+                    <Text strong>{novelInfo.title}</Text>
+                    <br />
+                    <Text type="secondary">
+                      {getGenreDisplayName(novelInfo?.genre || '')}
+                    </Text>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Text type="secondary">
+                      {novelInfo.description || '暂无描述'}
+                    </Text>
+                  </div>
+                ) : (
+                  <Empty description="暂无小说信息" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+              </Card>
+
+              {/* 角色列表 */}
+              <Card 
+                title={
+                  <Space>
+                    <UserOutlined />
+                    <span>主要角色</span>
+                  </Space>
+                }
+                style={{ marginTop: 24 }}
+              >
+                {novelCharacters.length > 0 ? (
+                  <List
+                    dataSource={novelCharacters.slice(0, 5)}
+                    renderItem={character => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={character.name}
+                          description={
+                            <Tag color="blue">
+                              {getCharacterRoleDisplayName(character.role)}
+                            </Tag>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                ) : (
+                  <Empty description="暂无角色" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+              </Card>
+
+              {/* 世界观元素统计 */}
+              <Card 
+                title={
+                  <Space>
+                    <EnvironmentOutlined />
+                    <span>世界观元素</span>
+                  </Space>
+                }
+                style={{ marginTop: 24 }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <Space size="large">
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{locations.length}</div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>地点</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{cultures.length}</div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>文化</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{technologies.length}</div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>科技</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{magics.length}</div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>魔法</div>
+                    </div>
+                  </Space>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default NovelReviewPage;

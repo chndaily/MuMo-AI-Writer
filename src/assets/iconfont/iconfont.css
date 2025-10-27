@@ -1,0 +1,107 @@
+@font-face {
+  font-family: "iconfont"; /* Project id 4965977 */
+  src: url('iconfont.woff2?t=1752135941159') format('woff2'),
+       url('iconfont.woff?t=1752135941159') format('woff'),
+       url('iconfont.ttf?t=1752135941159') format('truetype'),
+       url('iconfont.svg?t=1752135941159#iconfont') format('svg');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-ollama:before {
+  content: "\e633";
+}
+
+.icon-studio:before {
+  content: "\e624";
+}
+
+.icon-deepseek:before {
+  content: "\e608";
+}
+
+.icon-Chatgpt:before {
+  content: "\e801";
+}
+
+.icon-OpenRouter:before {
+  content: "\e67f";
+}
+
+.icon-xingxing:before {
+  content: "\e642";
+}
+
+.icon-setting:before {
+  content: "\e6a5";
+}
+
+.icon-chuangzuo1:before {
+  content: "\e60b";
+}
+
+.icon-view:before {
+  content: "\e847";
+}
+
+.icon-yumaobi:before {
+  content: "\e611";
+}
+
+.icon-chuangzuo:before {
+  content: "\e627";
+}
+
+.icon-viewList:before {
+  content: "\e65f";
+}
+
+.icon-dagang:before {
+  content: "\e681";
+}
+
+.icon-fanshu:before {
+  content: "\e744";
+}
+
+.icon-preview:before {
+  content: "\e652";
+}
+
+.icon-grid-add:before {
+  content: "\e66b";
+}
+
+.icon-logo:before {
+  content: "\e600";
+}
+
+.icon-mofa:before {
+  content: "\e6bd";
+}
+
+.icon-yibaocun:before {
+  content: "\e6be";
+}
+
+.icon-mofa1:before {
+  content: "\e646";
+}
+
+.icon-shu:before {
+  content: "\e634";
+}
+
+.icon-talk-s:before {
+  content: "\e651";
+}
+
+.icon-pianduan:before {
+  content: "\e6ce";
+}
+

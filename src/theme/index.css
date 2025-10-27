@@ -1,0 +1,62 @@
+
+@layer theme, base, antd, components, utilities;
+@import 'tailwindcss';
+@import './global.scss';
+
+@theme {
+  --color-primary: var(--ant-color-primary);
+  /* 颜色背景*/
+  --color-primary-bg: var(--ant-color-primary-bg);
+  --color-primary-hover: var(--ant-color-primary-hover);
+  --color-primary-active: var(--ant-color-primary-active);
+  --color-main: var(--ant-color-text-base);
+  --color-secondary: var(--ant-color-text-secondary);
+  --color-theme-border: var(--ant-color-border);
+  --color-success: var(--ant-color-success);
+  --color-warning: var(--ant-color-warning);
+  --color-error: var(--ant-color-error);
+  --color-info: var(--ant-color-info);
+  --color-background: var(--ant-color-bg-container);
+  --color-layout: var(--ant-color-bg-layout);
+  --color-container: var(--ant-color-bg-container);
+  --color-elevated: var(--ant-color-bg-elevated);
+}
+
+@layer components {
+  .bg-collapse-header {
+    background-color: var(--ant-collapse-header-bg);
+  }
+}
+
+
+@layer base {
+  *{
+    @apply border-theme-border;
+  }
+
+  /* 恢复标题的默认样式 */
+  h1, h2, h3, h4, h5, h6 {
+    font-size: revert;
+    font-weight: revert;
+  }
+}
+
+/* 自定义滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+} 
