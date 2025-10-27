@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:vercel": "pnpm build:headless && tsc && vite build",
+    "build:headless": "cd packages/headless && pnpm build",
     "preview": "vite preview",
     "test": "jest",
     "test:watch": "jest --watch",
