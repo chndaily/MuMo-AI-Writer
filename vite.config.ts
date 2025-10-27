@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
   
   return {
+    base: '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -83,7 +84,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      sourcemap: true
     },
     define: {
       'import.meta.glob': 'undefined',
