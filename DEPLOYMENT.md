@@ -1,6 +1,69 @@
 # 木墨文坊部署指南
 
-## Gitee Pages 部署（推荐，如果可用）
+## GitHub Pages 部署（推荐的替代方案）
+
+由于 Gitee Pages 可能不可用，推荐使用 GitHub Pages 作为替代方案：
+
+1. 确保代码已推送到 GitHub：
+   ```bash
+   git push origin main
+   ```
+
+2. 在 GitHub 仓库中启用 Pages：
+   - 进入仓库的 Settings
+   - 点击左侧菜单的 Pages
+   - 选择 Source 为 GitHub Actions
+   - 保存设置
+
+3. 创建 GitHub Actions 工作流文件 [.github/workflows/deploy.yml](file:///e:/NovelSystem/taotao-writing-master/.github/workflows/deploy.yml)：
+   ```yaml
+   name: Deploy to GitHub Pages
+   
+   on:
+     push:
+       branches: [ main ]
+   
+   jobs:
+     deploy:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v3
+         
+         - name: Setup Node.js
+           uses: actions/setup-node@v3
+           with:
+             node-version: '18'
+             
+         - name: Setup pnpm
+           uses: pnpm/action-setup@v2
+           with:
+             version: '8'
+             
+         - name: Install dependencies
+           run: pnpm install
+           
+         - name: Build
+           run: pnpm build
+           
+         - name: Deploy to GitHub Pages
+           uses: peaceiris/actions-gh-pages@v3
+           with:
+             github_token: ${{ secrets.GITHUB_TOKEN }}
+             publish_dir: ./dist
+   ```
+
+4. 推送此文件到 GitHub：
+   ```bash
+   git add .github/workflows/deploy.yml
+   git commit -m "Add GitHub Pages deployment workflow"
+   git push origin main
+   ```
+
+5. 在 GitHub 仓库的 Settings > Pages 中设置：
+   - Source: Deploy from a branch
+   - Branch: gh-pages
+
+## Gitee Pages 部署（如果可用）
 
 1. 确保仓库为公开仓库
 2. 在仓库页面点击"服务"选项卡
@@ -13,7 +76,7 @@
 - Pages 服务仅对部分用户开放
 - 仓库设置问题
 
-## 如果 Gitee Pages 不可用的替代方案
+## 如果 Gitee Pages 和 GitHub Pages 都不可用的替代方案
 
 ### 方案一：使用 Gitee Go（如果可用）
 Gitee Go 是 Gitee 提供的 CI/CD 服务，可以用来部署静态网站。
@@ -62,3 +125,6 @@ A: 检查您的 Gitee 账户套餐，或者联系 Gitee 客服确认。
 
 ### Q: 有没有其他免费的国内静态网站托管服务？
 A: 可以考虑使用 coding.net 的 Pages 服务，或者使用一些云服务商提供的免费额度。
+
+### Q: GitHub Pages 在国内访问速度如何？
+A: GitHub Pages 在国内访问速度一般，但比 Vercel 要好一些。如果需要更好的国内访问速度，建议使用国内的云服务提供商。
