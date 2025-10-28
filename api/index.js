@@ -172,6 +172,172 @@ async function initializeAdminUser() {
 // 连接数据库
 connectToDatabase();
 
+// 导入bcrypt用于密码验证
+let bcrypt;
+import('bcrypt').then(bcryptModule => {
+  bcrypt = bcryptModule.default;
+}).catch(error => {
+  console.error('Failed to import bcrypt:', error);
+});
+
+// 用户认证路由
+// 用户登录
+app.post('/api/auth/login', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ success: false, message: 'Database not connected' });
+  }
+  
+  try {
+    const { email, password } = req.body;
+    
+    // 查找用户
+    const user = await db.collection('users').findOne({ email });
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: '用户不存在' });
+    }
+    
+    // 验证密码
+    if (!bcrypt) {
+      return res.status(500).json({ success: false, message: 'Bcrypt not available' });
+    }
+    
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: '密码错误' });
+    }
+    
+    // 更新最后登录时间
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { lastLoginAt: new Date() } }
+    );
+    
+    // 返回用户信息（不包含密码哈希）
+    const { passwordHash, ...userWithoutPassword } = user;
+    
+    // 生成简单token（实际应用中应使用JWT）
+    const token = btoa(`${user._id}:${Date.now()}`);
+    
+    res.json({
+      success: true,
+      user: userWithoutPassword,
+      message: '登录成功',
+      token
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ success: false, message: '登录失败' });
+  }
+});
+
+// 用户注册
+app.post('/api/auth/register', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ success: false, message: 'Database not connected' });
+  }
+  
+  try {
+    const { email, username, password } = req.body;
+    
+    // 检查邮箱是否已存在
+    const existingUser = await db.collection('users').findOne({ email });
+    
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: '该邮箱已被注册' });
+    }
+    
+    // 导入bcrypt
+    if (!bcrypt) {
+      return res.status(500).json({ success: false, message: 'Bcrypt not available' });
+    }
+    
+    // 加密密码
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    // 创建新用户（默认为免费会员）
+    const newUser = {
+      _id: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+      email,
+      username,
+      passwordHash,
+      createdAt: new Date(),
+      lastLoginAt: null,
+      membershipInfo: {
+        level: 'FREE',
+        expiryDate: null,
+        maxNovels: 3,
+        aiGenerationLimit: 10,
+        aiGenerationUsed: 0,
+        features: [
+          'novel_creation',
+          'basic_editing',
+          'txt_export',
+          'markdown_export'
+        ],
+        teamEnabled: false,
+        maxTeamMembers: 0,
+        isAdmin: false,
+        username: username,
+        email: email
+      }
+    };
+    
+    await db.collection('users').insertOne(newUser);
+    
+    // 返回用户信息（不包含密码哈希）
+    const { passwordHash: removedPasswordHash, ...userWithoutPassword } = newUser;
+    
+    // 生成简单token
+    const token = btoa(`${newUser._id}:${Date.now()}`);
+    
+    res.status(201).json({
+      success: true,
+      user: userWithoutPassword,
+      message: '注册成功',
+      token
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ success: false, message: '注册失败' });
+  }
+});
+
+// 验证用户token
+app.post('/api/auth/verify-token', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ success: false, message: 'Database not connected' });
+  }
+  
+  try {
+    const { token } = req.body;
+    
+    // 解析token
+    const decoded = atob(token);
+    const [userId] = decoded.split(':');
+    
+    // 查找用户
+    const user = await db.collection('users').findOne({ _id: userId });
+    
+    if (!user) {
+      return res.status(401).json({ success: false, message: '认证失败' });
+    }
+    
+    // 返回用户信息（不包含密码哈希）
+    const { passwordHash, ...userWithoutPassword } = user;
+    
+    res.json({
+      success: true,
+      user: userWithoutPassword,
+      message: '认证成功'
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(500).json({ success: false, message: '认证失败' });
+  }
+});
+
 // 用户API路由
 app.get('/api/users', async (req, res) => {
   if (!db) {

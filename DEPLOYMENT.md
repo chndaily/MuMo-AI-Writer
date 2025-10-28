@@ -188,3 +188,14 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 1. 后端服务是否正常运行
 2. `VITE_API_BASE_URL`环境变量是否正确设置
 3. CORS配置是否允许来自前端的请求
+
+### 登录时出现405错误
+405错误表示"Method Not Allowed"，即请求的方法不被允许。这通常是因为后端没有正确处理前端发送的HTTP请求方法（如POST）。
+
+解决方案：
+1. 确保后端API已正确实现POST方法的路由
+2. 检查Vercel部署是否包含了所有API文件
+3. 确认环境变量已正确配置
+4. 测试API端点是否正常工作：
+   - 访问 `https://你的项目域名.vercel.app/api/health` 检查服务状态
+   - 访问 `https://你的项目域名.vercel.app/api/test/db-test` 检查数据库连接
