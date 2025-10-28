@@ -1,6 +1,7 @@
 // 测试API端点
 const express = require('express');
 const { MongoClient } = require('mongodb');
+const bcrypt = require('bcrypt');
 
 const app = express();
 
@@ -88,6 +89,55 @@ app.get('/collections', async (req, res) => {
     res.json(collections);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// 测试认证端点
+app.post('/auth-test', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ 
+      status: 'error',
+      message: 'Database not connected'
+    });
+  }
+  
+  try {
+    const { email, password } = req.body;
+    
+    // 查找用户
+    const user = await db.collection('users').findOne({ email });
+    
+    if (!user) {
+      return res.status(401).json({ 
+        status: 'error',
+        message: '用户不存在'
+      });
+    }
+    
+    // 验证密码
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        status: 'error',
+        message: '密码错误'
+      });
+    }
+    
+    res.json({ 
+      status: 'success',
+      message: '认证成功',
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error',
+      message: error.message
+    });
   }
 });
 
