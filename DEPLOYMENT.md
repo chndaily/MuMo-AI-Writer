@@ -7,6 +7,7 @@
 - [国内部署选项](#国内部署选项)
 - [后端服务部署](#后端服务部署)
 - [MongoDB数据库配置](#mongodb数据库配置)
+- [环境变量配置](#环境变量配置)
 - [常见问题解决](#常见问题解决)
 
 ## Vercel部署
@@ -24,7 +25,7 @@
 - Output Directory: `dist`
 - Install Command: `pnpm install`
 
-### 环境变量设置
+### 玟境变量设置
 在Vercel项目设置中配置以下环境变量：
 - `MONGODB_URI` = `你的MongoDB Atlas连接字符串`
 - `VITE_API_BASE_URL` = `https://你的项目域名.vercel.app`
@@ -168,6 +169,26 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 无论使用哪种部署方式，都需要配置以下环境变量：
 - `MONGODB_URI` = `mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/mumo-ai-writer`
 
+## 环境变量配置
+
+### 项目中的环境变量文件
+项目包含以下环境变量配置文件：
+- [.env.example](file:///e:/NovelSystem/taotao-writing-master/.env.example) - 环境变量示例文件
+- [.env.server](file:///e:/NovelSystem/taotao-writing-master/.env.server) - 服务器端环境变量配置
+- [.env](file:///e:/NovelSystem/taotao-writing-master/.env) - 本地开发环境变量配置
+
+### 必需的环境变量
+在部署时，需要配置以下环境变量：
+
+1. **MongoDB连接字符串**：
+   - 变量名：`MONGODB_URI`
+   - 值格式：`mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/mumo-ai-writer`
+
+2. **API基础URL**：
+   - 变量名：`VITE_API_BASE_URL`
+   - 值格式：`https://你的项目域名.vercel.app`（Vercel部署时）
+   - 值格式：`https://你的后端服务域名`（Netlify等静态托管平台）
+
 ## 常见问题解决
 
 ### "Cannot find module 'novel'"错误
@@ -192,13 +213,35 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 ### 登录时出现405错误
 405错误表示"Method Not Allowed"，即请求的方法不被允许。这通常是因为后端没有正确处理前端发送的HTTP请求方法（如POST）。
 
-解决方案：
+#### 解决方案：
 1. 确保后端API已正确实现POST方法的路由
 2. 检查Vercel部署是否包含了所有API文件
 3. 确认环境变量已正确配置
 4. 测试API端点是否正常工作：
    - 访问 `https://你的项目域名.vercel.app/api/health` 检查服务状态
    - 访问 `https://你的项目域名.vercel.app/api/test/db-test` 检查数据库连接
+
+#### 故障排除步骤：
+1. **检查API路由配置**：
+   - 确认[vercel.json](file:///e:/NovelSystem/taotao-writing-master/vercel.json)中正确配置了API路由
+   - 确保API文件路径正确
+
+2. **验证API端点**：
+   - 直接在浏览器中访问 `https://你的项目域名.vercel.app/api/health` 检查API服务是否正常运行
+   - 使用curl或Postman测试POST请求：
+     ```bash
+     curl -X POST https://你的项目域名.vercel.app/api/auth/login \
+          -H "Content-Type: application/json" \
+          -d '{"email":"test@example.com","password":"test123"}'
+     ```
+
+3. **检查环境变量**：
+   - 确保在Vercel项目设置中正确配置了`VITE_API_BASE_URL`
+   - 检查前端是否正确读取了环境变量
+
+4. **查看部署日志**：
+   - 在Vercel控制台查看部署日志，检查是否有错误信息
+   - 检查API函数的运行日志
 
 ### Function Runtimes版本错误
 错误信息：`Error: Function Runtimes must have a valid version`
