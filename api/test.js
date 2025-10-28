@@ -141,4 +141,8 @@ app.post('/auth-test', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 module.exports = app;
+=======
+module.exports = app;
+>>>>>>> a5c870c3dd7a67baaf6da7a5b0110c2a194438e3
