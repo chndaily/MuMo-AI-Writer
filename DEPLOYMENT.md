@@ -2,6 +2,7 @@
 
 ## 目录
 - [Vercel部署](#vercel部署)
+- [Render部署](#render部署)
 - [Netlify部署](#netlify部署)
 - [GitHub Pages部署](#github-pages部署)
 - [国内部署选项](#国内部署选项)
@@ -36,6 +37,47 @@
 - 后端API服务部署在`/api/*`路径下
 - 数据库通过MongoDB Atlas云服务连接
 
+## Render部署
+
+### 后端服务部署（推荐）
+Render是一个对国内访问友好的部署平台，支持Node.js后端服务。
+
+1. 访问[Render官网](https://render.com/)并注册账号
+2. 点击"New" -> "Web Service"
+3. 连接你的GitHub仓库
+4. 填写以下配置：
+   - Name: mumo-ai-writer-backend
+   - Region: 选择离你较近的地区
+   - Branch: main
+   - Root Directory: 保持为空
+   - Environment: Node
+   - Build Command: `pnpm install`
+   - Start Command: `node server.cjs`
+5. 在"Advanced"中添加环境变量：
+   - `MONGODB_URI` = `mongodb+srv://mumo_db_user:QEbsvb7lBJm51kOG@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
+   - `VITE_API_BASE_URL` = `https://你的Render应用域名.onrender.com`
+   - `WECHAT_APPID` = `你的微信AppID（可选）`
+   - `WECHAT_MCHID` = `你的微信商户ID（可选）`
+   - `ALIPAY_APP_ID` = `你的支付宝AppID（可选）`
+6. 点击"Create Web Service"
+
+### 前端静态网站部署
+1. 访问[Render官网](https://render.com/)并登录
+2. 点击"New" -> "Static Site"
+3. 连接你的GitHub仓库
+4. 填写以下配置：
+   - Name: mumo-ai-writer-frontend
+   - Build Command: `pnpm build:vercel`
+   - Publish Directory: `dist`
+5. 添加环境变量：
+   - `VITE_API_BASE_URL` = `https://你的Render后端服务域名.onrender.com`
+6. 点击"Create Static Site"
+
+### 自定义域名配置
+1. 在Render项目设置中找到"Custom Domains"
+2. 添加你的自定义域名
+3. 按照提示配置DNS记录
+
 ## Netlify部署
 
 ### 配置文件
@@ -62,7 +104,7 @@
 由于Netlify只托管静态文件，你需要设置API基础URL环境变量：
 1. 在Netlify项目设置中找到"Environment variables"
 2. 添加以下变量：
-   - `VITE_API_BASE_URL` = `https://你的后端服务URL`
+   - `VITE_API_BASE_URL` = `你的后端服务URL`
 
 ## GitHub Pages部署
 
@@ -130,27 +172,11 @@ jobs:
 
 由于Netlify、GitHub Pages等静态托管平台不支持后端服务，你需要将后端服务部署到支持Node.js的平台。
 
-### Vercel部署后端（推荐）
-Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
+### Render部署后端（推荐）
+Render支持全栈部署，后端服务会自动部署。
 
-### Render部署（推荐）
-1. 访问[Render官网](https://render.com/)并注册账号
-2. 点击"New" -> "Web Service"
-3. 连接你的GitHub仓库
-4. 填写以下配置：
-   - Name: 任意名称
-   - Region: 选择离你较近的地区
-   - Branch: main
-   - Root Directory: 保持为空
-   - Environment: Node
-   - Build Command: `npm install`
-   - Start Command: `node server.cjs`
-5. 在"Advanced"中添加环境变量：
-   - `MONGODB_URI` = `mongodb+srv://mumo_db_user:QEbsvb7lBJm51kOG@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
-   - `WECHAT_APPID` = `你的微信AppID（可选）`
-   - `WECHAT_MCHID` = `你的微信商户ID（可选）`
-   - `ALIPAY_APP_ID` = `你的支付宝AppID（可选）`
-6. 点击"Create Web Service"
+### Vercel部署后端（如果Vercel可用）
+Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 
 ## MongoDB数据库配置
 
@@ -227,32 +253,27 @@ node validate-config.js
 
 #### 解决方案：
 1. 确保后端API已正确实现POST方法的路由
-2. 检查Vercel部署是否包含了所有API文件
+2. 检查部署平台是否包含了所有API文件
 3. 确认环境变量已正确配置
 4. 测试API端点是否正常工作：
-   - 访问 `https://你的项目域名.vercel.app/api/health` 检查服务状态
-   - 访问 `https://你的项目域名.vercel.app/api/test/db-test` 检查数据库连接
+   - 访问 `https://你的项目域名/api/health` 检查服务状态
+   - 访问 `https://你的项目域名/api/test/db-test` 检查数据库连接
 
 #### 故障排除步骤：
 1. **检查API路由配置**：
-   - 确认[vercel.json](file:///e:/NovelSystem/taotao-writing-master/vercel.json)中正确配置了API路由
+   - 确认配置文件中正确配置了API路由
    - 确保API文件路径正确
 
 2. **验证API端点**：
-   - 直接在浏览器中访问 `https://你的项目域名.vercel.app/api/health` 检查API服务是否正常运行
-   - 使用curl或Postman测试POST请求：
-     ```bash
-     curl -X POST https://你的项目域名.vercel.app/api/auth/login \
-          -H "Content-Type: application/json" \
-          -d '{"email":"test@example.com","password":"test123"}'
-     ```
+   - 直接在浏览器中访问健康检查端点检查API服务是否正常运行
+   - 使用curl或Postman测试POST请求
 
 3. **检查环境变量**：
-   - 确保在Vercel项目设置中正确配置了`VITE_API_BASE_URL`
+   - 确保在部署平台项目设置中正确配置了`VITE_API_BASE_URL`
    - 检查前端是否正确读取了环境变量
 
 4. **查看部署日志**：
-   - 在Vercel控制台查看部署日志，检查是否有错误信息
+   - 在部署平台控制台查看部署日志，检查是否有错误信息
    - 检查API函数的运行日志
 
 ### "(intermediate value).find is not a function"错误
@@ -265,24 +286,21 @@ node validate-config.js
    - 避免直接在查询游标上调用数组方法
 
 2. **测试数据库连接**：
-   - 运行测试脚本检查数据库连接：
-     ```bash
-     node test-database-connection.js https://mumoai.vercel.app
-     ```
+   - 运行测试脚本检查数据库连接
 
 3. **查看后端日志**：
-   - 在Vercel控制台查看API函数日志
+   - 在部署平台控制台查看API函数日志
    - 检查是否有数据库连接错误或查询错误
 
 ### Function Runtimes版本错误
 错误信息：`Error: Function Runtimes must have a valid version`
 
-这是由于Vercel配置中函数运行时版本指定不正确导致的。解决方案：
-1. 在[vercel.json](file:///e:/NovelSystem/taotao-writing-master/vercel.json)文件中，将`"runtime": "nodejs18.x"`修改为`"runtime": "@vercel/node@3.0.7"`
+这是由于配置中函数运行时版本指定不正确导致的。解决方案：
+1. 在配置文件中，将`"runtime": "nodejs18.x"`修改为`"runtime": "@vercel/node@3.0.7"`
 2. 重新部署项目
-3. 确保使用Vercel支持的运行时版本
+3. 确保使用支持的运行时版本
 
-Vercel支持的Node.js运行时版本包括：
+支持的Node.js运行时版本包括：
 - `@vercel/node@3.0.7` (推荐)
 - `@vercel/node@2.13.0`
 - `@vercel/node@1.14.0`

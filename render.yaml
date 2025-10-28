@@ -1,0 +1,30 @@
+# Render部署配置文件
+services:
+  - type: web
+    name: mumo-ai-writer
+    env: node
+    buildCommand: pnpm install
+    startCommand: node server.cjs
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: MONGODB_URI
+        sync: false
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: WECHAT_APPID
+        sync: false
+      - key: WECHAT_MCHID
+        sync: false
+      - key: ALIPAY_APP_ID
+        sync: false
+
+staticSites:
+  - name: mumo-ai-writer-frontend
+    buildCommand: pnpm build:vercel
+    staticPublishPath: ./dist
+    environment:
+      - key: NODE_VERSION
+        value: 18
+      - key: VITE_API_BASE_URL
+        sync: false
