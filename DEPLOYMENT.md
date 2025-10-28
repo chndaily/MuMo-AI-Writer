@@ -199,3 +199,18 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 4. 测试API端点是否正常工作：
    - 访问 `https://你的项目域名.vercel.app/api/health` 检查服务状态
    - 访问 `https://你的项目域名.vercel.app/api/test/db-test` 检查数据库连接
+
+### Function Runtimes版本错误
+错误信息：`Error: Function Runtimes must have a valid version`
+
+这是由于Vercel配置中函数运行时版本指定不正确导致的。解决方案：
+1. 在[vercel.json](file:///e:/NovelSystem/taotao-writing-master/vercel.json)文件中，将`"runtime": "nodejs18.x"`修改为`"runtime": "@vercel/node@3.0.7"`
+2. 重新部署项目
+3. 确保使用Vercel支持的运行时版本
+
+Vercel支持的Node.js运行时版本包括：
+- `@vercel/node@3.0.7` (推荐)
+- `@vercel/node@2.13.0`
+- `@vercel/node@1.14.0`
+
+避免使用如`nodejs18.x`这样的格式，应该使用`@vercel/node@版本号`的格式。
