@@ -11,7 +11,7 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: VITE_API_BASE_URL
-        sync: false
+        value: https://mumoai.onrender.com
       - key: WECHAT_APPID
         sync: false
       - key: WECHAT_MCHID
@@ -27,4 +27,4 @@ staticSites:
       - key: NODE_VERSION
         value: 18
       - key: VITE_API_BASE_URL
-        sync: false
+        value: https://mumoai.onrender.com

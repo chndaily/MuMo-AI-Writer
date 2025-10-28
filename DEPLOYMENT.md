@@ -55,11 +55,13 @@ Render是一个对国内访问友好的部署平台，支持Node.js后端服务�
    - Start Command: `node server.cjs`
 5. 在"Advanced"中添加环境变量：
    - `MONGODB_URI` = `mongodb+srv://mumo_db_user:QEbsvb7lBJm51kOG@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
-   - `VITE_API_BASE_URL` = `https://你的Render应用域名.onrender.com`
+   - `VITE_API_BASE_URL` = `https://mumoai.onrender.com`
    - `WECHAT_APPID` = `你的微信AppID（可选）`
    - `WECHAT_MCHID` = `你的微信商户ID（可选）`
    - `ALIPAY_APP_ID` = `你的支付宝AppID（可选）`
 6. 点击"Create Web Service"
+
+**重要提示：** 如果你已经部署了后端服务，请重新部署以应用最新的CORS配置和健康检查端点。
 
 ### 前端静态网站部署
 1. 访问[Render官网](https://render.com/)并登录
@@ -70,8 +72,10 @@ Render是一个对国内访问友好的部署平台，支持Node.js后端服务�
    - Build Command: `pnpm build:vercel`
    - Publish Directory: `dist`
 5. 添加环境变量：
-   - `VITE_API_BASE_URL` = `https://你的Render后端服务域名.onrender.com`
+   - `VITE_API_BASE_URL` = `https://mumoai.onrender.com`
 6. 点击"Create Static Site"
+
+**重要提示：** 如果你已经部署了前端服务，请重新部署以应用最新的环境变量配置。
 
 ### 自定义域名配置
 1. 在Render项目设置中找到"Custom Domains"

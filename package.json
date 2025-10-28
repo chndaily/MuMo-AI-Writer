@@ -51,6 +51,7 @@
     "lucide-react": "^0.542.0",
     "mongodb": "^6.20.0",
     "next-themes": "^0.4.6",
+    "node-fetch": "^3.3.2",
     "novel": "workspace:*",
     "ramda": "^0.31.3",
     "react": "^18.3.1",

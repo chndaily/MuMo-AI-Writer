@@ -1,44 +1,54 @@
-// API测试脚本
-async function testAPI() {
-  const apiUrl = process.argv[2] || 'http://localhost:3000';
-  
-  console.log(`Testing API at: ${apiUrl}`);
-  
+// 简单的API测试脚本
+// 使用Node.js内置的fetch
+
+async function testApi() {
   try {
-    // 测试健康检查端点
-    console.log('\n1. Testing health endpoint...');
-    const healthResponse = await fetch(`${apiUrl}/api/health`);
-    console.log('Health Status:', healthResponse.status);
-    const healthData = await healthResponse.json();
-    console.log('Health Data:', healthData);
+    console.log('=== 木墨文坊 API 测试 ===\n');
     
-    // 测试登录端点 (POST方法)
-    console.log('\n2. Testing login endpoint (POST)...');
-    const loginResponse = await fetch(`${apiUrl}/api/auth/login`, {
+    // 测试健康检查端点
+    console.log('1. 测试健康检查端点...');
+    const healthResponse = await fetch('https://mumoai.onrender.com/api/health');
+    console.log('   状态码:', healthResponse.status);
+    
+    const healthText = await healthResponse.text();
+    
+    // 尝试解析为JSON
+    try {
+      const healthData = JSON.parse(healthText);
+      console.log('   响应数据:', JSON.stringify(healthData, null, 2));
+    } catch (parseError) {
+      console.log('   响应内容 (非JSON):', healthText.substring(0, 100) + '...');
+    }
+    
+    // 测试用户登录端点
+    console.log('\n2. 测试用户登录端点...');
+    const loginResponse = await fetch('https://mumoai.onrender.com/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: 'test@example.com',
-        password: 'test123'
+        email: 'admin@example.com',
+        password: 'admin123'
       })
     });
-    console.log('Login Status:', loginResponse.status);
-    const loginData = await loginResponse.json();
-    console.log('Login Data:', loginData);
     
-    // 测试登录端点 (GET方法) - 这应该返回405错误
-    console.log('\n3. Testing login endpoint (GET) - should return 405...');
-    const getLoginResponse = await fetch(`${apiUrl}/api/auth/login`);
-    console.log('GET Login Status:', getLoginResponse.status);
-    if (getLoginResponse.status === 405) {
-      console.log('✓ Correctly returned 405 for GET request to POST-only endpoint');
+    console.log('   状态码:', loginResponse.status);
+    const loginText = await loginResponse.text();
+    
+    // 尝试解析为JSON
+    try {
+      const loginData = JSON.parse(loginText);
+      console.log('   响应数据:', JSON.stringify(loginData, null, 2));
+    } catch (parseError) {
+      console.log('   响应内容 (非JSON):', loginText.substring(0, 100) + '...');
     }
     
+    console.log('\n=== 测试完成 ===');
+    
   } catch (error) {
-    console.error('Error testing API:', error);
+    console.error('API测试失败:', error);
   }
 }
 
-testAPI();
+testApi();

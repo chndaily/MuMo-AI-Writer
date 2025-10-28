@@ -9,10 +9,15 @@ const port = 3001;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// 添加CORS中间件
+// 添加CORS中间件 - 修复CORS问题，允许Render部署的域名
 const cors = require('cors');
 app.use(cors({
-  origin: ['http://localhost:3030', 'http://127.0.0.1:3030'],
+  origin: [
+    'http://localhost:3030', 
+    'http://127.0.0.1:3030',
+    'https://mumo-qxrm.onrender.com',  // 添加Render前端域名
+    'https://mumoai.onrender.com'      // 添加Render后端域名（如果需要）
+  ],
   credentials: true
 }));
 
@@ -1983,6 +1988,15 @@ app.delete('/api/prompt-library/:id', async (req, res) => {
     console.error('Failed to delete prompt library collection:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// 健康检查端点
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    database: db ? 'Connected' : 'Disconnected',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // 启动服务器
