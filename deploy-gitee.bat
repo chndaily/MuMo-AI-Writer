@@ -2,8 +2,38 @@
 setlocal enabledelayedexpansion
 
 echo ================================
-echo 木墨文坊 Gitee 部署脚本
+echo 木墨文坊 部署脚本
 echo ================================
+
+echo 请选择部署方式：
+echo 1. Gitee Pages 部署（需要 Gitee Pages 服务）
+echo 2. 本地构建（构建完成后手动上传到其他平台）
+echo 3. 查看部署说明文档
+echo.
+choice /c 123 /m "请选择部署方式"
+
+if %errorlevel% equ 3 (
+    echo 正在打开部署说明文档...
+    start DEPLOYMENT.md
+    pause
+    exit /b
+)
+
+if %errorlevel% equ 2 (
+    echo 正在构建项目...
+    pnpm build
+    if %errorlevel% neq 0 (
+        echo 错误：构建失败，请检查错误信息
+        pause
+        exit /b %errorlevel%
+    )
+    echo.
+    echo 构建完成！文件位于 dist 目录中
+    echo 您可以将这些文件上传到任何支持静态文件托管的服务
+    echo 请查看 DEPLOYMENT.md 获取更多部署选项
+    pause
+    exit /b
+)
 
 echo 正在检查 Git 状态...
 git status --porcelain >nul 2>&1
@@ -49,6 +79,12 @@ if %errorlevel% neq 0 (
 
 echo ================================
 echo 部署完成！
-echo 请访问 Gitee 仓库页面，在 Pages 服务中点击"重新部署"按钮
+echo.
+echo 请访问 Gitee 仓库页面，检查是否有 Pages 服务
+echo 如果找不到 Pages 服务，请查看 DEPLOYMENT.md 获取其他部署选项
+echo 常见原因：
+echo   1. 您的 Gitee 账户等级不支持 Pages 服务
+echo   2. Pages 服务仅对部分用户开放
+echo   3. 仓库设置问题
 echo ================================
 pause
