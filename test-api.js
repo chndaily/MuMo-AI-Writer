@@ -40,6 +40,12 @@ async function testApi() {
     try {
       const loginData = JSON.parse(loginText);
       console.log('   响应数据:', JSON.stringify(loginData, null, 2));
+      
+      if (loginData.success) {
+        console.log('   登录成功！API服务正常工作。');
+      } else {
+        console.log('   登录失败:', loginData.message);
+      }
     } catch (parseError) {
       console.log('   响应内容 (非JSON):', loginText.substring(0, 100) + '...');
     }
