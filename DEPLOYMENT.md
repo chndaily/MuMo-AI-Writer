@@ -1,148 +1,190 @@
-# 木墨文坊部署指南
+# 部署指南
 
-## Netlify 部署（推荐的替代方案）
+## 目录
+- [Vercel部署](#vercel部署)
+- [Netlify部署](#netlify部署)
+- [GitHub Pages部署](#github-pages部署)
+- [国内部署选项](#国内部署选项)
+- [后端服务部署](#后端服务部署)
+- [MongoDB数据库配置](#mongodb数据库配置)
+- [常见问题解决](#常见问题解决)
 
-由于 Gitee Pages 可能不可用，推荐使用 Netlify 作为替代方案：
+## Vercel部署
 
-1. 注册 Netlify 账号（如果还没有）
-2. 将代码推送到 GitHub：
-   ```bash
-   git push origin main
-   ```
+### 自动部署（推荐）
+1. 访问[Vercel官网](https://vercel.com/)并使用GitHub账号登录
+2. 点击"New Project"
+3. 选择你的项目仓库
+4. Vercel会自动检测项目配置并使用正确的构建设置
+5. 点击"Deploy"开始部署
 
-3. 在 Netlify 上连接 GitHub 仓库：
-   - 登录 Netlify 控制台
-   - 点击 "New site from Git"
-   - 选择 GitHub 并授权
-   - 选择您的仓库
+### 手动配置
+如果自动检测失败，需要手动配置：
+- Build Command: `pnpm build:vercel`
+- Output Directory: `dist`
+- Install Command: `pnpm install`
 
-4. 配置部署设置：
-   - Build command: `pnpm build:vercel`
-   - Publish directory: `dist`
+### 环境变量设置
+在Vercel项目设置中配置以下环境变量：
+- `MONGODB_URI` = `你的MongoDB Atlas连接字符串`
+- `VITE_API_BASE_URL` = `https://你的项目域名.vercel.app`
 
-5. 部署完成后，Netlify 会提供一个临时域名
+### 全栈部署说明
+项目支持在Vercel上同时部署前端和后端：
+- 前端静态文件部署在根路径
+- 后端API服务部署在`/api/*`路径下
+- 数据库通过MongoDB Atlas云服务连接
 
-## GitHub Pages 部署（推荐的替代方案）
+## Netlify部署
 
-由于 Gitee Pages 可能不可用，推荐使用 GitHub Pages 作为替代方案：
+### 配置文件
+项目根目录已包含[netlify.toml](file:///e:/NovelSystem/taotao-writing-master/netlify.toml)配置文件：
 
-1. 确保代码已推送到 GitHub：
-   ```bash
-   git push origin main
-   ```
+```toml
+[build]
+  command = "pnpm build:vercel"
+  publish = "dist"
 
-2. 在 GitHub 仓库中启用 Pages：
-   - 进入仓库的 Settings
-   - 点击左侧菜单的 Pages
-   - 选择 Source 为 GitHub Actions
-   - 保存设置
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_FLAGS = "--version"
+```
 
-3. 创建 GitHub Actions 工作流文件 [.github/workflows/deploy.yml](file:///e:/NovelSystem/taotao-writing-master/.github/workflows/deploy.yml)：
-   ```yaml
-   name: Deploy to GitHub Pages
-   
-   on:
-     push:
-       branches: [ main ]
-   
-   jobs:
-     deploy:
-       runs-on: ubuntu-latest
-       steps:
-         - uses: actions/checkout@v3
-         
-         - name: Setup Node.js
-           uses: actions/setup-node@v3
-           with:
-             node-version: '18'
-             
-         - name: Setup pnpm
-           uses: pnpm/action-setup@v2
-           with:
-             version: '8'
-             
-         - name: Install dependencies
-           run: pnpm install
-           
-         - name: Build
-           run: pnpm build:vercel
-           
-         - name: Deploy to GitHub Pages
-           uses: peaceiris/actions-gh-pages@v3
-           with:
-             github_token: ${{ secrets.GITHUB_TOKEN }}
-             publish_dir: ./dist
-   ```
+### 部署步骤
+1. 访问[Netlify官网](https://www.netlify.com/)并使用GitHub账号登录
+2. 点击"Add new site" -> "Import an existing project"
+3. 选择你的GitHub仓库
+4. Netlify会自动使用[netlify.toml](file:///e:/NovelSystem/taotao-writing-master/netlify.toml)中的配置
+5. 点击"Deploy site"
 
-4. 推送此文件到 GitHub：
-   ```bash
-   git add .github/workflows/deploy.yml
-   git commit -m "Add GitHub Pages deployment workflow"
-   git push origin main
-   ```
+### 环境变量设置
+由于Netlify只托管静态文件，你需要设置API基础URL环境变量：
+1. 在Netlify项目设置中找到"Environment variables"
+2. 添加以下变量：
+   - `VITE_API_BASE_URL` = `你的后端服务URL`
 
-5. 在 GitHub 仓库的 Settings > Pages 中设置：
-   - Source: Deploy from a branch
-   - Branch: gh-pages
+## GitHub Pages部署
 
-## Gitee Pages 部署（如果可用）
+### 自动部署
+项目包含GitHub Actions工作流文件 [.github/workflows/deploy.yml](file:///e:/NovelSystem/taotao-writing-master/.github/workflows/deploy.yml)：
 
-1. 确保仓库为公开仓库
-2. 在仓库页面点击"服务"选项卡
-3. 查找并启用 Pages 服务
-4. 设置分支为 main，目录为 dist
-5. 点击"立即部署"
+```yaml
+name: Deploy to GitHub Pages
 
-**注意：如果找不到 Pages 服务，可能是由于以下原因：**
-- 您的 Gitee 账户等级不支持 Pages 服务
-- Pages 服务仅对部分用户开放
-- 仓库设置问题
+on:
+  push:
+    branches: [ main ]
 
-## 如果所有平台都不可用的替代方案
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '8'
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Build
+        run: pnpm build:vercel
+        
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+```
 
-### 方案一：使用 Gitee Go（如果可用）
-Gitee Go 是 Gitee 提供的 CI/CD 服务，可以用来部署静态网站。
+### 手动部署
+1. 构建项目：`pnpm build:vercel`
+2. 将`dist`目录内容推送到`gh-pages`分支
 
-### 方案二：腾讯云静态网站托管
-1. 注册腾讯云账号
-2. 进入对象存储 COS 控制台
-3. 创建存储桶并开启静态网站托管
-4. 将构建后的文件上传到存储桶
-5. 配置 CDN 加速（可选）
+### 环境变量设置
+在GitHub仓库设置中配置环境变量：
+- `VITE_API_BASE_URL` = `你的后端服务URL`
 
-### 方案三：阿里云静态网站托管
-1. 注册阿里云账号
-2. 进入对象存储 OSS 控制台
-3. 创建 Bucket 并开启静态网站托管
-4. 将构建后的文件上传到 Bucket
-5. 配置 CDN 加速（可选）
+## 国内部署选项
 
-### 方案四：手动部署到任何支持静态文件托管的服务
-1. 构建项目：
-   ```bash
-   pnpm build:vercel
-   ```
-2. 将 [dist](file:///e:/NovelSystem/taotao-writing-master/dist) 目录中的所有文件上传到支持静态文件托管的服务
+### Gitee Pages
+1. 将代码推送到Gitee仓库
+2. 在Gitee仓库设置中启用Pages服务
+3. 选择静态文件目录（通常是dist目录）
 
-## 自动化部署脚本
+### 服务器部署
+如果拥有自己的服务器，可以：
+1. 构建项目：`pnpm build:vercel`
+2. 将`dist`目录内容部署到Nginx/Apache服务器
+3. 配置反向代理指向后端服务
 
-使用 deploy-gitee.bat 脚本可以简化部署流程：
-- Windows 系统：双击运行 deploy-gitee.bat
-- 其他系统：参考脚本内容执行相应命令
+## 后端服务部署
 
-## 常见问题
+由于Netlify、GitHub Pages等静态托管平台不支持后端服务，你需要将后端服务部署到支持Node.js的平台。
 
-### Q: 为什么找不到 Pages 服务？
-A: 可能是因为您的 Gitee 账户等级不支持 Pages 服务，或者 Pages 服务仅对部分用户开放。
+### Vercel部署后端（推荐）
+Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 
-### Q: 如何检查我的 Gitee 账户是否支持 Pages？
-A: 检查您的 Gitee 账户套餐，或者联系 Gitee 客服确认。
+### Render部署（推荐）
+1. 访问[Render官网](https://render.com/)并注册账号
+2. 点击"New" -> "Web Service"
+3. 连接你的GitHub仓库
+4. 填写以下配置：
+   - Name: 任意名称
+   - Region: 选择离你较近的地区
+   - Branch: main
+   - Root Directory: 保持为空
+   - Environment: Node
+   - Build Command: `npm install`
+   - Start Command: `node server.cjs`
+5. 在"Advanced"中添加环境变量：
+   - `MONGODB_URI` = `你的MongoDB Atlas连接字符串`
+   - `WECHAT_APPID` = `你的微信AppID（可选）`
+   - `WECHAT_MCHID` = `你的微信商户ID（可选）`
+   - `ALIPAY_APP_ID` = `你的支付宝AppID（可选）`
+6. 点击"Create Web Service"
 
-### Q: 有没有其他免费的国内静态网站托管服务？
-A: 可以考虑使用 coding.net 的 Pages 服务，或者使用一些云服务商提供的免费额度。
+## MongoDB数据库配置
 
-### Q: GitHub Pages 在国内访问速度如何？
-A: GitHub Pages 在国内访问速度一般，但比 Vercel 要好一些。如果需要更好的国内访问速度，建议使用国内的云服务提供商。
+### 使用MongoDB Atlas（推荐）
+1. 访问[MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. 创建免费账户
+3. 创建M0免费集群
+4. 在"Database Access"中添加数据库用户
+5. 在"Network Access"中添加IP白名单（0.0.0.0/0表示允许所有IP）
+6. 获取连接字符串：
+   - 点击"Connect"按钮
+   - 选择"Connect your application"
+   - 复制连接字符串并替换用户名和密码
 
-### Q: 为什么部署时会出现 "Cannot find module 'novel'" 错误？
-A: 这是因为项目使用了 pnpm 工作区结构，"novel" 是一个本地工作区包。需要先构建这个本地包，然后再构建主应用。确保使用 `pnpm build:vercel` 命令而不是 `pnpm build`。
+### 环境变量配置
+无论使用哪种部署方式，都需要配置以下环境变量：
+- `MONGODB_URI` = `mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/mumo-ai-writer`
+
+## 常见问题解决
+
+### "Cannot find module 'novel'"错误
+这是由于pnpm工作区结构导致的构建顺序问题。确保使用`pnpm build:vercel`命令而不是`pnpm build`。
+
+### 页面空白和MIME类型错误
+这是由于资源路径配置不正确导致的。确保在[vite.config.ts](file:///e:/NovelSystem/taotao-writing-master/vite.config.ts)中正确配置了base路径。
+
+### 数据库连接失败
+如果遇到数据库连接问题，请检查：
+1. MongoDB Atlas连接字符串是否正确
+2. 数据库用户权限是否正确设置
+3. IP白名单是否允许来自后端服务的连接
+4. 环境变量是否正确配置
+
+### API请求失败
+如果前端无法连接到后端API，请检查：
+1. 后端服务是否正常运行
+2. `VITE_API_BASE_URL`环境变量是否正确设置
+3. CORS配置是否允许来自前端的请求
