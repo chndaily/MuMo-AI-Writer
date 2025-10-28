@@ -24,7 +24,7 @@ jobs:
         run: pnpm install
         
       - name: Build
-        run: pnpm build
+        run: pnpm build:vercel
         
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
