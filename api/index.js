@@ -115,6 +115,7 @@ async function initializeAdminUser() {
   
   try {
     // 检查是否已存在管理员账户
+    // 修复：正确使用MongoDB查询方法
     const adminUser = await db.collection('users').findOne({ username: 'admin' });
     
     if (!adminUser) {
@@ -345,9 +346,12 @@ app.get('/api/users', async (req, res) => {
   }
   
   try {
-    const users = await db.collection('users').find({}).toArray();
+    // 修复：正确使用MongoDB查询方法
+    const usersCursor = await db.collection('users').find({});
+    const users = await usersCursor.toArray();
     res.json(users);
   } catch (error) {
+    console.error('Get users error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -376,7 +380,9 @@ app.get('/api/novels', async (req, res) => {
   }
   
   try {
-    const novels = await db.collection('novels').find({}).toArray();
+    // 修复：正确使用MongoDB查询方法
+    const novelsCursor = await db.collection('novels').find({});
+    const novels = await novelsCursor.toArray();
     res.json(novels);
   } catch (error) {
     res.status(500).json({ error: error.message });

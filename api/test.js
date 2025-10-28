@@ -63,7 +63,9 @@ app.get('/db-test', async (req, res) => {
   
   try {
     // 测试数据库连接
-    const collections = await db.listCollections().toArray();
+    // 修复：正确使用MongoDB查询方法
+    const collectionsCursor = await db.listCollections();
+    const collections = await collectionsCursor.toArray();
     res.json({ 
       status: 'success',
       message: 'Database connection successful',
@@ -85,7 +87,9 @@ app.get('/collections', async (req, res) => {
   }
   
   try {
-    const collections = await db.listCollections().toArray();
+    // 修复：正确使用MongoDB查询方法
+    const collectionsCursor = await db.listCollections();
+    const collections = await collectionsCursor.toArray();
     res.json(collections);
   } catch (error) {
     res.status(500).json({ error: error.message });

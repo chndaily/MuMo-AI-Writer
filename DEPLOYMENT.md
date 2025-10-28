@@ -255,6 +255,25 @@ node validate-config.js
    - 在Vercel控制台查看部署日志，检查是否有错误信息
    - 检查API函数的运行日志
 
+### "(intermediate value).find is not a function"错误
+这个错误通常出现在MongoDB查询结果处理过程中，表示尝试在非数组或非查询对象上调用了find方法。
+
+#### 解决方案：
+1. **检查MongoDB查询代码**：
+   - 确保正确使用MongoDB查询方法
+   - 使用`await collection.find({}).toArray()`而不是`collection.find({})`
+   - 避免直接在查询游标上调用数组方法
+
+2. **测试数据库连接**：
+   - 运行测试脚本检查数据库连接：
+     ```bash
+     node test-database-connection.js https://mumoai.vercel.app
+     ```
+
+3. **查看后端日志**：
+   - 在Vercel控制台查看API函数日志
+   - 检查是否有数据库连接错误或查询错误
+
 ### Function Runtimes版本错误
 错误信息：`Error: Function Runtimes must have a valid version`
 
