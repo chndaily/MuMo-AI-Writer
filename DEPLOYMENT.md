@@ -25,10 +25,10 @@
 - Output Directory: `dist`
 - Install Command: `pnpm install`
 
-### 玟境变量设置
+### 环境变量设置
 在Vercel项目设置中配置以下环境变量：
-- `MONGODB_URI` = `你的MongoDB Atlas连接字符串`
-- `VITE_API_BASE_URL` = `https://你的项目域名.vercel.app`
+- `MONGODB_URI` = `mongodb+srv://mumo_db_user:QEbsvb7lBJm51kOG@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
+- `VITE_API_BASE_URL` = `https://mumoai.vercel.app`
 
 ### 全栈部署说明
 项目支持在Vercel上同时部署前端和后端：
@@ -62,7 +62,7 @@
 由于Netlify只托管静态文件，你需要设置API基础URL环境变量：
 1. 在Netlify项目设置中找到"Environment variables"
 2. 添加以下变量：
-   - `VITE_API_BASE_URL` = `你的后端服务URL`
+   - `VITE_API_BASE_URL` = `https://你的后端服务URL`
 
 ## GitHub Pages部署
 
@@ -146,7 +146,7 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
    - Build Command: `npm install`
    - Start Command: `node server.cjs`
 5. 在"Advanced"中添加环境变量：
-   - `MONGODB_URI` = `你的MongoDB Atlas连接字符串`
+   - `MONGODB_URI` = `mongodb+srv://mumo_db_user:QEbsvb7lBJm51kOG@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
    - `WECHAT_APPID` = `你的微信AppID（可选）`
    - `WECHAT_MCHID` = `你的微信商户ID（可选）`
    - `ALIPAY_APP_ID` = `你的支付宝AppID（可选）`
@@ -167,7 +167,12 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 
 ### 环境变量配置
 无论使用哪种部署方式，都需要配置以下环境变量：
-- `MONGODB_URI` = `mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/mumo-ai-writer`
+- `MONGODB_URI` = `mongodb+srv://<username>:<password>@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
+
+注意：
+1. 连接字符串必须包含数据库名称（mumo-ai-writer）
+2. 用户名和密码需要进行URL编码（特殊字符需要转换）
+3. 确保数据库用户具有读写权限
 
 ## 环境变量配置
 
@@ -182,12 +187,19 @@ Vercel支持全栈部署，后端服务会自动部署到`/api/*`路径下。
 
 1. **MongoDB连接字符串**：
    - 变量名：`MONGODB_URI`
-   - 值格式：`mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/mumo-ai-writer`
+   - 值格式：`mongodb+srv://<username>:<password>@<cluster>/<database-name>?<options>`
+   - 示例：`mongodb+srv://mumo_db_user:QEbsvb7lBJm51kOG@cluster0.lq7412x.mongodb.net/mumo-ai-writer?appName=Cluster0`
 
 2. **API基础URL**：
    - 变量名：`VITE_API_BASE_URL`
-   - 值格式：`https://你的项目域名.vercel.app`（Vercel部署时）
-   - 值格式：`https://你的后端服务域名`（Netlify等静态托管平台）
+   - 值格式：`https://<your-domain>.vercel.app`（Vercel部署时）
+   - 示例：`https://mumoai.vercel.app`
+
+### 环境变量验证
+项目包含验证脚本[validate-config.js](file:///e:/NovelSystem/taotao-writing-master/validate-config.js)，可以运行以下命令检查配置：
+```bash
+node validate-config.js
+```
 
 ## 常见问题解决
 
