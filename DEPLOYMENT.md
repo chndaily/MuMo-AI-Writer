@@ -1,5 +1,27 @@
 # 木墨文坊部署指南
 
+## Netlify 部署（推荐的替代方案）
+
+由于 Gitee Pages 可能不可用，推荐使用 Netlify 作为替代方案：
+
+1. 注册 Netlify 账号（如果还没有）
+2. 将代码推送到 GitHub：
+   ```bash
+   git push origin main
+   ```
+
+3. 在 Netlify 上连接 GitHub 仓库：
+   - 登录 Netlify 控制台
+   - 点击 "New site from Git"
+   - 选择 GitHub 并授权
+   - 选择您的仓库
+
+4. 配置部署设置：
+   - Build command: `pnpm build:vercel`
+   - Publish directory: `dist`
+
+5. 部署完成后，Netlify 会提供一个临时域名
+
 ## GitHub Pages 部署（推荐的替代方案）
 
 由于 Gitee Pages 可能不可用，推荐使用 GitHub Pages 作为替代方案：
@@ -43,7 +65,7 @@
            run: pnpm install
            
          - name: Build
-           run: pnpm build
+           run: pnpm build:vercel
            
          - name: Deploy to GitHub Pages
            uses: peaceiris/actions-gh-pages@v3
@@ -76,7 +98,7 @@
 - Pages 服务仅对部分用户开放
 - 仓库设置问题
 
-## 如果 Gitee Pages 和 GitHub Pages 都不可用的替代方案
+## 如果所有平台都不可用的替代方案
 
 ### 方案一：使用 Gitee Go（如果可用）
 Gitee Go 是 Gitee 提供的 CI/CD 服务，可以用来部署静态网站。
@@ -95,17 +117,10 @@ Gitee Go 是 Gitee 提供的 CI/CD 服务，可以用来部署静态网站。
 4. 将构建后的文件上传到 Bucket
 5. 配置 CDN 加速（可选）
 
-### 方案四：使用 Netlify（国外服务，但有国内节点）
-1. 注册 Netlify 账号
-2. 将代码推送到 GitHub
-3. 在 Netlify 上连接 GitHub 仓库
-4. 设置构建命令：`pnpm build`
-5. 设置发布目录：`dist`
-
-### 方案五：手动部署到任何支持静态文件托管的服务
+### 方案四：手动部署到任何支持静态文件托管的服务
 1. 构建项目：
    ```bash
-   pnpm build
+   pnpm build:vercel
    ```
 2. 将 [dist](file:///e:/NovelSystem/taotao-writing-master/dist) 目录中的所有文件上传到支持静态文件托管的服务
 
@@ -128,3 +143,6 @@ A: 可以考虑使用 coding.net 的 Pages 服务，或者使用一些云服务�
 
 ### Q: GitHub Pages 在国内访问速度如何？
 A: GitHub Pages 在国内访问速度一般，但比 Vercel 要好一些。如果需要更好的国内访问速度，建议使用国内的云服务提供商。
+
+### Q: 为什么部署时会出现 "Cannot find module 'novel'" 错误？
+A: 这是因为项目使用了 pnpm 工作区结构，"novel" 是一个本地工作区包。需要先构建这个本地包，然后再构建主应用。确保使用 `pnpm build:vercel` 命令而不是 `pnpm build`。
