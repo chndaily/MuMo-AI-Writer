@@ -1,7 +1,32 @@
 # 木墨文坊 (MuMo AI Writer)
 
-一个基于React+Antd+Zustand+Vite的现代化AI智能小说创作平台，旨在为作者提供高效、智能的写作体验。
-https://preview.themeforest.net/item/ai-doodle-ai-artificial-intelligence-technology-startups-template/full_screen_preview/50253370?_ga=2.244366797.931295372.1751006754-650939747.1751006754
+木墨文坊是一个基于 AI 技术的智能写作平台，帮助用户高效创作精彩内容。
+
+## 系统特性
+
+- AI 辅助写作
+- 智能内容生成
+- 多种创作工具
+- 会员体系
+- 多平台支持
+
+## 部署说明
+
+请查看 [DEPLOYMENT.md](DEPLOYMENT.md) 文件获取详细的部署说明。
+
+## 技术栈
+
+- React + TypeScript
+- Vite
+- Ant Design
+- MongoDB
+- Supabase
+- 多种 AI 模型集成
+
+## 系统名称
+
+- 中文名：木墨文坊
+- 英文名：MuMo AI Writer
 
 ## 🚀 技术栈
 
