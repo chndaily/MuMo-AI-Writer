@@ -8,6 +8,9 @@ import { loadEnv } from 'vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
   
+  // 根据环境设置API基础URL
+  const apiBaseUrl = env.VITE_API_BASE_URL || 'http://localhost:3001'
+  
   return {
     base: '/',
     plugins: [react(), tailwindcss()],
@@ -24,7 +27,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // 代理API请求
         '/api': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:3001',
+          target: apiBaseUrl,
           changeOrigin: true,
         },
         // 代理OpenAI API请求

@@ -27,4 +27,4 @@ staticSites:
       - key: NODE_VERSION
         value: 18
       - key: VITE_API_BASE_URL
-        value: https://mumoai.onrender.com
+        value: https://mumo-qxrm.onrender.com

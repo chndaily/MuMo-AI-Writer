@@ -20,6 +20,8 @@ import { Collection } from '#/promptLibrary'
 // API基础URL - 在生产环境中应该从环境变量读取
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
+console.log('API_BASE_URL:', API_BASE_URL)
+
 // API错误处理
 class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -35,6 +37,8 @@ const apiRequest = async <T>(
 ): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`
   
+  console.log(`Making API request to: ${url}`)
+  
   const defaultOptions: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -48,6 +52,8 @@ const apiRequest = async <T>(
     // 添加credentials以支持cookie/session
     credentials: 'include'
   })
+  
+  console.log(`API response status: ${response.status}`)
   
   if (!response.ok) {
     let errorMessage = `API request failed: ${response.status} ${response.statusText}`;

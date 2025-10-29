@@ -3,7 +3,7 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config({ path: '.env.server' });
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // 添加body parser限制
 app.use(express.json({ limit: '50mb' }));
@@ -12,7 +12,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // 添加CORS中间件
 const cors = require('cors');
 app.use(cors({
-  origin: ['http://localhost:3030', 'http://127.0.0.1:3030', 'http://localhost:3031', 'http://localhost:3032', 'http://localhost:3033'],
+  origin: ['http://localhost:3030', 'http://127.0.0.1:3030', 'http://localhost:3031', 'http://localhost:3032', 'https://mumo-qxrm.onrender.com', 'https://mumoai.onrender.com'],
   credentials: true
 }));
 
