@@ -19,8 +19,7 @@ import { useLLM } from '@/hooks/useLLM'
 import { useAIServiceStore } from '@/stores/aiServiceStore'
 import { defaultModelService } from '@/services/defaultModelService'
 import { useDefaultModels } from '@/hooks/useDefaultModels'
-import { useMembershipStore } from '@/stores/membershipStore'
-import { getAllModels } from '@/ai/modelPresets'
+import { useMembershipStore } from '@/stores/membershipStore' // 修改导入
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -40,7 +39,7 @@ export const AITestPanel: React.FC<AITestPanelProps> = ({ onConfigChange }) => {
   const { getAllAvailableModels, isDefaultModel } = useDefaultModels()
   
   // 使用会员存储hook来检查用户角色
-  const { isAdmin } = useMembershipStore()
+  const { isAdmin } = useMembershipStore() // 修改这里
   
   // 使用useLLM hook
   const {
@@ -63,10 +62,14 @@ export const AITestPanel: React.FC<AITestPanelProps> = ({ onConfigChange }) => {
   const [useStream, setUseStream] = useState(true)
   const [availableModels, setAvailableModels] = useState<any[]>([])
   const [loadingModels, setLoadingModels] = useState(true)
+  const [modelsLoaded, setModelsLoaded] = useState(false) // 添加这个状态来跟踪模型是否已加载
 
   // 获取可用模型
   useEffect(() => {
     const fetchAvailableModels = async () => {
+      // 如果模型已经加载过，则不再重复加载
+      if (modelsLoaded) return;
+      
       setLoadingModels(true)
       try {
         const models = await getAllAvailableModels()
@@ -103,6 +106,9 @@ export const AITestPanel: React.FC<AITestPanelProps> = ({ onConfigChange }) => {
             }
           }
         }
+        
+        // 标记模型已加载
+        setModelsLoaded(true)
       } catch (error) {
         console.error('获取可用模型失败:', error)
       } finally {
@@ -111,7 +117,7 @@ export const AITestPanel: React.FC<AITestPanelProps> = ({ onConfigChange }) => {
     }
     
     fetchAvailableModels()
-  }, [isAdmin, getAllAvailableModels, selectedConfigId])
+  }, [isAdmin, getAllAvailableModels, selectedConfigId, modelsLoaded]) // 添加依赖项
 
   // 提供商选项
   const providerOptions = [
@@ -186,17 +192,12 @@ export const AITestPanel: React.FC<AITestPanelProps> = ({ onConfigChange }) => {
             >
               {availableModels.map(config => {
                 const providerOption = providerOptions.find(p => p.value === config.provider)
-                // 获取模型信息
-                const allModels = getAllModels();
-                const modelInfo = allModels[config.provider] && allModels[config.provider][config.model];
-                
                 return (
                   <Option key={config.id} value={config.id}>
                     <Space>
                       <Tag color={providerOption?.color}>{providerOption?.label}</Tag>
                       <Text strong>{config.name}</Text>
                       {config.model && <Text type="secondary">({config.model})</Text>}
-                      {modelInfo && <Tag color="blue">动态模型</Tag>}
                       {config.isDefault && <Tag color="green">默认</Tag>}
                     </Space>
                   </Option>

@@ -230,7 +230,7 @@ export const updateUserMembership = async (
             updatedUser.membershipInfo.maxTeamMembers = 0;
             break;
           case MembershipLevel.BASIC:
-            updatedUser.membershipInfo.maxNovels = Infinity;
+            updatedUser.membershipInfo.maxNovels = 10;
             updatedUser.membershipInfo.aiGenerationLimit = 100;
             updatedUser.membershipInfo.teamEnabled = false;
             updatedUser.membershipInfo.maxTeamMembers = 0;
@@ -357,7 +357,7 @@ export const addUser = async (userInfo: UserInfo, passwordHash?: string): Promis
       membershipInfo: {
         level: userInfo.membershipLevel,
         expiryDate: userInfo.expiryDate,
-        maxNovels: userInfo.membershipLevel === MembershipLevel.FREE ? 3 : Infinity,
+        maxNovels: userInfo.membershipLevel === MembershipLevel.FREE ? 3 : userInfo.membershipLevel === MembershipLevel.BASIC ? 10 : Infinity,
         aiGenerationLimit: userInfo.membershipLevel === MembershipLevel.FREE ? 10 : userInfo.membershipLevel === MembershipLevel.BASIC ? 100 : Infinity,
         aiGenerationUsed: 0,
         features: [],

@@ -38,22 +38,81 @@ const MembershipCenter: React.FC = () => {
   
   // 获取会员等级名称
   const getLevelName = () => {
+    // 检查是否为管理员
+    if (membershipInfo.isAdmin) {
+      return '管理员'
+    }
+    
+    // 检查会员等级
     switch (membershipInfo.level) {
       case MembershipLevel.FREE: return '免费用户'
       case MembershipLevel.BASIC: return '基础会员'
       case MembershipLevel.PROFESSIONAL: return '专业会员'
-      default: return '未知'
+      default: 
+        // 如果等级不匹配任何已知值，尝试从字符串转换
+        switch (membershipInfo.level as string) {
+          case 'free': return '免费用户'
+          case 'basic': return '基础会员'
+          case 'professional': return '专业会员'
+          default: return '未知'
+        }
     }
   }
   
   // 获取会员等级颜色
   const getLevelColor = () => {
+    // 检查是否为管理员
+    if (membershipInfo.isAdmin) {
+      return 'red'
+    }
+    
+    // 检查会员等级
     switch (membershipInfo.level) {
       case MembershipLevel.FREE: return 'default'
       case MembershipLevel.BASIC: return 'blue'
       case MembershipLevel.PROFESSIONAL: return 'gold'
-      default: return 'default'
+      default: 
+        // 如果等级不匹配任何已知值，尝试从字符串转换
+        switch (membershipInfo.level as string) {
+          case 'free': return 'default'
+          case 'basic': return 'blue'
+          case 'professional': return 'gold'
+          default: return 'default'
+        }
     }
+  }
+  
+  // 获取AI使用次数显示文本
+  const getAIUsageDisplay = () => {
+    // 检查是否为管理员或专业会员（无限使用权限）
+    if (membershipInfo.isAdmin || membershipInfo.aiGenerationLimit === Infinity) {
+      return '无限制'
+    }
+    
+    // 检查是否有使用次数信息
+    if (membershipInfo.aiGenerationUsed !== undefined && membershipInfo.aiGenerationLimit !== undefined) {
+      return `${membershipInfo.aiGenerationUsed} / ${membershipInfo.aiGenerationLimit}`
+    }
+    
+    // 默认显示
+    return '0 / 0'
+  }
+  
+  // 获取AI使用次数描述文本
+  const getAIUsageDescription = () => {
+    // 检查是否为管理员或专业会员（无限使用权限）
+    if (membershipInfo.isAdmin || membershipInfo.aiGenerationLimit === Infinity) {
+      return '无限制使用'
+    }
+    
+    // 检查是否有使用次数信息
+    if (membershipInfo.aiGenerationUsed !== undefined && membershipInfo.aiGenerationLimit !== undefined) {
+      const remaining = membershipInfo.aiGenerationLimit - membershipInfo.aiGenerationUsed
+      return `今日还可使用 ${remaining} 次`
+    }
+    
+    // 默认显示
+    return '无使用权限'
   }
   
   return (
@@ -69,7 +128,9 @@ const MembershipCenter: React.FC = () => {
           <Col xs={24} md={8}>
             <div className="text-center">
               <div className="text-4xl mb-2">
-                {membershipInfo.level === MembershipLevel.PROFESSIONAL ? (
+                {membershipInfo.isAdmin ? (
+                  <CrownOutlined className="text-red-500" />
+                ) : membershipInfo.level === MembershipLevel.PROFESSIONAL ? (
                   <CrownOutlined className="text-yellow-500" />
                 ) : membershipInfo.level === MembershipLevel.BASIC ? (
                   <Badge count={<CrownOutlined className="text-blue-500" />} />
@@ -90,7 +151,7 @@ const MembershipCenter: React.FC = () => {
           <Col xs={24} md={8}>
             <Statistic
               title="AI生成使用次数"
-              value={`${membershipInfo.aiGenerationUsed !== undefined ? membershipInfo.aiGenerationUsed : 0} / ${membershipInfo.aiGenerationLimit === Infinity ? '无限制' : (membershipInfo.aiGenerationLimit !== undefined ? membershipInfo.aiGenerationLimit : 0)}`}
+              value={getAIUsageDisplay()}
               prefix={<RobotOutlined />}
             />
             <Progress 
@@ -99,11 +160,7 @@ const MembershipCenter: React.FC = () => {
               className="mt-2"
             />
             <p className="text-gray-500 text-sm mt-1">
-              {membershipInfo.aiGenerationLimit === Infinity 
-                ? '无限制使用' 
-                : membershipInfo.aiGenerationLimit > 0
-                ? `今日还可使用 ${(membershipInfo.aiGenerationLimit !== undefined ? membershipInfo.aiGenerationLimit : 0) - (membershipInfo.aiGenerationUsed !== undefined ? membershipInfo.aiGenerationUsed : 0)} 次`
-                : '无使用权限'}
+              {getAIUsageDescription()}
             </p>
           </Col>
           
@@ -145,9 +202,9 @@ const MembershipCenter: React.FC = () => {
             },
             { 
               name: '无限制小说', 
-              enabled: !isFree, 
-              icon: !isFree ? <CheckCircleOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
-              description: '创建任意数量的小说'
+              enabled: isProfessional || membershipInfo.isAdmin, 
+              icon: (isProfessional || membershipInfo.isAdmin) ? <CheckCircleOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
+              description: isProfessional || membershipInfo.isAdmin ? '创建任意数量的小说' : isBasic ? '最多创建10本小说' : '最多创建3本小说'
             },
             { 
               name: 'AI生成', 
@@ -157,14 +214,14 @@ const MembershipCenter: React.FC = () => {
             },
             { 
               name: '可视化工具', 
-              enabled: isProfessional, 
-              icon: isProfessional ? <BarChartOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
+              enabled: isProfessional || membershipInfo.isAdmin, 
+              icon: (isProfessional || membershipInfo.isAdmin) ? <BarChartOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
               description: '角色关系图谱、世界观可视化等'
             },
             { 
               name: '团队协作', 
-              enabled: isProfessional, 
-              icon: isProfessional ? <TeamOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
+              enabled: isProfessional || membershipInfo.isAdmin, 
+              icon: (isProfessional || membershipInfo.isAdmin) ? <TeamOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
               description: '多人实时协作编辑'
             },
             { 
@@ -175,8 +232,8 @@ const MembershipCenter: React.FC = () => {
             },
             { 
               name: '自定义AI模型', 
-              enabled: isProfessional, 
-              icon: isProfessional ? <RobotOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
+              enabled: isProfessional || membershipInfo.isAdmin, 
+              icon: (isProfessional || membershipInfo.isAdmin) ? <RobotOutlined className="text-green-500" /> : <CloseCircleOutlined className="text-gray-400" />,
               description: '配置和使用自定义AI模型'
             }
           ].map((feature, index) => (

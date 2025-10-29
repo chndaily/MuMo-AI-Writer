@@ -1346,7 +1346,7 @@ const AINovelWorkspace: React.FC = () => {
               ref={bookSelectorRef}
               onSelect={handleBookSelect}
               selectedNovelId={targetNovel?.id}
-              style={{ width: '200px' }}
+              style={{ width: '200px'}}
             />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

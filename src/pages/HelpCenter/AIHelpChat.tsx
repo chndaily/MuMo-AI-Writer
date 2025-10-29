@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Input, List, Card, Typography, Spin, Space, message, Avatar, Alert } from 'antd';
+import { Button, Input, List, Card, Typography, Spin, Space, message, Avatar, Alert, Modal } from 'antd';
 import { SendOutlined, UserOutlined, RobotOutlined, SettingOutlined } from '@ant-design/icons';
 import { useLLM } from '@/hooks/useLLM';
 import { useDefaultModels } from '@/hooks/useDefaultModels';
 import { useAIServiceStore } from '@/stores/aiServiceStore';
+import { useMembership } from '@/hooks/useMembership';
+import { useMembershipStore } from '@/stores/membershipStore';
 
 const { TextArea } = Input;
 const { Paragraph, Title } = Typography;
@@ -14,6 +16,39 @@ interface Message {
   content: string;
   timestamp: Date;
 }
+
+// 本地存储键名
+const HELP_CHAT_USAGE_KEY = 'help_chat_usage';
+
+// 获取今天的使用次数
+const getTodayUsage = () => {
+  const today = new Date().toDateString();
+  const usageData = localStorage.getItem(HELP_CHAT_USAGE_KEY);
+  if (usageData) {
+    const parsed = JSON.parse(usageData);
+    if (parsed.date === today) {
+      return parsed.count || 0;
+    }
+  }
+  return 0;
+};
+
+// 增加使用次数
+const incrementUsage = () => {
+  const today = new Date().toDateString();
+  const currentUsage = getTodayUsage();
+  const newUsage = currentUsage + 1;
+  localStorage.setItem(HELP_CHAT_USAGE_KEY, JSON.stringify({
+    date: today,
+    count: newUsage
+  }));
+  return newUsage;
+};
+
+// 重置使用次数（用于测试）
+const resetUsage = () => {
+  localStorage.removeItem(HELP_CHAT_USAGE_KEY);
+};
 
 const AIHelpChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
@@ -36,9 +71,14 @@ const AIHelpChat: React.FC = () => {
   const { generateTextStream, response, streaming, configs, defaultConfig, defaultConfigId, clearResponse } = useLLM();
   const { getAllAvailableModels } = useDefaultModels();
   const [selectedConfigId, setSelectedConfigId] = useState<string | undefined>(undefined);
-  const [lastProcessedResponse, setLastProcessedResponse] = useState<string | null>(null); // 添加这个状态来跟踪已处理的响应
+  const [lastProcessedResponse, setLastProcessedResponse] = useState<string | null>(null);
+  const { membershipInfo } = useMembership();
+  const membershipStore = useMembershipStore();
+  const isAdmin = membershipStore.isAdmin();
+  const [usageCount, setUsageCount] = useState(0);
+  const [maxUsage] = useState(5); // 每天最多5次使用
   
-  // 初始化时设置默认模型
+  // 初始化时设置默认模型和使用次数
   useEffect(() => {
     const initializeDefaultModel = async () => {
       try {
@@ -66,11 +106,17 @@ const AIHelpChat: React.FC = () => {
     };
 
     initializeDefaultModel();
+    
+    // 初始化使用次数
+    setUsageCount(getTodayUsage());
   }, [defaultConfigId, getAllAvailableModels]);
 
   // 检查是否有AI配置或默认模型
   const hasAIConfig = configs.length > 0 || !!selectedConfigId || !!defaultConfigId;
   const hasDefaultConfig = !!defaultConfig || !!selectedConfigId || !!defaultConfigId;
+  
+  // 检查是否达到使用限制
+  const isUsageLimitReached = usageCount >= maxUsage && !isAdmin;
 
   // 滚动到最新消息
   const scrollToBottom = () => {
@@ -106,6 +152,12 @@ const AIHelpChat: React.FC = () => {
 
   const handleSend = async () => {
     if (!inputValue.trim() || loading) return;
+    
+    // 检查使用限制
+    if (isUsageLimitReached) {
+      message.warning(`今日AI帮助聊天使用次数已达上限 (${maxUsage}次)`);
+      return;
+    }
 
     try {
       console.log('发送消息:', inputValue);
@@ -132,6 +184,10 @@ const AIHelpChat: React.FC = () => {
       
       setMessages(prev => [...prev, thinkingMessage]);
       setLoading(true);
+      
+      // 增加使用次数
+      const newUsageCount = incrementUsage();
+      setUsageCount(newUsageCount);
       
       // 构造发送给AI的完整提示词
       let fullPrompt = `你是一个专业的Novelcrafter使用帮助助手。请根据用户的问题提供准确、有用的解答。
@@ -212,6 +268,25 @@ ${inputValue}
               message="使用默认AI模型"
               description="当前正在使用管理员配置的默认AI模型。"
               type="info"
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
+          )}
+          {/* 使用次数提醒 */}
+          {!isAdmin && (
+            <Alert
+              message="使用次数提醒"
+              description={`今日AI帮助聊天使用次数: ${usageCount}/${maxUsage}次 ${isUsageLimitReached ? '(已达到上限)' : ''}`}
+              type={isUsageLimitReached ? "warning" : "info"}
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
+          )}
+          {isAdmin && (
+            <Alert
+              message="管理员权限"
+              description="您是管理员，可无限制使用AI帮助聊天功能"
+              type="success"
               showIcon
               style={{ marginBottom: '16px' }}
             />
@@ -301,28 +376,28 @@ ${inputValue}
           <div>
             <div style={{ marginBottom: '8px', fontSize: '12px', color: '#666' }}>常见问题：</div>
             <Space wrap>
-              <Button size="small" onClick={() => setInputValue('如何创建新角色？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何创建新角色？')} disabled={loading || isUsageLimitReached}>
                 创建角色
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何使用AI生成情节？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何使用AI生成情节？')} disabled={loading || isUsageLimitReached}>
                 AI生成情节
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何导出小说内容？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何导出小说内容？')} disabled={loading || isUsageLimitReached}>
                 导出内容
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何使用提示词库？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何使用提示词库？')} disabled={loading || isUsageLimitReached}>
                 提示词库
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何管理多个小说项目？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何管理多个小说项目？')} disabled={loading || isUsageLimitReached}>
                 管理项目
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何设置角色关系图？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何设置角色关系图？')} disabled={loading || isUsageLimitReached}>
                 角色关系
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何构建世界观设定？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何构建世界观设定？')} disabled={loading || isUsageLimitReached}>
                 世界观设定
               </Button>
-              <Button size="small" onClick={() => setInputValue('如何使用团队协作功能？')} disabled={loading}>
+              <Button size="small" onClick={() => setInputValue('如何使用团队协作功能？')} disabled={loading || isUsageLimitReached}>
                 团队协作
               </Button>
             </Space>
@@ -331,9 +406,9 @@ ${inputValue}
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onPressEnter={handleKeyPress}
-            placeholder="请输入您的问题..."
+            placeholder={isUsageLimitReached ? "今日使用次数已达上限" : "请输入您的问题..."}
             autoSize={{ minRows: 2, maxRows: 4 }}
-            disabled={loading}
+            disabled={loading || isUsageLimitReached}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button 
@@ -341,7 +416,7 @@ ${inputValue}
               icon={<SendOutlined />} 
               onClick={handleSend}
               loading={loading}
-              disabled={!inputValue.trim() || loading || (!hasAIConfig && !selectedConfigId && !defaultConfigId)}
+              disabled={!inputValue.trim() || loading || (!hasAIConfig && !selectedConfigId && !defaultConfigId) || isUsageLimitReached}
             >
               发送
             </Button>

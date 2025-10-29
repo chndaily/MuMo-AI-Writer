@@ -24,6 +24,8 @@ class DefaultModelService {
   private cacheTimestamp: number = 0
   // 缓存有效期（30秒，进一步缩短缓存时间以确保及时更新）
   private readonly CACHE_TTL = 30 * 1000
+  // 添加一个标志来跟踪是否正在加载
+  private isLoading: boolean = false
 
   // 检查缓存是否有效
   private isCacheValid(): boolean {
@@ -45,6 +47,13 @@ class DefaultModelService {
       return this.cachedAdminModels!
     }
 
+    // 防止并发请求
+    if (this.isLoading) {
+      // 如果正在加载，返回空数组而不是等待
+      return []
+    }
+
+    this.isLoading = true
     try {
       // 从数据库获取管理员配置的模型
       const adminModels = await databaseManager.aiModels.getAllAIModels()
@@ -68,6 +77,8 @@ class DefaultModelService {
       console.warn('从数据库获取管理员配置的默认模型失败，使用本地存储的模型:', error)
       const { adminDefaultModels } = useAIServiceStore.getState()
       return adminDefaultModels
+    } finally {
+      this.isLoading = false
     }
   }
   

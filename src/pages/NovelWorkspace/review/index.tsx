@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, List, Typography, Tag, Space, Button, Divider, Empty, Timeline, Statistic, Row, Col } from 'antd';
+import { Layout, Card, List, Typography, Tag, Space, Button, Divider, Empty, Timeline, Statistic, Row, Col, Alert } from 'antd';
 import { 
   FileTextOutlined, 
   BookOutlined, 
@@ -10,17 +10,51 @@ import {
   ThunderboltOutlined,
   CalendarOutlined,
   BarChartOutlined,
-  EyeOutlined
+  EyeOutlined,
+  LockOutlined
 } from '@ant-design/icons';
 import { useNovelIndexDBStore } from '@/stores/novelIndexDBStore';
 import { useNavigate, useParams } from 'react-router-dom';
 import { WritingRecord, NovelOutline, Character } from '#/novel';
+import { useMembership } from '@/hooks/useMembership';
 
 const { Title, Text } = Typography;
 
 const NovelReview: React.FC = () => {
   const { novelId } = useParams<{ novelId: string }>();
   const navigate = useNavigate();
+  const { checkPermission, isFree } = useMembership();
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('review');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   const { 
     novels, 
     characters, 

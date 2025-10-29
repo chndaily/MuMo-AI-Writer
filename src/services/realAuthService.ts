@@ -26,7 +26,7 @@ export interface AuthResponse {
 }
 
 // JWT密钥（在实际应用中应该从环境变量获取）
-const JWT_SECRET = 'mumo-ai-writer-jwt-secret-key'
+const JWT_SECRET = 'taotao-writing-jwt-secret-key'
 const JWT_EXPIRES_IN = '24h'
 
 // 根据会员等级获取功能列表
@@ -42,7 +42,6 @@ const getFeaturesByLevel = (level: MembershipLevel) => {
     case MembershipLevel.BASIC:
       return [
         ...baseFeatures,
-        'unlimited_novels',
         'enhanced_ai_generation',
         'all_export_formats',
         'spell_check',

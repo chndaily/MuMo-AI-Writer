@@ -4,14 +4,23 @@ import { UserOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons
 import { useNavigate } from 'react-router-dom'
 import { useMembershipStore } from '@/stores/membershipStore'
 import { MembershipLevel } from '@/stores/membershipStore'
-import { authService } from '@/services/authService'
+import { realAuthService } from '@/services/realAuthService'
 
 const { Header } = Layout
 const { Title } = Typography
 
 const AppHeader: React.FC = () => {
   const navigate = useNavigate()
-  const { clearAuth, authToken } = useMembershipStore()
+  const { clearAuth, authToken, isAuthenticated, membershipInfo } = useMembershipStore()
+
+  // 检查用户是否已认证
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('AppHeader: 用户未认证');
+    } else {
+      console.log('AppHeader: 用户已认证', membershipInfo);
+    }
+  }, [isAuthenticated, membershipInfo]);
 
   const userMenuItems = [
     {
@@ -49,7 +58,7 @@ const AppHeader: React.FC = () => {
         try {
           // 调用认证服务登出
           if (authToken) {
-            await authService.logout(authToken);
+            await realAuthService.logout(authToken);
           }
           
           // 清除本地认证信息
@@ -94,18 +103,24 @@ const AppHeader: React.FC = () => {
         <Button type="primary" onClick={() => navigate('/creation-center')}>
           开始创作
         </Button>
-        <Dropdown
-          menu={{
-            items: userMenuItems,
-            onClick: handleMenuClick,
-          }}
-          placement="bottomRight"
-        >
-          <Avatar
-            icon={<UserOutlined />}
-            style={{ cursor: 'pointer' }}
-          />
-        </Dropdown>
+        {isAuthenticated ? (
+          <Dropdown
+            menu={{
+              items: userMenuItems,
+              onClick: handleMenuClick,
+            }}
+            placement="bottomRight"
+          >
+            <Avatar
+              icon={<UserOutlined />}
+              style={{ cursor: 'pointer' }}
+            />
+          </Dropdown>
+        ) : (
+          <Button onClick={() => navigate('/login')}>
+            登录
+          </Button>
+        )}
       </Space>
     </Header>
   )

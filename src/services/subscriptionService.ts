@@ -57,7 +57,7 @@ class SubscriptionService {
       monthlyPrice: 19,
       yearlyPrice: 199,
       features: [
-        '无限制小说创建',
+        '10本小说创建限制',
         '每日100次AI生成',
         '所有导出格式支持',
         '拼写检查功能',

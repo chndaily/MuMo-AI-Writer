@@ -11,6 +11,7 @@ const ConditionalHomePage: React.FC = () => {
   // 如果用户已认证，重定向到创作中心
   useEffect(() => {
     if (isAuthenticated) {
+      // 使用replace: true避免在浏览器历史中留下记录
       navigate('/creation-center', { replace: true })
     }
   }, [isAuthenticated, navigate])

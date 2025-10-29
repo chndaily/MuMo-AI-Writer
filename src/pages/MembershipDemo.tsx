@@ -160,13 +160,13 @@ const MembershipDemo: React.FC = () => {
               <tr className="border-b">
                 <td className="py-2">无限制小说创建</td>
                 <td className="text-center py-2">
-                  {isFree ? <CloseCircleOutlined className="text-red-500" /> : '-'}
+                  <CloseCircleOutlined className="text-red-500" />
                 </td>
                 <td className="text-center py-2">
-                  {isBasic || isProfessional ? <CheckCircleOutlined className="text-green-500" /> : '-'}
+                  <CloseCircleOutlined className="text-red-500" />
                 </td>
                 <td className="text-center py-2">
-                  {isProfessional ? <CheckCircleOutlined className="text-green-500" /> : '-'}
+                  <CheckCircleOutlined className="text-green-500" />
                 </td>
               </tr>
               <tr className="border-b">

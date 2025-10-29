@@ -8,15 +8,49 @@ import {
   PlusOutlined, 
   EyeOutlined,
   HomeOutlined,
-  DatabaseOutlined
+  DatabaseOutlined,
+  LockOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useMembership } from '@/hooks/useMembership';
 
 const { Title, Paragraph } = Typography;
 
 const NovelPromptsPage: React.FC = () => {
   const navigate = useNavigate();
   const { novelId } = useParams<{ novelId: string }>();
+  const { checkPermission, isFree } = useMembership();
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('prompts');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   const [novelInfo, setNovelInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

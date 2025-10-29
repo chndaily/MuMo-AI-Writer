@@ -33,6 +33,7 @@ import {
 import { LLMProvider, LLMConfig, LLMConnection, LLMConnectionModel } from '#/llm'
 import { useAIServiceStore } from '@/stores/aiServiceStore'
 import { useMembership } from '@/hooks/useMembership'
+import { useLLM } from '@/hooks/useLLM'
 import { LLMConfigModal } from './LLMConfigModal'
 import { databaseManager } from '@/services/index'
 import { mapAIServiceTypeToLLMProvider } from '@/utils/aiProviderUtils'
@@ -64,6 +65,7 @@ export const LLMConfigPanel: React.FC<LLMConfigPanelProps> = ({ onConfigChange }
   } = useAIServiceStore()
 
   const { checkPermission, isProfessional, membershipInfo } = useMembership()
+  const { validateConfig } = useLLM() // 在这里正确调用useLLM hook
   const [validatingConfig, setValidatingConfig] = useState<string | null>(null)
   const [defaultModel, setDefaultModel] = useState<any>(null)
   const [dbModels, setDbModels] = useState<any[]>([])
@@ -168,9 +170,14 @@ export const LLMConfigPanel: React.FC<LLMConfigPanelProps> = ({ onConfigChange }
     console.log('开始验证配置:', configId);
     
     try {
-      // 模拟验证过程
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      message.success('配置验证成功！');
+      // 使用useLLM hook中的validateConfig方法进行实际验证
+      const result = await validateConfig(configId);
+      
+      if (result.success) {
+        message.success(`配置验证成功！响应时间: ${result.responseTime}ms`);
+      } else {
+        message.error(`配置验证失败: ${result.error}`);
+      }
     } catch (error) {
       console.error('验证失败:', error);
       message.error('配置验证失败');
@@ -778,7 +785,9 @@ export const LLMConfigPanel: React.FC<LLMConfigPanelProps> = ({ onConfigChange }
                     connectionId: values.connectionId,
                     description: values.description,
                     isDefault: values.isDefault,
-                    raw: raw
+                    raw: raw,
+                    // 确保保留原始模型的ID字段
+                    id: editingModel.id || editingModel._id
                   }
                   
                   await databaseManager.aiModels.updateAIModel(updatedModel)

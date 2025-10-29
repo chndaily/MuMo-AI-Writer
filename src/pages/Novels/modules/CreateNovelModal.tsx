@@ -37,7 +37,7 @@ const CreateNovelModal: React.FC<CreateNovelModalProps> = ({ visible, onCancel, 
     const { membershipInfo } = useMembershipStore.getState();
     await databaseManager.novels.getNovelsByUserId(membershipInfo.email || 'anonymous');
   };
-  const { membershipInfo } = useMembershipStore(); // 获取当前用户信息
+  const { membershipInfo, canCreateMoreNovels } = useMembershipStore(); // 获取当前用户信息
 
   const genres = [
     { value: 'fantasy', label: '奇幻', color: 'purple' },
@@ -60,6 +60,13 @@ const CreateNovelModal: React.FC<CreateNovelModalProps> = ({ visible, onCancel, 
       
       // 获取当前用户ID（从会员信息中提取）
       const currentUserId = membershipInfo.email || 'anonymous';
+      
+      // 检查用户是否可以创建更多小说
+      const userNovels = await databaseManager.novels.getNovelsByUserId(currentUserId);
+      if (!canCreateMoreNovels(userNovels.length)) {
+        message.error(`您已达到小说创建上限 (${membershipInfo.maxNovels} 本)`);
+        return;
+      }
       
       const novelData = {
         title: values.title,

@@ -31,7 +31,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const { setMembershipInfo, setIsAuthenticated, setAuthToken } = useMembershipStore();
+  const { setMembershipInfo, setIsAuthenticated, setAuthToken, isAuthenticated } = useMembershipStore();
   
   // 检查URL参数确定默认激活的标签页
   const getDefaultActiveTab = () => {
@@ -41,15 +41,14 @@ const LoginPage: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState(getDefaultActiveTab());
   
-  // 检查是否已经登录
-  const { isAuthenticated } = useMembershipStore();
-  
   // 如果已经登录，直接跳转到首页
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      // 检查是否有重定向URL
+      const from = location.state?.from?.pathname || '/creation-center';
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, location.state]);
 
   // 登录表单提交
   const onFinishLogin = async (values: any) => {
@@ -76,6 +75,11 @@ const LoginPage: React.FC = () => {
         });
         console.log('Membership info after setting:', useMembershipStore.getState().membershipInfo);
         
+        // 添加调试日志
+        console.log('Auth token after login:', response.token);
+        console.log('Is authenticated after login:', useMembershipStore.getState().isAuthenticated);
+        console.log('Auth token after login (from store):', useMembershipStore.getState().authToken);
+        
         // 登录成功后执行数据同步
         try {
           const { optimizedDataSyncService } = await import('@/services/optimizedDataSyncService');
@@ -93,9 +97,14 @@ const LoginPage: React.FC = () => {
           console.error('Sync error after login:', syncError);
         }
         
+        // 再次检查认证状态
+        console.log('Is authenticated after sync:', useMembershipStore.getState().isAuthenticated);
+        console.log('Auth token after sync:', useMembershipStore.getState().authToken);
+        
         message.success('登录成功！');
-        // 跳转到首页
-        navigate('/');
+        // 跳转到首页或之前访问的页面
+        const from = location.state?.from?.pathname || '/creation-center';
+        navigate(from, { replace: true });
       } else {
         // 显示后端返回的具体错误消息，提供更友好的提示
         console.log('Login failed with message:', response.message);
@@ -163,7 +172,7 @@ const LoginPage: React.FC = () => {
         
         message.success('注册成功！欢迎加入我们。');
         // 跳转到首页
-        navigate('/');
+        navigate('/creation-center', { replace: true });
       } else {
         // 提供更友好的错误消息
         let errorMessage = '注册失败';

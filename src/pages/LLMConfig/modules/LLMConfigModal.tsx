@@ -202,22 +202,13 @@ export const LLMConfigModal: React.FC<LLMConfigModalProps> = ({
           console.log('准备同步模型数据到数据库:');
           console.log('modelToUpdate:', modelToUpdate);
           
-          // 如果是编辑模式，更新模型；否则添加模型
+          // 直接添加或更新单个模型到数据库，为后续专业会员添加模型权限做准备
           if (isEditMode && editingConfigId) {
-            // 更新现有模型
-            const defaultConfig = useAIServiceStore.getState().getDefaultConfig();
-            const defaultModelId = defaultConfig?.id || null;
-            const currentModel: LLMConnectionModel[] = [modelToUpdate];
-            console.log('调用setAdminDefaultModels更新模型');
-            await defaultModelService.setAdminDefaultModels(currentModel, defaultModelId);
+            // 编辑模式：更新现有模型
+            await defaultModelService.addAdminDefaultModel(modelToUpdate);
           } else {
-            // 添加新模型时，需要保留现有模型
-            const allModels = useAIServiceStore.getState().getAllModels();
-            const updatedModels = [...allModels, modelToUpdate];
-            const defaultConfig = useAIServiceStore.getState().getDefaultConfig();
-            const defaultModelId = defaultConfig?.id || null;
-            console.log('调用setAdminDefaultModels添加模型，保留现有模型');
-            await defaultModelService.setAdminDefaultModels(updatedModels, defaultModelId);
+            // 添加模式：添加新模型
+            await defaultModelService.addAdminDefaultModel(modelToUpdate);
           }
           
           console.log('模型数据同步到数据库成功');

@@ -5,6 +5,8 @@ import { findAiTaskRanges, lastPosOfAiTask, EditorNode } from "novel";
 import { ChevronDownIcon, CirclePlayIcon, GripVerticalIcon, Trash2Icon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useAIServiceStore } from "@/stores/aiServiceStore";
+import { useMembership } from "@/hooks/useMembership";
+import { message } from "antd";
 
 type AiGenerationNodeProps = {
   handleDragStart: () => void;
@@ -53,6 +55,8 @@ const AiGenerationNode = ({ handleDragStart, deleteNode, getPos, children, getNo
   const { tasks, addAiTask, updateAiTaskStatus } = useTiptapContext(state => state)
   const { getAllModels } = useAIServiceStore()
   const models = getAllModels()
+  // 添加会员权限检查
+  const { checkAIGenerationPermission, useAI } = useMembership()
 
   // 获取生成提供者的函数
   const getGenerateProvider = useCallback((model: any) => {
@@ -110,6 +114,20 @@ const AiGenerationNode = ({ handleDragStart, deleteNode, getPos, children, getNo
 
 
   const startAiTask = useCallback(() => {
+    // 检查AI使用权限
+    const permission = checkAIGenerationPermission();
+    if (!permission.allowed) {
+      message.warning(permission.reason || '您已达到今日AI生成次数限制');
+      return;
+    }
+
+    // 尝试使用AI生成次数
+    const useResult = useAI();
+    if (!useResult.success) {
+      message.warning(useResult.reason || '无法使用AI生成功能');
+      return;
+    }
+
     const model = models[0]
     const provider = getGenerateProvider(model)
     if (!provider) return
@@ -140,7 +158,7 @@ const AiGenerationNode = ({ handleDragStart, deleteNode, getPos, children, getNo
     //   updateAiMarkStatus(id, 'generated');
     // }, 1000)
 
-  }, [editor, addAiTask, getPos, getNode, appendChunkToTask, finalizeTask])
+  }, [editor, addAiTask, getPos, getNode, appendChunkToTask, finalizeTask, checkAIGenerationPermission, useAI, models, getGenerateProvider])
 
   // 更新AI标记状态的函数
   const updateAiMarkStatus = useCallback((taskId: string, phase: 'generating' | 'generated') => {

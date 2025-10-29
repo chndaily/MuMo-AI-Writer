@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, Card, Form, Input, Button, Switch, Select, Upload, message, Spin, Alert, Space } from 'antd';
-import { UploadOutlined, SaveOutlined } from '@ant-design/icons';
+import { UploadOutlined, SaveOutlined, LockOutlined } from '@ant-design/icons';
 import { useLLMConfigStore } from '@/stores/llmConfigStore';
 import { useSupabaseConfigStore } from '@/stores/supabaseConfigStore';
 import { useParams } from '@/router/hooks';
 import { useAIServiceStore } from '@/stores/aiServiceStore';
 import { defaultModelService } from '@/services/defaultModelService';
 import { useDefaultModels } from '@/hooks/useDefaultModels';
-
-const { TabPane } = Tabs;
-const { Option } = Select;
+import { useMembership } from '@/hooks/useMembership';
+import { useNavigate } from 'react-router-dom';
 
 // 扩展Novel接口以包含设置相关的字段
 interface NovelSettings {
@@ -38,6 +37,39 @@ interface SettingsPageProps {
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
+  const navigate = useNavigate();
+  const { checkPermission, isFree } = useMembership();
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('settings');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   // 直接使用 databaseManager 获取数据
   const [novels, setNovels] = useState<any[]>([]);
   const [currentNovel, setCurrentNovel] = useState<any>(null);
@@ -410,7 +442,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
       <div className="flex-1 overflow-hidden">
         <Tabs defaultActiveKey="1" className="h-full flex flex-col">
           {/* 基本信息 */}
-          <TabPane tab="基本信息" key="1" className="h-full overflow-hidden">
+          <Tabs.TabPane tab="基本信息" key="1" className="h-full overflow-hidden">
             <div className="h-full overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <div className="space-y-6 pb-6">
                 <Card title="小说基本信息">
@@ -451,16 +483,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                         placeholder="请选择小说类型"
                         allowClear
                       >
-                        <Option value="fantasy">奇幻</Option>
-                        <Option value="sci-fi">科幻</Option>
-                        <Option value="romance">言情</Option>
-                        <Option value="mystery">悬疑</Option>
-                        <Option value="thriller">惊悚</Option>
-                        <Option value="horror">恐怖</Option>
-                        <Option value="adventure">冒险</Option>
-                        <Option value="historical">历史</Option>
-                        <Option value="biography">传记</Option>
-                        <Option value="other">其他</Option>
+                        <Select.Option value="fantasy">奇幻</Select.Option>
+                        <Select.Option value="sci-fi">科幻</Select.Option>
+                        <Select.Option value="romance">言情</Select.Option>
+                        <Select.Option value="mystery">悬疑</Select.Option>
+                        <Select.Option value="thriller">惊悚</Select.Option>
+                        <Select.Option value="horror">恐怖</Select.Option>
+                        <Select.Option value="adventure">冒险</Select.Option>
+                        <Select.Option value="historical">历史</Select.Option>
+                        <Select.Option value="biography">传记</Select.Option>
+                        <Select.Option value="other">其他</Select.Option>
                       </Select>
                     </Form.Item>
                     
@@ -469,11 +501,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                       label="创作状态"
                     >
                       <Select placeholder="请选择创作状态">
-                        <Option value="draft">草稿</Option>
-                        <Option value="writing">创作中</Option>
-                        <Option value="editing">编辑中</Option>
-                        <Option value="published">已发布</Option>
-                        <Option value="archived">已归档</Option>
+                        <Select.Option value="draft">草稿</Select.Option>
+                        <Select.Option value="writing">创作中</Select.Option>
+                        <Select.Option value="editing">编辑中</Select.Option>
+                        <Select.Option value="published">已发布</Select.Option>
+                        <Select.Option value="archived">已归档</Select.Option>
                       </Select>
                     </Form.Item>
                     
@@ -556,10 +588,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                 </Card>
               </div>
             </div>
-          </TabPane>
+          </Tabs.TabPane>
           
           {/* 写作偏好 */}
-          <TabPane tab="写作偏好" key="2" className="h-full overflow-hidden">
+          <Tabs.TabPane tab="写作偏好" key="2" className="h-full overflow-hidden">
             <div className="h-full overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <div className="space-y-6 pb-6">
                 <Card title="写作偏好设置">
@@ -607,10 +639,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                 </Card>
               </div>
             </div>
-          </TabPane>
+          </Tabs.TabPane>
           
           {/* AI设置 */}
-          <TabPane tab="AI设置" key="3" className="h-full overflow-hidden">
+          <Tabs.TabPane tab="AI设置" key="3" className="h-full overflow-hidden">
             <div className="h-full overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <div className="space-y-6 pb-6">
                 <Card title="AI辅助写作设置">
@@ -642,9 +674,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                           loading={loadingModels}
                         >
                           {availableModels.map(config => (
-                            <Option key={config.id} value={config.id}>
+                            <Select.Option key={config.id} value={config.id}>
                               {config.name} {config.model ? `(${config.model})` : ''}
-                            </Option>
+                            </Select.Option>
                           ))}
                         </Select>
                       </Form.Item>
@@ -683,10 +715,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                 </Card>
               </div>
             </div>
-          </TabPane>
+          </Tabs.TabPane>
           
           {/* 导出设置 */}
-          <TabPane tab="导出设置" key="4" className="h-full overflow-hidden">
+          <Tabs.TabPane tab="导出设置" key="4" className="h-full overflow-hidden">
             <div className="h-full overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <div className="space-y-6 pb-6">
                 <Card title="导出格式设置">
@@ -700,11 +732,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                       label="默认导出格式"
                     >
                       <Select placeholder="请选择默认导出格式">
-                        <Option value="txt">TXT 文本</Option>
-                        <Option value="docx">DOCX 文档</Option>
-                        <Option value="pdf">PDF 文档</Option>
-                        <Option value="epub">EPUB 电子书</Option>
-                        <Option value="markdown">Markdown</Option>
+                        <Select.Option value="txt">TXT 文本</Select.Option>
+                        <Select.Option value="docx">DOCX 文档</Select.Option>
+                        <Select.Option value="pdf">PDF 文档</Select.Option>
+                        <Select.Option value="epub">EPUB 电子书</Select.Option>
+                        <Select.Option value="markdown">Markdown</Select.Option>
                       </Select>
                     </Form.Item>
                     
@@ -741,7 +773,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ novelId }) => {
                 </Card>
               </div>
             </div>
-          </TabPane>
+          </Tabs.TabPane>
         </Tabs>
       </div>
     </div>

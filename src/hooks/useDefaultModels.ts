@@ -17,9 +17,23 @@ interface DisplayModel {
 export const useDefaultModels = () => {
   const { configs } = useAIServiceStore()
   const [defaultModels, setDefaultModels] = useState<DefaultModel[]>([])
+  const [modelsLoaded, setModelsLoaded] = useState(false) // 添加状态跟踪模型是否已加载
   
   // 获取所有可用模型（用户配置+默认模型）
   const getAllAvailableModels = async (): Promise<DisplayModel[]> => {
+    // 如果模型已经加载过且有缓存，直接返回缓存的结果
+    if (modelsLoaded && defaultModels.length > 0) {
+      // 转换默认模型为显示格式
+      const defaultConfigs: DisplayModel[] = defaultModels.map(model => ({
+        id: model.id,
+        name: `${model.name} (默认)`,
+        provider: model.provider as LLMProvider,
+        model: model.name,
+        isDefault: true
+      }))
+      return defaultConfigs;
+    }
+    
     console.log('getAllAvailableModels: Starting...');
     
     // 获取默认模型列表
@@ -147,17 +161,22 @@ export const useDefaultModels = () => {
   
   // 初始化默认模型
   useEffect(() => {
-    const fetchDefaultModels = async () => {
-      try {
-        const models = await defaultModelService.getDefaultModelList()
-        setDefaultModels(models)
-      } catch (error) {
-        console.error('获取默认模型失败:', error)
+    // 只在组件首次加载时获取一次默认模型
+    if (!modelsLoaded) {
+      const fetchDefaultModels = async () => {
+        try {
+          const models = await defaultModelService.getDefaultModelList()
+          setDefaultModels(models)
+          setModelsLoaded(true) // 标记模型已加载
+        } catch (error) {
+          console.error('获取默认模型失败:', error)
+          setModelsLoaded(true) // 即使失败也标记为已加载，避免无限重试
+        }
       }
+      
+      fetchDefaultModels()
     }
-    
-    fetchDefaultModels()
-  }, [])
+  }, [modelsLoaded]) // 依赖modelsLoaded状态
   
   return {
     getAllAvailableModels,

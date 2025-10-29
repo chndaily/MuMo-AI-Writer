@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { LLMConfigPanel } from './modules/LLMConfigPanel'
+import { AITestPage } from './AITestPage'  // 添加导入
 import { Tabs } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import { useMembershipStore } from '@/stores/membershipStore'
@@ -53,11 +54,14 @@ export const LLMConfigPage: React.FC = () => {
       </div>
     )
   }
-
+  // 添加新的Tab，添加AITestPage组件
   return (
     <Tabs defaultActiveKey="1">
       <TabPane tab="模型配置" key="1">
         <LLMConfigPanel key={refresh} onConfigChange={handleConfigChange} />
+      </TabPane>
+      <TabPane tab="AI模型测试" key="2">
+        <AITestPage /> 
       </TabPane>
     </Tabs>
   )

@@ -93,7 +93,7 @@ export const useMembershipStore = create<MembershipState & MembershipActions>()(
           ...info,
           maxNovels: info.maxNovels === null || info.maxNovels === undefined ? 
             (info.level === MembershipLevel.PROFESSIONAL ? Infinity : 
-             info.level === MembershipLevel.BASIC ? Infinity : 3) : 
+             info.level === MembershipLevel.BASIC ? 10 : 3) : 
             info.maxNovels,
           aiGenerationLimit: info.aiGenerationLimit === null || info.aiGenerationLimit === undefined ? 
             (info.level === MembershipLevel.PROFESSIONAL ? Infinity : 
@@ -105,15 +105,24 @@ export const useMembershipStore = create<MembershipState & MembershipActions>()(
         set({ membershipInfo: processedInfo });
       },
       
-      setIsAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+      setIsAuthenticated: (isAuthenticated) => {
+        console.log('Setting isAuthenticated:', isAuthenticated);
+        set({ isAuthenticated });
+      },
       
-      setAuthToken: (authToken) => set({ authToken }),
+      setAuthToken: (authToken) => {
+        console.log('Setting authToken:', authToken);
+        set({ authToken });
+      },
       
-      clearAuth: () => set({ 
-        isAuthenticated: false, 
-        authToken: null,
-        membershipInfo: defaultFreeMembership
-      }),
+      clearAuth: () => {
+        console.log('Clearing auth - this should only happen on logout or token invalidation');
+        set({ 
+          isAuthenticated: false, 
+          authToken: null,
+          membershipInfo: defaultFreeMembership
+        });
+      },
       
       upgradeMembership: (level, expiryDate) => set((state) => {
         let features = [...defaultFreeMembership.features]
@@ -126,14 +135,13 @@ export const useMembershipStore = create<MembershipState & MembershipActions>()(
           case MembershipLevel.BASIC:
             features = [
               ...features,
-              'unlimited_novels',
               'enhanced_ai_generation',
               'all_export_formats',
               'spell_check',
               'writing_statistics',
               'basic_cloud_sync'
             ]
-            maxNovels = Infinity
+            maxNovels = 10
             aiGenerationLimit = 100
             break
             

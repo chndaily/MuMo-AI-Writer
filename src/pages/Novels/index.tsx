@@ -49,7 +49,15 @@ const NovelCrafter: React.FC = () => {
   const [novels, setNovels] = useState<any[]>([]);
   const [genres, setGenres] = useState<any[]>([]);
   
-  const { membershipInfo } = useMembershipStore(); // 获取当前用户信息
+  const { membershipInfo, isAuthenticated } = useMembershipStore(); // 获取当前用户信息
+  
+  // 检查用户是否已认证
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('用户未认证，重定向到登录页');
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
   
   const refreshNovels = useCallback(async () => {
     const { databaseManager } = await import('@/services/index');
@@ -203,6 +211,8 @@ const NovelCrafter: React.FC = () => {
           if (selectedNovel?.id === novelId) {
             clearSelectedNovel();
           }
+          // 刷新小说列表
+          await refreshNovels();
         } catch (error) {
           message.error('删除失败，请重试');
         }

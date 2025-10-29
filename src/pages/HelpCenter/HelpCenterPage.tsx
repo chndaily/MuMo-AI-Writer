@@ -33,9 +33,10 @@ import {
   SendOutlined,
   DownloadOutlined,
   TeamOutlined,
-  HomeOutlined
+  HomeOutlined,
+  CreditCardOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -97,6 +98,14 @@ const HelpCenterPage: React.FC = () => {
       icon: <TeamOutlined />,
       tags: ['团队', '协作'],
       lastUpdated: '2025-10-16'
+    },
+    {
+      id: '7',
+      title: '会员权限说明',
+      description: '详细了解不同会员等级的功能权限和限制',
+      icon: <CreditCardOutlined />,
+      tags: ['会员', '权限'],
+      lastUpdated: '2025-10-29'
     }
   ];
 
@@ -348,6 +357,70 @@ const HelpCenterPage: React.FC = () => {
                 <li>开始协作创作</li>
                 <li>版本控制和冲突解决</li>
               </ul>
+            </Paragraph>
+          </div>
+        );
+      case '7':
+        return (
+          <div>
+            <Title level={5}>会员权限说明</Title>
+            <Paragraph>
+              Novelcrafter 提供三种会员等级，不同等级享有不同的功能权限。
+            </Paragraph>
+            
+            <Title level={5}>免费会员</Title>
+            <Paragraph>
+              免费会员可以体验基础的创作功能，适合初次使用者。
+            </Paragraph>
+            <Paragraph>
+              <ul>
+                <li><strong>小说创作：</strong>创建最多3本小说</li>
+                <li><strong>基础编辑：</strong>使用基本的文本编辑功能</li>
+                <li><strong>导出功能：</strong>支持TXT和Markdown格式导出</li>
+                <li><strong>AI辅助：</strong>每天可使用AI功能10次</li>
+                <li><strong>云同步：</strong>基础云同步功能（限制50MB存储空间）</li>
+              </ul>
+            </Paragraph>
+            
+            <Title level={5}>基础会员</Title>
+            <Paragraph>
+              基础会员适合日常创作者，提供更多实用功能。
+            </Paragraph>
+            <Paragraph>
+              <ul>
+                <li><strong>小说创作：</strong>创建最多20本小说</li>
+                <li><strong>高级编辑：</strong>支持富文本编辑和格式化</li>
+                <li><strong>导出功能：</strong>支持TXT、Markdown、DOCX格式导出</li>
+                <li><strong>AI辅助：</strong>每天可使用AI功能100次</li>
+                <li><strong>拼写检查：</strong>实时拼写和语法检查</li>
+                <li><strong>创作统计：</strong>详细的创作数据分析</li>
+                <li><strong>云同步：</strong>增强云同步功能（限制1GB存储空间）</li>
+                <li><strong>高级功能：</strong>解锁大纲、创作、聊天、回顾、提示词、设置等核心功能</li>
+              </ul>
+            </Paragraph>
+            
+            <Title level={5}>专业会员</Title>
+            <Paragraph>
+              专业会员面向专业作家和团队，提供完整的创作套件。
+            </Paragraph>
+            <Paragraph>
+              <ul>
+                <li><strong>小说创作：</strong>无限制创建小说</li>
+                <li><strong>全部编辑功能：</strong>包含所有编辑和格式化功能</li>
+                <li><strong>导出功能：</strong>支持所有格式导出（TXT、Markdown、DOCX、PDF、EPUB）</li>
+                <li><strong>AI辅助：</strong>无限制使用AI功能</li>
+                <li><strong>可视化工具：</strong>角色关系图、情节发展图等可视化分析工具</li>
+                <li><strong>高级统计：</strong>深度创作分析和趋势预测</li>
+                <li><strong>云同步：</strong>完整云同步功能（限制10GB存储空间）</li>
+                <li><strong>优先支持：</strong>享受优先技术支持服务</li>
+                <li><strong>抢先体验：</strong>优先体验新功能和特性</li>
+                <li><strong>团队协作：</strong>支持多人协作创作</li>
+              </ul>
+            </Paragraph>
+            
+            <Title level={5}>升级会员</Title>
+            <Paragraph>
+              如需升级会员，请前往<Button type="link" onClick={() => navigate('/membership')}>会员中心</Button>查看详细信息并进行升级。
             </Paragraph>
           </div>
         );

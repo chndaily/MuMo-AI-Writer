@@ -96,6 +96,11 @@ class OptimizedDataSyncService {
    * 同步所有数据
    */
   async syncAllData(): Promise<{ success: boolean; message: string }> {
+    console.log('Starting data sync, current auth state:', {
+      isAuthenticated: useMembershipStore.getState().isAuthenticated,
+      authToken: useMembershipStore.getState().authToken
+    });
+    
     if (this.isSyncing) {
       return { success: false, message: '同步正在进行中' };
     }
@@ -107,8 +112,20 @@ class OptimizedDataSyncService {
       // 同步小说数据
       await this.syncNovels();
       
+      // 检查同步过程中的认证状态
+      console.log('After novels sync, auth state:', {
+        isAuthenticated: useMembershipStore.getState().isAuthenticated,
+        authToken: useMembershipStore.getState().authToken
+      });
+      
       // 同步角色数据
       await this.syncCharacters();
+      
+      // 检查同步过程中的认证状态
+      console.log('After characters sync, auth state:', {
+        isAuthenticated: useMembershipStore.getState().isAuthenticated,
+        authToken: useMembershipStore.getState().authToken
+      });
       
       // 同步地点数据
       await this.syncLocations();
@@ -123,6 +140,11 @@ class OptimizedDataSyncService {
       this.lastSyncTime = Date.now();
       
       eventBus.emit('syncCompleted', { success: true });
+      
+      console.log('Data sync completed, final auth state:', {
+        isAuthenticated: useMembershipStore.getState().isAuthenticated,
+        authToken: useMembershipStore.getState().authToken
+      });
       
       return { success: true, message: '数据同步完成' };
     } catch (error) {

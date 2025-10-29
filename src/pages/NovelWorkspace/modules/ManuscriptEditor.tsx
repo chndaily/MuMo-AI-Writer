@@ -21,7 +21,8 @@ import {
   CaretRightOutlined,
   ThunderboltOutlined,
   WarningOutlined,
-  CheckCircleOutlined // 新增导入
+  CheckCircleOutlined,
+  LockOutlined // 新增导入
 } from '@ant-design/icons';
 import TailwindAdvancedEditor from '@/components/novel/tiptapNovel/advanced-editor';
 import { useCreationCenterStore } from '@/stores/creationCenterStore';
@@ -29,7 +30,8 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { hybridStorageService } from '@/services/hybridStorageService';
 import { databaseManager, getDatabaseStatus } from '@/services/index';
 import { spellCheckService } from '@/services/spellCheckService';
-import { exportService } from '@/services/exportService'; // 新增导入
+import { exportService } from '@/services/exportService';
+import { useMembership } from '@/hooks/useMembership'; // 新增导入
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -85,6 +87,38 @@ const ManuscriptEditor: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedNovel } = useCreationCenterStore();
+  const { checkPermission, isFree } = useMembership(); // 新增权限检查
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('manuscript');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   // 直接使用 databaseManager 获取数据
   const updateNovel = useCallback(async (id: string, updates: any) => {
     const { databaseManager } = await import('@/services/index');

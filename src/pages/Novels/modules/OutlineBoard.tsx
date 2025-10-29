@@ -12,7 +12,8 @@ import {
   Tag,
   Divider,
   Tooltip,
-  Dropdown
+  Dropdown,
+  Alert
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -22,15 +23,17 @@ import {
   DragOutlined,
   FileTextOutlined,
   DownOutlined,
-  RightOutlined
+  RightOutlined,
+  LockOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { hybridStorageService } from '@/services/hybridStorageService';
-import { exportService } from '@/services/exportService'; // 新增导入
+import { exportService } from '@/services/exportService';
+import { useMembership } from '@/hooks/useMembership';
 
 import { NovelOutline } from '#/novel';
 import { generateUUID } from '@/utils/uuidUtils';
-import { optimizedDataSyncService } from '@/services/optimizedDataSyncService'; // 导入优化的数据同步服务
+import { optimizedDataSyncService } from '@/services/optimizedDataSyncService';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -38,16 +41,16 @@ const { Text } = Typography;
 interface Chapter {
   id: string;
   title: string;
-  content: string; // 添加content字段
+  content: string;
   order: number;
   totalWords: number;
-  summary?: string; // 添加摘要字段
+  summary?: string;
 }
 
 interface Act {
   id: string;
   title: string;
-  content: string; // 添加content字段
+  content: string;
   chapters: Chapter[];
   order: number;
   totalWords: number;
@@ -61,7 +64,7 @@ interface OutlineData {
 
 interface OutlineBoardProps {
   aiSyncData?: any;
-  novelId?: string; // 添加小说ID参数
+  novelId?: string;
 }
 
 const ChapterCard: React.FC<{ 
@@ -200,7 +203,7 @@ const ActBlock: React.FC<{
           icon={<PlusOutlined />}
           onClick={() => onAddChapter(act.id)}
         >
-          新章节
+          添加章节
         </Button>
         <Button 
           size="small" 
@@ -209,6 +212,7 @@ const ActBlock: React.FC<{
         />
         <Popconfirm
           title="确认删除这个卷吗？"
+          description="这将同时删除该卷下的所有章节"
           onConfirm={() => onDeleteAct(act.id)}
           okText="确认"
           cancelText="取消"
@@ -217,33 +221,60 @@ const ActBlock: React.FC<{
         </Popconfirm>
       </Space>
     </div>
-    
-    {act.content && (
-      <div className="act-description" style={{ margin: '12px 0', padding: '12px', backgroundColor: '#f0f5ff', borderRadius: '6px' }}>
-        <div dangerouslySetInnerHTML={{ __html: act.content.replace(/\n/g, '<br>') }} />
-      </div>
-    )}
-    
-    <div className="chapter-list">
-      {act.chapters.map(chapter => (
-        <ChapterCard
-          key={chapter.id}
-          chapter={chapter}
-          onEditChapter={onEditChapter}
-          onDeleteChapter={onDeleteChapter}
-        />
-      ))}
-      {act.chapters.length === 0 && (
-        <Card className="empty-chapter">
-          <Text type="secondary">还没有章节，点击新章节开始编写</Text>
-        </Card>
+    <div className="act-content">
+      {act.content && (
+        <div className="act-description">
+          <div dangerouslySetInnerHTML={{ __html: act.content.replace(/\n/g, '<br>') }} />
+        </div>
       )}
+      <div className="chapters-grid">
+        {act.chapters.map(chapter => (
+          <ChapterCard 
+            key={chapter.id}
+            chapter={chapter}
+            onEditChapter={onEditChapter}
+            onDeleteChapter={onDeleteChapter}
+          />
+        ))}
+      </div>
     </div>
   </div>
 );
 
-const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId = '' }) => {
+const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
   const navigate = useNavigate();
+  const { checkPermission, isFree } = useMembership(); // 新增权限检查
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('storyboard');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="outline-board">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   const [outlineData, setOutlineData] = useState<OutlineData>({
     acts: [],
     totalWords: 0,

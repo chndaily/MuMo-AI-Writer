@@ -26,7 +26,6 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_API_BASE_URL || 'http://localhost:3001',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
         },
         // 代理OpenAI API请求
         '/openai': {

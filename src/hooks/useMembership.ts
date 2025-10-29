@@ -9,16 +9,22 @@ const FEATURE_PERMISSIONS: Record<string, MembershipLevel[]> = {
   'markdown_export': [MembershipLevel.FREE, MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
   
   // 基础会员功能
-  'unlimited_novels': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
   'enhanced_ai_generation': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
   'all_export_formats': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
   'spell_check': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
   'writing_statistics': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
   'basic_cloud_sync': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL],
+  'storyboard': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL], // 大纲功能
+  'manuscript': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL], // 创作功能
+  'chat': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL], // 聊天功能
+  'review': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL], // 回顾功能
+  'prompts': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL], // 提示词功能
+  'settings': [MembershipLevel.BASIC, MembershipLevel.PROFESSIONAL], // 设置功能
   
   // 专业会员功能
+  'unlimited_novels': [MembershipLevel.PROFESSIONAL],
   'unlimited_ai_generation': [MembershipLevel.PROFESSIONAL],
-  'visualization_tools': [MembershipLevel.PROFESSIONAL],
+  'visualization_tools': [MembershipLevel.PROFESSIONAL], // 关系网功能
   'advanced_export': [MembershipLevel.PROFESSIONAL],
   'full_cloud_sync': [MembershipLevel.PROFESSIONAL],
   'priority_support': [MembershipLevel.PROFESSIONAL],
@@ -28,10 +34,15 @@ const FEATURE_PERMISSIONS: Record<string, MembershipLevel[]> = {
 
 // 权限控制Hook
 export const useMembership = () => {
-  const { membershipInfo, hasFeature, canCreateMoreNovels, useAIGeneration } = useMembershipStore()
+  const { membershipInfo, hasFeature, canCreateMoreNovels, useAIGeneration, isAdmin } = useMembershipStore()
   
   // 检查是否有特定功能权限
   const checkPermission = (feature: string): boolean => {
+    // 管理员拥有所有权限
+    if (isAdmin()) {
+      return true
+    }
+    
     // 如果功能不在权限映射中，默认允许访问
     if (!FEATURE_PERMISSIONS[feature]) {
       return true
@@ -43,6 +54,11 @@ export const useMembership = () => {
   
   // 检查AI生成权限
   const checkAIGenerationPermission = (): { allowed: boolean; reason?: string } => {
+    // 管理员拥有无限AI生成权限
+    if (isAdmin()) {
+      return { allowed: true }
+    }
+    
     // 检查是否超出每日限制
     if (membershipInfo.aiGenerationUsed >= membershipInfo.aiGenerationLimit) {
       return { 
@@ -71,6 +87,11 @@ export const useMembership = () => {
   
   // 获取升级建议
   const getUpgradeSuggestion = (feature: string): MembershipLevel | null => {
+    // 管理员不需要升级建议
+    if (isAdmin()) {
+      return null
+    }
+    
     // 如果用户已有权限，不需要升级建议
     if (checkPermission(feature)) {
       return null

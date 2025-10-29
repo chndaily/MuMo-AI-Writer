@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input, List, Card, Typography, Spin, Alert, Space, message, Avatar, Popconfirm } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
+import { SendOutlined, UserOutlined, RobotOutlined, DeleteOutlined, ClearOutlined, LockOutlined } from '@ant-design/icons';
 import { usePromptLibraryStore } from '@/stores/promptLibraryStore';
 import { searchKnowledgeBase } from '@/utils/aiKnowledgeBaseUtils';
 import type { Collection } from '#/promptLibrary';
@@ -8,12 +8,47 @@ import { useLLM } from '@/hooks/useLLM';
 import { useDefaultModels } from '@/hooks/useDefaultModels';
 import { hybridStorageService } from '@/services/hybridStorageService';
 import { Message } from '@/services/chatStore';
+import { useMembership } from '@/hooks/useMembership';
+import { useNavigate } from 'react-router-dom';
 
 interface ChatPanelProps {
   novelId: string;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ novelId }) => {
+  const navigate = useNavigate();
+  const { checkPermission, isFree } = useMembership();
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('chat');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);

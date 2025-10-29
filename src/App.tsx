@@ -19,19 +19,7 @@ import SyncConfigPage from './pages/SyncConfigPage'
 import NovelListIndexDB from './pages/NovelListIndexDB'
 import NovelsIndex from './pages/Novels'
 import HomePage from './pages/HomePage'
-import TestPage from './pages/PromptLibrary/TestPage'
-import RouteTest from './pages/PromptLibrary/RouteTest'
-import SimpleTest from './pages/PromptLibrary/SimpleTest'
 import { usePromptLibraryStore } from './stores/promptLibraryStore'
-import { Collection } from '#/promptLibrary'
-import RouteGuard from '@/components/common/RouteGuard'
-import NovelCrafter from './pages/Novels/index'
-import NovelLayout from './pages/NovelWorkspace/layout/index'
-import NovelStoryboard from './pages/NovelWorkspace/storyboard'
-import ManuscriptEditor from './pages/NovelWorkspace/modules/ManuscriptEditor'
-import VisualizationPage from './pages/NovelWorkspace/visualization'
-import NovelChat from './pages/NovelWorkspace/chat/index'
-import NovelReview from './pages/NovelWorkspace/review/index'
 import NovelSettingsPage from './pages/NovelWorkspace/settings'
 import NovelPromptsPage from './pages/NovelWorkspace/prompts/index'
 import NovelPromptsLayout from './pages/NovelWorkspace/prompts/NovelPromptsLayout'
@@ -49,6 +37,14 @@ import MembershipBenefitsPage from './pages/MembershipFeatures/MembershipBenefit
 import TeamManagementPage from './pages/MembershipFeatures/TeamManagementPage'
 import HelpCenterPage from './pages/HelpCenter/HelpCenterPage'
 import ProfilePageSimple from './pages/ProfilePageSimple'
+import RouteGuard from './components/common/RouteGuard'
+import { Collection } from '#/promptLibrary'
+import NovelLayout from './pages/NovelWorkspace/layout'
+import ManuscriptEditor from './pages/NovelWorkspace/modules/ManuscriptEditor'
+import VisualizationPage from './pages/NovelWorkspace/visualization'
+import NovelChat from './pages/NovelWorkspace/chat/index'
+import NovelReview from './pages/NovelWorkspace/review/index'
+import NovelStoryboard from './pages/NovelWorkspace/storyboard' // 新增导入
 
 const { Content } = Layout
 
@@ -192,9 +188,6 @@ function App() {
           <Route path="/novels" element={<NovelListIndexDB />} />
           <Route path="/creation-center" element={<NovelsIndex />} />
           <Route path="/home" element={<HomePage />} />
-          <Route path="/test-prompts" element={<TestPage />} />
-          <Route path="/route-test" element={<RouteTest />} />
-          <Route path="/simple-test" element={<SimpleTest />} />
           {/* 会员中心路由 */}
           <Route path="/membership" element={<MembershipCenter />} />
           {/* 会员体系演示路由 */}
@@ -220,7 +213,6 @@ function App() {
         </Route>
         <Route path="/novels/:novelId" element={<NovelLayout />} >
           <Route index element={<Navigate to="manuscript" />} />
-          <Route path="storyboard" element={<NovelStoryboard />} />
           <Route path="manuscript" element={<ManuscriptEditor />} />
           <Route path="manuscript/:chapterId" element={<ManuscriptEditor />} />
           <Route path="visualization" element={<VisualizationPage />} />
@@ -232,6 +224,7 @@ function App() {
           <Route path="prompts/library" element={<NovelPromptsLayout />} /> {/* 新增小说特定提示词库布局路由 */}
           <Route path="prompts/library/*" element={<NovelPromptsLayout />} /> {/* 新增小说特定提示词库布局路由 */}
           <Route path="prompts/:promptId" element={<NovelPromptsLayout />} /> {/* 新增小说特定提示词详情路由 */}
+          <Route path="storyboard" element={<NovelStoryboard />} /> {/* 新增大纲页面路由 */}
         </Route>
       </Routes>
     </Router>

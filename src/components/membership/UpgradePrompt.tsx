@@ -36,7 +36,7 @@ const UpgradePrompt: React.FC<UpgradePromptProps> = ({
           price: '¥19/月',
           description: '适合个人创作者的基础功能',
           features: [
-            '无限制小说创建',
+            '10本小说创建限制',
             '每日100次AI生成',
             '所有导出格式支持',
             '拼写检查功能',

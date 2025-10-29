@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Card, Typography, Space, Divider, Modal, Form, Input, message, Popconfirm, Tag, Tooltip, Row, Col, Tree, Empty } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined, ExportOutlined, ImportOutlined, FullscreenOutlined, FullscreenExitOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, EyeOutlined } from '@ant-design/icons';
+import { Button, Card, Typography, Space, Divider, Modal, Form, Input, message, Popconfirm, Tag, Tooltip, Row, Col, Tree, Empty, Alert } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined, ExportOutlined, ImportOutlined, FullscreenOutlined, FullscreenExitOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, EyeOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import { useMembership } from '@/hooks/useMembership';
 
 const { Title, Text } = Typography;
 
@@ -428,6 +429,38 @@ const ContentPreviewModal: React.FC<{
 const NovelStoryboard: React.FC = () => {
   const navigate = useNavigate();
   const { novelId } = useParams();
+  const { checkPermission, isFree } = useMembership(); // 新增权限检查
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('storyboard');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="outline-board h-full overflow-y-auto p-4 bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要基础会员或更高等级才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   // 直接使用 databaseManager 获取数据
   const [outlines, setOutlines] = useState<any[]>([]);
   const refreshOutlines = useCallback(async (novelId?: string) => {

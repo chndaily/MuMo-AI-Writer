@@ -82,29 +82,51 @@ const BookSelector = forwardRef<BookSelectorRef, BookSelectorProps>(({
     return (
       <div style={{
         border: '1px dashed #d9d9d9',
-        borderRadius: '6px',
-        padding: '16px',
+        borderRadius: '4px',
+        padding: '2px 4px', // 调整内边距以适应水平布局
         textAlign: 'center',
         backgroundColor: '#fafafa',
+        minHeight: '32px', // 保持较小的最小高度
+        height: '32px', // 固定高度
+        display: 'flex',
+        flexDirection: 'row', // 水平布局
+        justifyContent: 'center',
+        alignItems: 'center',
+        lineHeight: '1',
         ...style
       }}>
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
+          imageStyle={{ 
+            height: '16px',
+            margin: '0 4px 0 0' // 图片右侧添加边距
+          }}
           description={
-            <span style={{ color: '#999' }}>
-              暂无小说，请先到创作中心创建小说
+            <span style={{ 
+              color: '#999', 
+              fontSize: '12px',
+              margin: '0',
+              padding: '0'
+            }}>
+              暂无小说
             </span>
           }
+        />
+        <Button 
+          type="primary" 
+          icon={<PlusOutlined />} 
+          onClick={handleGoToNovels}
+          size="small"
+          style={{ 
+            fontSize: '12px', 
+            padding: '0 6px', 
+            height: '22px',
+            margin: '0 0 0 4px', // 按钮左侧添加边距
+            lineHeight: '1'
+          }}
         >
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={handleGoToNovels}
-            size="small"
-          >
-            去创建小说
-          </Button>
-        </Empty>
+          去创建小说
+        </Button>
       </div>
     );
   }

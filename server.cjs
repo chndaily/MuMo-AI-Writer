@@ -9,15 +9,10 @@ const port = 3001;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// 添加CORS中间件 - 修复CORS问题，允许Render部署的域名
+// 添加CORS中间件
 const cors = require('cors');
 app.use(cors({
-  origin: [
-    'http://localhost:3030', 
-    'http://127.0.0.1:3030',
-    'https://mumo-qxrm.onrender.com',  // 添加Render前端域名
-    'https://mumoai.onrender.com'      // 添加Render后端域名（如果需要）
-  ],
+  origin: ['http://localhost:3030', 'http://127.0.0.1:3030', 'http://localhost:3031', 'http://localhost:3032', 'http://localhost:3033'],
   credentials: true
 }));
 
@@ -25,7 +20,7 @@ app.use(cors({
 let db;
 
 // 添加环境变量用于配置真实MongoDB连接
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mumo-ai-writer';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/taotao-writing';
 
 // 支付配置（从环境变量获取）
 const PAYMENT_CONFIG = {
@@ -203,7 +198,6 @@ function startMembershipExpirationCheck() {
               'membershipInfo.features': [
                 'novel_creation',
                 'basic_editing',
-                'basic_editing',
                 'txt_export',
                 'markdown_export'
               ]
@@ -278,20 +272,55 @@ app.post('/api/auth/generate-token', (req, res) => {
 });
 
 app.post('/api/auth/verify-token', (req, res) => {
+  console.log('=== Verify token endpoint called ===');
   try {
     const { token, secret } = req.body;
     
+    console.log('Received verify request with:', { 
+      token: token ? token.substring(0, 50) + '...' : null, 
+      secret: secret ? secret.substring(0, 20) + '...' : null,
+      tokenType: typeof token,
+      secretType: typeof secret
+    });
+    
+    // 检查参数
+    if (!token) {
+      console.log('Token is missing in verify request');
+      return res.status(400).json({ error: 'Token is required' });
+    }
+    
+    if (!secret) {
+      console.log('Secret is missing in verify request');
+      return res.status(400).json({ error: 'Secret is required' });
+    }
+    
+    console.log('Token length:', token.length);
+    console.log('Secret length:', secret.length);
+    
     // 动态导入jsonwebtoken
+    console.log('Attempting to import jsonwebtoken...');
     import('jsonwebtoken').then(jwt => {
-      const payload = jwt.default.verify(token, secret);
-      res.json({ payload });
+      console.log('Successfully imported jsonwebtoken');
+      console.log('Attempting to verify token with secret:', secret ? secret.substring(0, 20) + '...' : 'null');
+      try {
+        const payload = jwt.default.verify(token, secret);
+        console.log('Token verified successfully:', payload);
+        res.json({ payload });
+      } catch (verifyError) {
+        console.error('Token verification failed:', verifyError);
+        console.error('Verify error name:', verifyError.name);
+        console.error('Verify error message:', verifyError.message);
+        res.status(401).json({ error: 'Invalid token: ' + verifyError.message });
+      }
     }).catch(error => {
       console.error('Failed to import jsonwebtoken:', error);
       res.status(500).json({ error: 'Failed to verify token' });
     });
   } catch (error) {
     console.error('Failed to verify token:', error);
-    res.status(500).json({ error: 'Failed to verify token' });
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    res.status(500).json({ error: 'Failed to verify token: ' + error.message });
   }
 });
 
@@ -1988,15 +2017,6 @@ app.delete('/api/prompt-library/:id', async (req, res) => {
     console.error('Failed to delete prompt library collection:', error);
     res.status(500).json({ error: error.message });
   }
-});
-
-// 健康检查端点
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    database: db ? 'Connected' : 'Disconnected',
-    timestamp: new Date().toISOString()
-  });
 });
 
 // 启动服务器

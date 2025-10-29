@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Button, Card, Col, Row, Space, Typography, message, Tabs, Dropdown, Breadcrumb } from 'antd';
+import { Layout, Button, Card, Col, Row, Space, Typography, message, Tabs, Dropdown, Breadcrumb, Alert } from 'antd';
 import { 
   TeamOutlined, 
   EnvironmentOutlined, 
@@ -17,7 +17,8 @@ import {
   RadarChartOutlined,
   ArrowLeftOutlined,
   FileTextOutlined,
-  TagOutlined
+  TagOutlined,
+  LockOutlined
 } from '@ant-design/icons';
 import CharacterNetwork from './visualization/CharacterNetwork';
 import WorldSettingNetwork from './visualization/WorldSettingNetwork';
@@ -25,8 +26,8 @@ import { useNovel } from '@/hooks/useNovel';
 import TimelineChart from './visualization/TimelineChart';
 import ChapterNetwork from './visualization/ChapterNetwork';
 import ThemeSymbolChart from './visualization/ThemeSymbolChart';
-// DataDebug 组件已移除
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useMembership } from '@/hooks/useMembership';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -36,6 +37,38 @@ const VisualizationPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { novel, loading: novelLoading } = useNovel(novelId);
+  const { checkPermission, isFree } = useMembership();
+  
+  // 检查用户是否有访问权限
+  const hasPermission = checkPermission('visualization_tools');
+  
+  // 如果没有权限，显示升级提示
+  if (!hasPermission) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-100">
+        <Alert
+          message="权限不足"
+          description={
+            <div>
+              <p>当前功能需要专业会员才能使用。</p>
+              <p className="mt-2">
+                <Button 
+                  type="primary" 
+                  onClick={() => navigate('/membership')}
+                >
+                  升级会员
+                </Button>
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          icon={<LockOutlined />}
+        />
+      </div>
+    );
+  }
+  
   // 直接使用 databaseManager 获取数据
   const [characters, setCharacters] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);

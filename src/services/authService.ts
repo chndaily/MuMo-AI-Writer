@@ -84,7 +84,7 @@ Object.keys(testUsers).forEach(email => {
     membershipInfo: {
       level: userLevel,
       expiryDate: userLevel !== MembershipLevel.FREE ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
-      maxNovels: userLevel === MembershipLevel.FREE ? 3 : Infinity,
+      maxNovels: userLevel === MembershipLevel.FREE ? 3 : userLevel === MembershipLevel.BASIC ? 10 : Infinity,
       aiGenerationLimit: userLevel === MembershipLevel.FREE ? 10 : userLevel === MembershipLevel.BASIC ? 100 : Infinity,
       aiGenerationUsed: 0,
       features,

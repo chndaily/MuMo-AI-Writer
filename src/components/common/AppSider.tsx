@@ -14,7 +14,8 @@ import {
   UserOutlined,
   DeleteOutlined,
   CheckCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  QuestionCircleOutlined
 } from '@ant-design/icons'
 import { useMembershipStore } from '@/stores/membershipStore'
 
@@ -23,7 +24,17 @@ const { Sider } = Layout
 const AppSider: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isProfessionalOrAdmin, isAdmin } = useMembershipStore();
+  const { isProfessionalOrAdmin, isAdmin, isAuthenticated } = useMembershipStore();
+  
+  // 检查用户认证状态
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('AppSider: 用户未认证');
+    } else {
+      console.log('AppSider: 用户已认证，管理员权限:', isAdmin(), '专业会员权限:', isProfessionalOrAdmin());
+    }
+  }, [isAuthenticated, isAdmin, isProfessionalOrAdmin]);
+
   // 修改权限检查，只允许管理员访问AI模型配置
   const canAccessLLM = isAdmin();
   const canAccessDatabase = isAdmin();
@@ -96,15 +107,24 @@ const AppSider: React.FC = () => {
       icon: <SyncOutlined />,
       label: '数据同步',
     }] : []),
+    {
+      key: '/help-center',
+      icon: <QuestionCircleOutlined />,
+      label: '帮助中心',
+    },      
 
   ]
 
   const handleMenuClick = ({ key }: { key: string }) => {
+    console.log('菜单点击:', key);
+    
     // 检查是否有权限访问该页面
     if (key === '/llm-config' && !canAccessLLM) {
+      console.log('无权限访问AI模型配置页面');
       return;
     }
     if ((key === '/config/supabase' || key === '/config/payment' || key === '/config/users' || key === '/config/novels') && !canAccessDatabase) {
+      console.log('无权限访问数据库配置页面');
       return;
     }
     
