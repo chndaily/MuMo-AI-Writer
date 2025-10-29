@@ -20,7 +20,7 @@ app.use(cors({
 let db;
 
 // 添加环境变量用于配置真实MongoDB连接
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/taotao-writing';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mumo-ai-writer';
 
 // 支付配置（从环境变量获取）
 const PAYMENT_CONFIG = {
