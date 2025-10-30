@@ -20,8 +20,42 @@ export async function getExistingElementsInfo(novelId: string): Promise<string> 
     const magics = await hybridStorageService.getWorldElements('magic', novelId)
     // 获取已有的历史信息
     const histories = await hybridStorageService.getWorldElements('history', novelId)
+    // 获取大纲信息
+    const outlines = await hybridStorageService.getOutlines(novelId)
 
     let elementsInfo = ''
+
+    // 添加大纲信息
+    if (outlines && outlines.length > 0) {
+      elementsInfo += '【小说大纲信息】\n'
+      // 按照层级结构组织大纲信息
+      const mainOutlines = outlines.filter(outline => outline.type === 'main')
+      const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
+      
+      mainOutlines.forEach(mainOutline => {
+        elementsInfo += `卷：${mainOutline.title}\n`
+        if (mainOutline.content) elementsInfo += `卷描述：${mainOutline.content}\n`
+        
+        // 添加该卷下的章节信息
+        const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
+        chaptersInThisAct.forEach(chapter => {
+          elementsInfo += `  章节：${chapter.title}\n`
+          if (chapter.content) elementsInfo += `  章节内容：${chapter.content}\n`
+        })
+        elementsInfo += '\n'
+      })
+      
+      // 如果有未归属于任何卷的章节，单独列出
+      const unassignedChapters = chapterOutlines.filter(chapter => !chapter.parentId || !mainOutlines.some(act => act.id === chapter.parentId))
+      if (unassignedChapters.length > 0) {
+        elementsInfo += '未归属于卷的章节：\n'
+        unassignedChapters.forEach(chapter => {
+          elementsInfo += `  章节：${chapter.title}\n`
+          if (chapter.content) elementsInfo += `  章节内容：${chapter.content}\n`
+        })
+        elementsInfo += '\n'
+      }
+    }
 
     // 添加角色信息
     if (characters && characters.length > 0) {
@@ -545,11 +579,9 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
   // 获取已有元素信息并添加到指导中
   const existingElementsInfo = await getExistingElementsInfo(novelId)
   if (existingElementsInfo) {
-    guidance += `
-
-【重要提醒】
-请在生成内容时参考以下已有的元素信息，确保新生成的内容与已有元素保持一致性和关联性：
-${existingElementsInfo}`
+    guidance += '\n\n【重要提醒】\n' +
+                '请在生成内容时参考以下已有的元素信息，确保新生成的内容与已有元素保持一致性和关联性：\n' +
+                existingElementsInfo
   }
 
   return guidance
