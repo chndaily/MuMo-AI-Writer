@@ -140,9 +140,9 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
         return [
           { 
             key: 'plot', 
-            label: '同步到大纲管理', 
+            label: '同步情节内容', 
             icon: <FileTextOutlined />,
-            description: '将生成的情节内容同步到大纲管理模块',
+            description: '将生成的情节内容同步到选定章节',
             targetModule: 'outline'
           }
         ];
@@ -254,17 +254,37 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
           );
         }
       } else {
-        // 否则使用优化的数据同步服务
-        // 对于世界观设定，使用专门的同步方法
+        // 否则使用专门的同步服务
         switch (generationType) {
           case 'character':
+            // 导入并使用角色同步服务
+            const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
+            result = await characterSyncService.syncCharacters(content, novel.id);
+            break;
           case 'location':
+            // 导入并使用地点同步服务
+            const { locationSyncService } = await import('@/services/sync/LocationSyncService');
+            result = await locationSyncService.syncLocations(content, novel.id);
+            break;
           case 'culture':
+            // 导入并使用文化同步服务
+            const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
+            result = await cultureSyncService.syncCultures(content, novel.id);
+            break;
           case 'technology':
+            // 导入并使用科技同步服务
+            const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
+            result = await technologySyncService.syncTechnologies(content, novel.id);
+            break;
           case 'magic':
+            // 导入并使用魔法同步服务
+            const { magicSyncService } = await import('@/services/sync/MagicSyncService');
+            result = await magicSyncService.syncMagics(content, novel.id);
+            break;
           case 'history':
-            // 使用优化的数据同步服务进行全量同步
-            result = await optimizedDataSyncService.syncAllData();
+            // 导入并使用历史同步服务
+            const { historySyncService } = await import('@/services/sync/HistorySyncService');
+            result = await historySyncService.syncHistories(content, novel.id);
             break;
           case 'outline':
           case 'plot':
@@ -278,7 +298,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
             }
             break;
           default:
-            // 对于其他类型，也使用优化的数据同步服务
+            // 对于其他类型，使用优化的数据同步服务
             result = await optimizedDataSyncService.syncAllData();
         }
       }

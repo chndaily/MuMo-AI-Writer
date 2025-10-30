@@ -36,8 +36,26 @@ export class CharacterParserService {
    * 按角色设定分割内容
    */
   private splitContentByCharacters(content: string): string[] {
-    // 查找所有【角色设定】标记
+    // 查找所有【角色设定】标记，支持多种格式
     const characterMarkers = [...content.matchAll(/【角色设定[:：]?\s*[^】]*】/g)];
+    
+    // 如果没有找到标准格式的角色设定标记，尝试查找其他可能的标记
+    if (characterMarkers.length === 0) {
+      // 查找"角色"关键词作为分割点
+      const roleMarkers = [...content.matchAll(/(^|\n)##?\s*角色\s*\d*[:：]?/g)];
+      if (roleMarkers.length > 1) {
+        const sections: string[] = [];
+        for (let i = 0; i < roleMarkers.length; i++) {
+          const start = roleMarkers[i].index!;
+          const end = i < roleMarkers.length - 1 ? roleMarkers[i + 1].index! : content.length;
+          sections.push(content.substring(start, end).trim());
+        }
+        return sections;
+      }
+      
+      // 如果还是没有找到分割点，返回整个内容作为一个角色
+      return [];
+    }
     
     if (characterMarkers.length <= 1) {
       // 如果只有一个或没有角色标记，返回整个内容

@@ -106,14 +106,6 @@ const HelpCenterPage: React.FC = () => {
       icon: <CreditCardOutlined />,
       tags: ['会员', '权限'],
       lastUpdated: '2025-10-29'
-    },
-    {
-      id: '8',
-      title: '测试用户创建',
-      description: '管理员如何创建测试用户账户用于平台测试',
-      icon: <ToolOutlined />,
-      tags: ['管理员', '测试'],
-      lastUpdated: '2025-10-30'
     }
   ];
 
@@ -429,54 +421,6 @@ const HelpCenterPage: React.FC = () => {
             <Title level={5}>升级会员</Title>
             <Paragraph>
               如需升级会员，请前往<Button type="link" onClick={() => navigate('/membership')}>会员中心</Button>查看详细信息并进行升级。
-            </Paragraph>
-          </div>
-        );
-      case '8':
-        return (
-          <div>
-            <Title level={5}>测试用户创建</Title>
-            <Paragraph>
-              管理员可以通过专门的页面创建测试用户账户，用于平台功能测试。
-            </Paragraph>
-            
-            <Title level={5}>访问方式</Title>
-            <Paragraph>
-              只有管理员账户可以访问测试用户创建功能。请使用以下链接访问：
-            </Paragraph>
-            <Paragraph>
-              <Button 
-                type="primary" 
-                href="/create-test-users" 
-                target="_blank"
-                icon={<ToolOutlined />}
-              >
-                打开测试用户创建页面
-              </Button>
-            </Paragraph>
-            
-            <Title level={5}>使用说明</Title>
-            <Paragraph>
-              1. 点击上面的按钮打开测试用户创建页面
-              <br />2. 使用管理员账户的邮箱和密码登录
-              <br />3. 系统将自动创建以下测试用户：
-              <ul>
-                <li>用户名：蜗牛丢了壳，邮箱：763337611@qq.com</li>
-                <li>用户名：测试员1，邮箱：test1@example.com</li>
-                <li>用户名：测试员2，邮箱：test2@example.com</li>
-              </ul>
-              4. 所有测试用户的默认密码均为：mumo123
-              <br />5. 测试用户将被设置为专业会员级别，拥有完整的功能权限
-            </Paragraph>
-            
-            <Title level={5}>注意事项</Title>
-            <Paragraph>
-              <ul>
-                <li>此功能仅供管理员使用，普通用户无法访问</li>
-                <li>测试用户创建后，可以用于平台功能测试</li>
-                <li>请妥善保管管理员账户信息，避免泄露</li>
-                <li>在生产环境中，请谨慎使用此功能</li>
-              </ul>
             </Paragraph>
           </div>
         );

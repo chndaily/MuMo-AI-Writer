@@ -329,31 +329,34 @@ const ManuscriptEditor: React.FC = () => {
       const { novelId: eventNovelId, chapterId, content: syncedContent, willReplaceContent } = event.detail;
       
       // 确保是当前小说的章节同步事件
-      if (eventNovelId === novelId && chapterId === selectedChapterId) {
+      if (eventNovelId === novelId) {
         console.log('接收到章节内容同步事件:', { chapterId, content: syncedContent, willReplaceContent });
         
-        // 更新编辑器内容
-        setContent(syncedContent);
-        
-        // 同时更新章节内容映射
-        setChapterContentMap(prev => ({
-          ...prev,
-          [chapterId]: syncedContent
-        }));
-        
-        // 强制重新渲染编辑器组件
-        setEditorKey(prev => prev + 1);
-        
-        // 如果是替换内容操作，显示警告信息
-        if (willReplaceContent) {
-          setReplacedChapterId(chapterId);
-          setShowReplaceWarning(true);
-          message.warning('原有内容已被替换，如需恢复请查看版本历史');
-        } else {
-          message.success('AI生成的内容已同步到当前章节');
+        // 如果是当前选中的章节，更新编辑器内容
+        if (chapterId === selectedChapterId) {
+          // 更新编辑器内容
+          setContent(syncedContent);
+          
+          // 同时更新章节内容映射
+          setChapterContentMap(prev => ({
+            ...prev,
+            [chapterId]: syncedContent
+          }));
+          
+          // 强制重新渲染编辑器组件
+          setEditorKey(prev => prev + 1);
+          
+          // 如果是替换内容操作，显示警告信息
+          if (willReplaceContent) {
+            setReplacedChapterId(chapterId);
+            setShowReplaceWarning(true);
+            message.warning('原有内容已被替换，如需恢复请查看版本历史');
+          } else {
+            message.success('AI生成的内容已同步到当前章节');
+          }
         }
         
-        // 自动刷新章节列表
+        // 自动刷新章节列表（无论是否是当前选中的章节都刷新列表）
         setTimeout(() => {
           loadChapters(novelId);
         }, 500);
@@ -548,7 +551,8 @@ const ManuscriptEditor: React.FC = () => {
             lastModified: new Date().toISOString()
           };
           
-          await hybridStorageService.saveOutline(outlineToUpdate);
+          // 使用updateOutline而不是saveOutline来更新现有大纲项
+          await hybridStorageService.updateOutline(outlineToUpdate);
           message.success('章节内容保存成功');
           
           // 更新本地章节列表

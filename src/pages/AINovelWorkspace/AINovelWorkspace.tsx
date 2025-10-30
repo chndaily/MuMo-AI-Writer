@@ -369,7 +369,35 @@ const AINovelWorkspace: React.FC = () => {
         case 'plot':
           // 对于内容相关操作，使用内容同步服务
           if (selectedChapterId) {
-            result = await contentSyncService.syncToChapter(content, targetNovel.id, selectedChapterId);
+            // 使用解析后的内容和摘要（如果有的话）
+            const contentToSync = parsedContent ? parsedContent.content : content;
+            const fullContentToSync = parsedContent 
+              ? `${contentToSync}\n#SUMMARY#\n${parsedContent.summary}` 
+              : contentToSync;
+              
+            // 根据操作类型选择不同的同步方法
+            if (generationType === 'optimize') {
+              // 内容优化使用替换方式
+              result = await contentSyncService.syncToChapter(
+                fullContentToSync,  // 传递包含摘要的完整内容
+                targetNovel.id,
+                selectedChapterId
+              );
+            } else if (generationType === 'plot') {
+              // 情节发展使用追加方式
+              result = await contentSyncService.appendToChapter(
+                fullContentToSync,  // 传递包含摘要的完整内容
+                targetNovel.id,
+                selectedChapterId
+              );
+            } else {
+              // 内容创作使用追加方式
+              result = await contentSyncService.appendToChapter(
+                fullContentToSync,  // 传递包含摘要的完整内容
+                targetNovel.id,
+                selectedChapterId
+              );
+            }
           } else {
             message.warning('请选择目标章节');
             return;
@@ -379,8 +407,36 @@ const AINovelWorkspace: React.FC = () => {
           // 对于大纲生成，使用专门的大纲同步服务
           result = await outlineSyncService.syncOutline(content, targetNovel.id);
           break;
+        case 'character':
+        case 'location':
+        case 'culture':
+        case 'technology':
+        case 'magic':
+        case 'history':
+          // 对于世界观设定相关操作，使用专门的同步服务
+          // 根据类型导入相应的同步服务
+          if (generationType === 'character') {
+            const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
+            result = await characterSyncService.syncCharacters(content, targetNovel.id);
+          } else if (generationType === 'location') {
+            const { locationSyncService } = await import('@/services/sync/LocationSyncService');
+            result = await locationSyncService.syncLocations(content, targetNovel.id);
+          } else if (generationType === 'culture') {
+            const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
+            result = await cultureSyncService.syncCultures(content, targetNovel.id);
+          } else if (generationType === 'technology') {
+            const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
+            result = await technologySyncService.syncTechnologies(content, targetNovel.id);
+          } else if (generationType === 'magic') {
+            const { magicSyncService } = await import('@/services/sync/MagicSyncService');
+            result = await magicSyncService.syncMagics(content, targetNovel.id);
+          } else if (generationType === 'history') {
+            const { historySyncService } = await import('@/services/sync/HistorySyncService');
+            result = await historySyncService.syncHistories(content, targetNovel.id);
+          }
+          break;
         default:
-          // 对于世界观设定相关操作，使用优化的数据同步服务进行全量同步
+          // 对于其他类型，使用优化的数据同步服务进行全量同步
           result = await optimizedDataSyncService.syncAllData();
       }
       

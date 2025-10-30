@@ -349,8 +349,23 @@ class HybridStorageService {
       // 如果提供了novelId，使用索引查询以提高性能
       return await databaseManager.outlines.getOutlinesByNovelId(novelId);
     } else {
-      // 如果没有提供novelId，获取所有数据
-      return await databaseManager.outlines.getOutlinesByNovelId(novelId);
+      // 如果没有提供novelId，应该获取所有数据
+      // 但当前实现中databaseManager.outlines.getOutlinesByNovelId不支持无参数调用
+      // 我们需要获取所有小说的ID，然后获取所有大纲
+      try {
+        // 获取所有小说
+        const novels = await databaseManager.novels.getAllNovels();
+        // 获取所有小说的大纲
+        const allOutlines: NovelOutline[] = [];
+        for (const novel of novels) {
+          const outlines = await databaseManager.outlines.getOutlinesByNovelId(novel.id);
+          allOutlines.push(...outlines);
+        }
+        return allOutlines;
+      } catch (error) {
+        console.error('获取所有大纲失败:', error);
+        return [];
+      }
     }
   }
 

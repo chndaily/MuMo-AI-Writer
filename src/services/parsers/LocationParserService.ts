@@ -6,9 +6,76 @@ import { extractTagsFromAIContent, normalizeTags } from '@/utils/tagSyncUtils';
  */
 export class LocationParserService {
   /**
-   * 解析地点内容
+   * 解析地点内容（支持多个地点）
    */
-  async parseLocationContent(content: string): Promise<any> {
+  async parseLocationContent(content: string): Promise<any[]> {
+    console.log('parserServices.location.parseLocationContent 调用');
+    
+    // 按地点设定分割内容
+    const locationSections = this.splitContentByLocations(content);
+    
+    if (locationSections.length === 0) {
+      // 如果没有找到明确的地点分隔符，尝试解析整个内容作为一个地点
+      const singleLocation = this.parseSingleLocation(content);
+      return singleLocation ? [singleLocation] : [];
+    }
+    
+    const locations: any[] = [];
+    for (const section of locationSections) {
+      const location = this.parseSingleLocation(section);
+      if (location) {
+        locations.push(location);
+      }
+    }
+    
+    console.log('解析到的地点数组:', locations);
+    return locations;
+  }
+  
+  /**
+   * 按地点设定分割内容
+   */
+  private splitContentByLocations(content: string): string[] {
+    // 查找所有【地点设定】标记，支持多种格式
+    const locationMarkers = [...content.matchAll(/【地点设定[:：]?\s*[^】]*】/g)];
+    
+    // 如果没有找到标准格式的地点设定标记，尝试查找其他可能的标记
+    if (locationMarkers.length === 0) {
+      // 查找"地点"关键词作为分割点
+      const placeMarkers = [...content.matchAll(/(^|\n)##?\s*地点\s*\d*[:：]?/g)];
+      if (placeMarkers.length > 1) {
+        const sections: string[] = [];
+        for (let i = 0; i < placeMarkers.length; i++) {
+          const start = placeMarkers[i].index!;
+          const end = i < placeMarkers.length - 1 ? placeMarkers[i + 1].index! : content.length;
+          sections.push(content.substring(start, end).trim());
+        }
+        return sections;
+      }
+      
+      // 如果还是没有找到分割点，返回整个内容作为一个地点
+      return [];
+    }
+    
+    if (locationMarkers.length <= 1) {
+      // 如果只有一个或没有地点标记，返回整个内容
+      return [];
+    }
+    
+    const sections: string[] = [];
+    for (let i = 0; i < locationMarkers.length; i++) {
+      const start = locationMarkers[i].index!;
+      const end = i < locationMarkers.length - 1 ? locationMarkers[i + 1].index! : content.length;
+      sections.push(content.substring(start, end).trim());
+    }
+    
+    return sections;
+  }
+  
+  /**
+   * 解析单个地点
+   */
+  private parseSingleLocation(content: string): any {
     const lines = content.split('\n');
     const location: any = {};
 
@@ -321,6 +388,12 @@ export class LocationParserService {
       location.tags = [];
     }
 
+    // 如果没有解析到有效数据，返回null
+    if (!location.name && (!location.tags || location.tags.length === 0)) {
+      console.log('未解析到有效地点');
+      return null;
+    }
+    
     return location;
   }
 

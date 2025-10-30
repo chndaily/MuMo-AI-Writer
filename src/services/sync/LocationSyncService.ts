@@ -33,107 +33,114 @@ export class LocationSyncService {
       let updatedCount = 0;
       let createdCount = 0;
       
+      // 确保locations是数组格式
+      const locationsArray = Array.isArray(locations) ? locations : [locations].filter(Boolean);
+      
       // 为每个地点创建或更新地点对象并保存
-      const locationData = locations;
-      // 跳过无效的地点数据
-      if (!locationData) return { success: true, message: '没有地点数据需要同步', syncedItems: 0 };
-      
-      // 添加额外的保护性检查
-      if (!locationData.name && (!locationData.tags || locationData.tags.length === 0)) {
-        console.warn('跳过无效的地点数据: 缺少名称和标签');
-        return { success: true, message: '跳过无效的地点数据', syncedItems: 0 };
-      }
-      
-      try {
-        // 解析详细信息
-        const detailsContent = locationData?.description || content;
-        const details = await parserServices.location.parseLocationContent(detailsContent);
+      for (const locationData of locationsArray) {
+        // 跳过无效的地点数据
+        if (!locationData) {
+          console.warn('跳过无效的地点数据: locationData为空');
+          continue;
+        }
         
-        // 尝试按名称匹配现有地点
-        let existingElement = null;
-        let shouldCreateNew = true; // 默认创建新条目
+        // 添加额外的保护性检查
+        if (!locationData.name && (!locationData.tags || locationData.tags.length === 0)) {
+          console.warn('跳过无效的地点数据: 缺少名称和标签');
+          continue;
+        }
         
         try {
-          const existingElements = await hybridStorageService.getWorldElements('location', novelId);
-          // 首先尝试按名称匹配
-          if (locationData && locationData.name) {
-            existingElement = existingElements.find((el: any) => el && el.name === locationData.name);
+          // 解析详细信息
+          const detailsContent = locationData?.description || content;
+          const details = locationData; // 使用locationData本身作为details
+          
+          // 尝试按名称匹配现有地点
+          let existingElement = null;
+          let shouldCreateNew = true; // 默认创建新条目
+          
+          try {
+            const existingElements = await hybridStorageService.getWorldElements('location', novelId);
+            // 首先尝试按名称匹配
+            if (locationData && locationData.name) {
+              existingElement = existingElements.find((el: any) => el && el.name === locationData.name);
+            }
+            
+            if (existingElement) {
+              // 找到同名地点，更新它
+              shouldCreateNew = false;
+            } else if (locationData && locationData.tags && locationData.tags.length > 0) {
+              // 如果没有找到同名地点，尝试按标签匹配
+              const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(locationData.tags, 'location', novelId);
+              
+              if (elementsWithTags.length > 0) {
+                // 使用第一个匹配的元素进行更新
+                existingElement = elementsWithTags[0];
+                shouldCreateNew = false;
+              }
+            }
+          } catch (error) {
+            console.warn('获取现有地点时出错:', error);
           }
           
-          if (existingElement) {
-            // 找到同名地点，更新它
-            shouldCreateNew = false;
-          } else if (locationData && locationData.tags && locationData.tags.length > 0) {
-            // 如果没有找到同名地点，尝试按标签匹配
-            const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(locationData.tags, 'location', novelId);
-            
-            if (elementsWithTags.length > 0) {
-              // 使用第一个匹配的元素进行更新
-              existingElement = elementsWithTags[0];
-              shouldCreateNew = false;
-            }
+          // 使用标签同步工具确保标签一致性
+          const syncedTags = syncTagsToElement(detailsContent, existingElement);
+                  
+          // 创建地点对象
+          const locationElement: any = {
+            // 如果应该创建新条目，则不指定ID让系统生成，否则使用现有元素的ID
+            id: shouldCreateNew ? undefined : existingElement?.id,
+            novelId,
+            name: locationData.name || 'AI生成地点',
+            description: locationData.description && locationData.description.length < content.length ? locationData.description : (locationData.description || ''),
+            type: 'location',
+            tags: normalizeTags(syncedTags), // 使用同步后的标签
+            createdAt: shouldCreateNew ? new Date().toISOString() : (existingElement?.createdAt || new Date().toISOString()),
+            lastModified: new Date().toISOString(),
           }
-        } catch (error) {
-          console.warn('获取现有地点时出错:', error);
-        }
-        
-        // 使用标签同步工具确保标签一致性
-        const syncedTags = syncTagsToElement(detailsContent, existingElement);
-                
-        // 创建地点对象
-        const locationElement: any = {
-          // 如果应该创建新条目，则不指定ID让系统生成，否则使用现有元素的ID
-          id: shouldCreateNew ? undefined : existingElement?.id,
-          novelId,
-          name: locationData.name || 'AI生成地点',
-          description: locationData.description && locationData.description.length < content.length ? locationData.description : (locationData.description || ''),
-          type: 'location',
-          tags: normalizeTags(syncedTags), // 使用同步后的标签
-          createdAt: shouldCreateNew ? new Date().toISOString() : (existingElement?.createdAt || new Date().toISOString()),
-          lastModified: new Date().toISOString(),
-        }
 
-        // 确保所有地点字段都被正确设置
-        // 使用AI生成的类型内容作为type字段的值
-        locationElement.type = locationData.locationType && locationData.locationType !== '' ? locationData.locationType : (details.locationType && details.locationType !== '' ? details.locationType : 'location');
-        locationElement.locationType = locationData.locationType && locationData.locationType !== '' ? locationData.locationType : (details.locationType && details.locationType !== '' ? details.locationType : '');
-        locationElement.importance = locationData.importance || details.importance || '';
-        locationElement.geography = locationData.geography || details.geography || '';
-        locationElement.culture = locationData.culture || details.culture || '';
-        locationElement.politics = locationData.politics || details.politics || '';
-        locationElement.economy = locationData.economy || details.economy || '';
-        locationElement.details = locationData.details || details.details || '';
-        
-        // 确保所有地点字段都被正确设置
-        locationElement.climate = locationData.climate || details.climate || '';
-        locationElement.terrain = locationData.terrain || details.terrain || '';
-        locationElement.naturalResources = locationData.naturalResources || details.naturalResources || '';
-        locationElement.ecosystem = locationData.ecosystem || details.ecosystem || '';
-        locationElement.architecture = locationData.architecture || details.architecture || '';
-        locationElement.socialStructure = locationData.socialStructure || details.socialStructure || '';
-        locationElement.historyBackground = locationData.historyBackground || details.historyBackground || '';
-        locationElement.governance = locationData.governance || details.governance || '';
-        locationElement.laws = locationData.laws || details.laws || '';
-        locationElement.mainIndustries = locationData.mainIndustries || details.mainIndustries || '';
-        locationElement.trade = locationData.trade || details.trade || '';
-        locationElement.wealth = locationData.wealth || details.wealth || '';
-        
-        // 确保标签字段正确设置
-        if (locationData.tags) locationElement.tags = locationData.tags;
+          // 确保所有地点字段都被正确设置
+          // 使用AI生成的类型内容作为type字段的值
+          locationElement.type = locationData.locationType && locationData.locationType !== '' ? locationData.locationType : (locationData.locationType && locationData.locationType !== '' ? locationData.locationType : 'location');
+          locationElement.locationType = locationData.locationType && locationData.locationType !== '' ? locationData.locationType : (locationData.locationType && locationData.locationType !== '' ? locationData.locationType : '');
+          locationElement.importance = locationData.importance || locationData.importance || '';
+          locationElement.geography = locationData.geography || locationData.geography || '';
+          locationElement.culture = locationData.culture || locationData.culture || '';
+          locationElement.politics = locationData.politics || locationData.politics || '';
+          locationElement.economy = locationData.economy || locationData.economy || '';
+          locationElement.details = locationData.details || locationData.details || '';
+          
+          // 确保所有地点字段都被正确设置
+          locationElement.climate = locationData.climate || locationData.climate || '';
+          locationElement.terrain = locationData.terrain || locationData.terrain || '';
+          locationElement.naturalResources = locationData.naturalResources || locationData.naturalResources || '';
+          locationElement.ecosystem = locationData.ecosystem || locationData.ecosystem || '';
+          locationElement.architecture = locationData.architecture || locationData.architecture || '';
+          locationElement.socialStructure = locationData.socialStructure || locationData.socialStructure || '';
+          locationElement.historyBackground = locationData.historyBackground || locationData.historyBackground || '';
+          locationElement.governance = locationData.governance || locationData.governance || '';
+          locationElement.laws = locationData.laws || locationData.laws || '';
+          locationElement.mainIndustries = locationData.mainIndustries || locationData.mainIndustries || '';
+          locationElement.trade = locationData.trade || locationData.trade || '';
+          locationElement.wealth = locationData.wealth || locationData.wealth || '';
+          
+          // 确保标签字段正确设置
+          if (locationData.tags) locationElement.tags = locationData.tags;
 
-        await hybridStorageService.saveWorldElement(locationElement, 'location');
-        syncedCount++;
-        if (shouldCreateNew) {
-          createdCount++;
-        } else {
-          updatedCount++;
+          await hybridStorageService.saveWorldElement(locationElement, 'location');
+          syncedCount++;
+          if (shouldCreateNew) {
+            createdCount++;
+          } else {
+            updatedCount++;
+          }
+          console.log(`✅ 成功同步地点设定: ${locationElement.name}`);
+          
+        } catch (settingError) {
+          console.error(`同步单个地点设定失败:`, settingError);
+          // 继续处理其他设定项，但记录错误
+          throw new Error(`同步地点设定失败: ${settingError instanceof Error ? settingError.message : String(settingError)}`);
         }
-        console.log(`✅ 成功同步地点设定: ${locationElement.name}`);
-        
-      } catch (settingError) {
-        console.error(`同步单个地点设定失败:`, settingError);
-        // 继续处理其他设定项，但记录错误
-        throw new Error(`同步地点设定失败: ${settingError instanceof Error ? settingError.message : String(settingError)}`);
       }
 
       console.log(`地点设定同步完成，共同步 ${syncedCount} 个设定（创建 ${createdCount} 个，更新 ${updatedCount} 个）`);
