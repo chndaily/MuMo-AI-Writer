@@ -31,6 +31,13 @@ export interface UserDocument {
   membershipInfo: MembershipInfo & {
     expiryDate: Date | null
   }
+  // 邮箱验证相关字段
+  isEmailVerified: boolean
+  emailVerificationToken?: string
+  emailVerificationExpires?: Date
+  // 密码重置相关字段
+  passwordResetToken?: string
+  passwordResetExpires?: Date
 }
 
 // 小说文档接口

@@ -285,10 +285,7 @@ class HybridStorageService {
       const batch = updates.slice(i, i + batchSize);
       
       // 批量更新本地数据
-      const updatePromises = batch.map(update => 
-        databaseManager.outlines.batchUpdateParentIds([{ id: update.id, parentId: update.parentId }])
-      );
-      await Promise.all(updatePromises);
+      await databaseManager.outlines.batchUpdateParentIds(batch);
       
       // 如果启用了Supabase，同步到云端
       const { client, isEnabled } = this.supabaseStore.getState()

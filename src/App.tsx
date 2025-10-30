@@ -45,6 +45,9 @@ import VisualizationPage from './pages/NovelWorkspace/visualization'
 import NovelChat from './pages/NovelWorkspace/chat/index'
 import NovelReview from './pages/NovelWorkspace/review/index'
 import NovelStoryboard from './pages/NovelWorkspace/storyboard' // 新增导入
+import EmailVerificationPage from './pages/EmailVerificationPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 const { Content } = Layout
 
@@ -169,6 +172,9 @@ function App() {
       <Routes>
         {/* 不需要登录就可以访问的页面 */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/verify-email" element={<EmailVerificationPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         
         {/* 不需要登录就可以访问的页面 */}
         <Route index element={<ConditionalHomePage />} />

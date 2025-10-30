@@ -34,6 +34,7 @@ import { useMembership } from '@/hooks/useMembership';
 import { NovelOutline } from '#/novel';
 import { generateUUID } from '@/utils/uuidUtils';
 import { optimizedDataSyncService } from '@/services/optimizedDataSyncService';
+import { outlineSyncService } from '@/services/outlineSyncService';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -860,25 +861,19 @@ const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
   // 处理AI生成的大纲内容同步
   const handleAISync = async (content: string) => {
     try {
-      // 使用优化的数据同步服务解析和验证大纲内容
-      // 这里我们直接使用内容同步，而不是旧的syncService
-      const result = await optimizedDataSyncService.syncAllData();
+      // 使用大纲同步服务解析和保存AI生成的大纲内容
+      const result = await outlineSyncService.syncOutline(content, novelId);
       
-      // 显示验证结果
-      if (!result.success) {
+      // 显示同步结果
+      if (result.success) {
+        message.success(`大纲同步成功，共同步 ${result.syncedItems} 个项目`);
+        // 重新加载大纲数据以显示新同步的内容
+        await loadOutlineData();
+        // 触发大纲更新事件，通知其他组件大纲已更新
+        window.dispatchEvent(new CustomEvent('outline-updated'));
+      } else {
         message.warning(`大纲同步存在问题：${result.message}`);
       }
-      
-      // 转换为层级结构
-      const outlineData: any = {
-        acts: [],
-        totalWords: 0,
-        totalChapters: 0
-      };
-      
-      // 注意：这里我们不再解析content内容，因为优化的数据同步服务会处理所有数据同步
-      // 我们只是显示一个成功消息
-      message.success(`大纲数据已同步`);
     } catch (error) {
       console.error('AI大纲同步失败:', error);
       message.error('AI大纲同步失败，请检查内容格式');
@@ -890,7 +885,7 @@ const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
     if (aiSyncData?.generatedContent) {
       handleAISync(aiSyncData.generatedContent);
     }
-  }, [aiSyncData]);
+  }, [aiSyncData, novelId]);
 
   const getModalTitle = () => {
     const typeLabels = { act: '卷', chapter: '章节' };

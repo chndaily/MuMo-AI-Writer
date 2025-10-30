@@ -16,6 +16,7 @@ import { AIGenerationType, SyncOption, WorldSettingType } from '@/types/ai-gener
 // import { syncService } from '@/services/syncService';
 import { contentSyncService } from '@/services/contentSyncService'; // 导入新的内容同步服务
 import { optimizedDataSyncService } from '@/services/optimizedDataSyncService'; // 导入优化的数据同步服务
+import { outlineSyncService } from '@/services/outlineSyncService'; // 导入大纲同步服务
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -267,8 +268,14 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
             break;
           case 'outline':
           case 'plot':
-            // 使用优化的数据同步服务进行全量同步
-            result = await optimizedDataSyncService.syncAllData();
+            // 对于大纲生成，使用专门的大纲同步服务
+            if (parsedContent && parsedContent.content) {
+              // 如果有解析出的内容，使用解析后的内容
+              result = await outlineSyncService.syncOutline(parsedContent.content, novel.id);
+            } else {
+              // 否则使用原始内容
+              result = await outlineSyncService.syncOutline(content, novel.id);
+            }
             break;
           default:
             // 对于其他类型，也使用优化的数据同步服务

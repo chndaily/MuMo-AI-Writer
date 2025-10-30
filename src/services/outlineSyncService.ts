@@ -29,19 +29,49 @@ export class OutlineSyncService {
    */
   async syncOutline(content: string, novelId: string, options?: any): Promise<SyncResult> {
     try {
-      console.log('开始同步大纲内容')
+      console.log('开始同步大纲内容', { novelId, contentLength: content.length });
+      
+      // 检查参数
+      if (!content || content.trim().length === 0) {
+        return {
+          success: false,
+          message: '大纲内容不能为空',
+          syncedItems: 0
+        };
+      }
+      
+      if (!novelId) {
+        return {
+          success: false,
+          message: '小说ID不能为空',
+          syncedItems: 0
+        };
+      }
       
       // 先清空现有的大纲项目
       const existingOutlines = await databaseManager.outlines.getOutlinesByNovelId(novelId)
+      console.log('现有大纲项目数量:', existingOutlines.length);
       for (const outline of existingOutlines) {
         await databaseManager.outlines.deleteOutline(outline.id)
+        console.log('删除大纲项目:', outline.id);
       }
       
       // 预处理内容，修复AI生成的非法格式
       const processedContent = this.preprocessContent(content);
+      console.log('预处理后的内容长度:', processedContent.length);
       
       // 解析内容并保存
       const parsedItems = this.parseOutlineContent(processedContent);
+      console.log('解析出的大纲项目数量:', parsedItems.length);
+      
+      // 如果没有解析出任何项目，返回错误
+      if (parsedItems.length === 0) {
+        return {
+          success: false,
+          message: '未能解析出有效的大纲内容',
+          syncedItems: 0
+        };
+      }
       
       // 创建映射表，使用临时ID作为键，确保可以正确建立父子关系
       const tempIdToRealIdMap = new Map<string, string>();
@@ -93,7 +123,10 @@ export class OutlineSyncService {
       
       // 使用混合存储服务的批量更新方法
       if (updates.length > 0) {
+        console.log('需要更新parentId的项目数量:', updates.length);
         await hybridStorageService.batchUpdateOutlinesParentId(updates);
+      } else {
+        console.log('没有需要更新parentId的项目');
       }
 
       // 触发大纲同步完成事件，用于通知相关组件刷新
@@ -119,6 +152,8 @@ export class OutlineSyncService {
    */
   private preprocessContent(content: string): string {
     let processed = content;
+    
+    console.log('开始预处理内容，原始长度:', content.length);
     
     // 最终优化的预处理逻辑，确保能处理所有已知的非法格式
     
@@ -171,7 +206,7 @@ export class OutlineSyncService {
     // 修复缺少空格的章节标题格式：##第X章：标题 -> ### 第X章：标题
     processed = processed.replace(/^\s*##第(\S+?)章[:：]\s*(.+)$/gm, '### 第$1章：$2');
     
-    // 修复缺少空格的卷标题格式：###第X卷：标题 -> ## 第X卷：标题
+    // 修复缺少空格的卷标题格式：###第X卷：标题 -> ## 第X卷：$2
     processed = processed.replace(/^\s*###第(\S+?)卷[:：]\s*(.+)$/gm, '## 第$1卷：$2');
     
     // 修复缺少空格的章节标题格式：###第X章：标题 -> ### 第X章：标题
@@ -204,7 +239,7 @@ export class OutlineSyncService {
     processed = processed.replace(/^\s*\*\*第(\S+?)章[:：]\s*(.+?)\*\*$/gm, '### 第$1章：$2');
     processed = processed.replace(/^\s*\*\*第(\S+?)卷[:：]\s*(.+?)\*\*$/gm, '## 第$1卷：$2');
     
-    console.log('预处理后的内容:', processed);
+    console.log('预处理完成，处理后长度:', processed.length);
     return processed;
   }
   
@@ -219,20 +254,28 @@ export class OutlineSyncService {
     let inContentSection = false;
     let currentContent = '';
     
-    for (const line of lines) {
+    console.log('开始解析大纲内容，行数:', lines.length);
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmedLine = line.trim();
       
       // 跳过空行和无关行
       if (!trimmedLine) continue;
       
+      console.log(`处理第${i}行: "${trimmedLine}"`);
+      
       // 检查是否是卷标题 (## 格式)
       const actMatch = trimmedLine.match(/^##\s+(.+)$/);
       if (actMatch) {
+        console.log('匹配到卷标题:', actMatch[1]);
         // 保存之前的内容
         if (currentChapter && currentContent) {
           currentChapter.content = currentContent.trim();
+          console.log('保存章节内容:', currentContent.trim());
         } else if (currentAct && currentContent) {
           currentAct.content = currentContent.trim();
+          console.log('保存卷内容:', currentContent.trim());
         }
         
         // 添加新的卷
@@ -252,15 +295,38 @@ export class OutlineSyncService {
       // 检查是否是章节标题 (### 格式)
       const chapterMatch = trimmedLine.match(/^###\s+(.+)$/);
       if (chapterMatch) {
+        console.log('匹配到章节标题:', chapterMatch[1]);
         // 保存之前的内容
         if (currentChapter && currentContent) {
           currentChapter.content = currentContent.trim();
+          console.log('保存章节内容:', currentContent.trim());
         } else if (currentAct && currentContent) {
           currentAct.content = currentContent.trim();
+          console.log('保存卷内容:', currentContent.trim());
         }
         
         // 添加新的章节
         if (currentAct) {
+          const chapter: ExtendedNovelOutline = {
+            title: chapterMatch[1],
+            type: 'chapter',
+            parentTempId: currentAct.tempId,
+            tempId: `temp-chapter-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          };
+          outlines.push(chapter);
+          currentChapter = chapter;
+        } else {
+          // 如果没有当前卷，创建一个默认卷
+          console.log('没有当前卷，创建默认卷');
+          const defaultAct: ExtendedNovelOutline = {
+            title: '默认卷',
+            type: 'main',
+            tempId: `temp-act-default-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          };
+          outlines.push(defaultAct);
+          currentAct = defaultAct;
+          
+          // 然后添加章节
           const chapter: ExtendedNovelOutline = {
             title: chapterMatch[1],
             type: 'chapter',
@@ -276,28 +342,53 @@ export class OutlineSyncService {
       }
       
       // 检查是否是内容要点 (* 或 - 格式)
-      if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
+      if ((trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) && (currentChapter || currentAct)) {
         inContentSection = true;
         if (currentContent) {
-          currentContent += '\n' + trimmedLine.substring(2); // 去掉 '* ' 或 '- '
+          currentContent += '\n' + trimmedLine; // 保留 '* ' 或 '- ' 前缀，因为它可能是格式的一部分
         } else {
-          currentContent = trimmedLine.substring(2); // 去掉 '* ' 或 '- '
+          currentContent = trimmedLine; // 保留 '* ' 或 '- ' 前缀
         }
-      } else if (inContentSection) {
-        // 继续添加内容
+        console.log('添加内容要点:', trimmedLine);
+      } else if (inContentSection && (currentChapter || currentAct)) {
+        // 继续添加内容到当前章节或卷
         currentContent += '\n' + trimmedLine;
+        console.log('继续添加内容到章节或卷:', trimmedLine);
+      } else if (currentChapter) {
+        // 如果有章节但不在内容要点部分，将内容添加到章节中
+        if (currentContent) {
+          currentContent += '\n' + trimmedLine;
+        } else {
+          currentContent = trimmedLine;
+        }
+        console.log('添加内容到章节:', trimmedLine);
+        inContentSection = true; // 一旦开始添加内容，就认为进入了内容部分
+      } else if (currentAct && !currentChapter) {
+        // 如果有卷但没有章节，将内容添加到卷中
+        if (currentContent) {
+          currentContent += '\n' + trimmedLine;
+        } else {
+          currentContent = trimmedLine;
+        }
+        console.log('添加内容到卷:', trimmedLine);
+      } else if (!currentAct && !currentChapter) {
+        // 如果既没有卷也没有章节，跳过这些内容
+        console.log('跳过内容（无父级）:', trimmedLine);
       }
     }
     
     // 保存最后的内容
     if (currentChapter && currentContent) {
       currentChapter.content = currentContent.trim();
+      console.log('保存最后的章节内容:', currentContent.trim());
     } else if (currentAct && currentContent) {
       currentAct.content = currentContent.trim();
+      console.log('保存最后的卷内容:', currentContent.trim());
     }
     
     // 如果没有解析出任何卷结构，创建一个默认卷
     if (!outlines.some(outline => outline.type === 'main')) {
+      console.log('没有解析出卷结构，创建默认卷');
       // 创建默认卷
       const defaultAct: ExtendedNovelOutline = {
         title: '默认卷',
@@ -315,7 +406,7 @@ export class OutlineSyncService {
       });
     }
     
-    console.log('解析出的大纲项目:', outlines);
+    console.log('解析完成，大纲项目:', outlines);
     return outlines;
   }
 }

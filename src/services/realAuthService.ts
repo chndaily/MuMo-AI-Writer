@@ -26,7 +26,7 @@ export interface AuthResponse {
 }
 
 // JWT密钥（在实际应用中应该从环境变量获取）
-const JWT_SECRET = 'taotao-writing-jwt-secret-key'
+const JWT_SECRET = 'mumo-ai-writing-jwt-secret-key'
 const JWT_EXPIRES_IN = '24h'
 
 // 根据会员等级获取功能列表
@@ -94,11 +94,12 @@ class RealAuthService {
         
         const adminUserData: UserDocument = {
           _id: this.generateId(),
-          email: 'admin@example.com',
+          email: 'chndaily@foxmail.com',
           username: 'admin',
           passwordHash,
           createdAt: new Date(),
           lastLoginAt: null,
+          isEmailVerified: true, // 管理员账户默认邮箱已验证
           membershipInfo: {
             level: MembershipLevel.PROFESSIONAL,
             expiryDate: null,
@@ -110,7 +111,7 @@ class RealAuthService {
             maxTeamMembers: 10,
             isAdmin: true,
             username: 'admin',
-            email: 'admin@example.com'
+            email: 'chndaily@foxmail.com'
           }
         }
         

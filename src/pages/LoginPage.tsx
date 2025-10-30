@@ -9,7 +9,9 @@ import {
   Typography, 
   message,
   Tabs,
-  Divider
+  Divider,
+  Row,
+  Col
 } from 'antd';
 import { 
   UserOutlined, 
@@ -114,6 +116,8 @@ const LoginPage: React.FC = () => {
             errorMessage = '该账户不存在，请检查邮箱地址或先注册';
           } else if (response.message.includes('密码错误')) {
             errorMessage = '密码错误，请检查后重试';
+          } else if (response.message.includes('请先验证邮箱')) {
+            errorMessage = '请先验证邮箱再登录';
           } else {
             errorMessage = response.message;
           }
@@ -157,22 +161,11 @@ const LoginPage: React.FC = () => {
         });
         console.log('User added to service');
         
-        // 设置认证状态
-        setIsAuthenticated(true);
-        if (response.token) {
-          setAuthToken(response.token);
-        }
-        
-        // 设置会员信息，包括用户名和邮箱
-        setMembershipInfo({
-          ...response.user.membershipInfo,
-          username: response.user.username,
-          email: response.user.email
-        });
-        
-        message.success('注册成功！欢迎加入我们。');
-        // 跳转到首页
-        navigate('/creation-center', { replace: true });
+        // 不再设置认证状态，因为用户需要先验证邮箱
+        // 显示成功消息，提示用户检查邮箱
+        message.success('注册成功！请检查您的邮箱并点击验证链接完成注册。');
+        // 切换到登录标签页
+        setActiveTab('login');
       } else {
         // 提供更友好的错误消息
         let errorMessage = '注册失败';
@@ -193,6 +186,11 @@ const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 忘记密码处理
+  const handleForgotPassword = () => {
+    navigate('/forgot-password');
   };
 
   return (
@@ -265,6 +263,18 @@ const LoginPage: React.FC = () => {
                     登录
                   </Button>
                 </Form.Item>
+                
+                <Row justify="end">
+                  <Col>
+                    <Button 
+                      type="link" 
+                      onClick={handleForgotPassword}
+                      style={{ padding: 0 }}
+                    >
+                      忘记密码？
+                    </Button>
+                  </Col>
+                </Row>
                 
                 {/* 已移除测试账号按钮，生产环境中不应暴露测试账号 */}
               </Form>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useAIServiceStore } from '../stores/aiServiceStore'
 import { LLMProvider, LLMConfig, GenerateRequest, StreamCallback } from '#/llm'
 import { aiProviderFactory, AIServiceType, AIRequestPayload, BaseAIProvider } from '@/ai'
@@ -50,17 +50,18 @@ export function useLLM(): UseLLMReturn {
   const defaultConfig = getDefaultConfig()
 
   const abortControllerRef = useRef<AbortController | null>(null)
+  // 监听流式状态变化
+  useEffect(() => {
+    // 流式状态变化时的处理逻辑可以在这里添加
+  }, [streaming]);
 
   // 获取AI提供者
   const getProvider = useCallback(async (configId?: string): Promise<BaseAIProvider | null> => {
-    console.log('getProvider: configId=', configId)
-    
     // 如果有configId，首先尝试获取对应的配置
     if (configId) {
       // 1. 尝试在用户配置中查找
       const userConfig = configs.find(c => c.id === configId)
       if (userConfig) {
-        console.log('getProvider: Found user config', userConfig)
         return createProviderFromUserConfig(userConfig, connections)
       }
       
@@ -68,10 +69,8 @@ export function useLLM(): UseLLMReturn {
       // 首先尝试通过connectionId查找
       try {
         const defaultModelByConnectionId = await databaseManager.aiModels.getAIModel(configId)
-        console.log('getProvider: defaultModelByConnectionId=', defaultModelByConnectionId)
         
         if (defaultModelByConnectionId) {
-          console.log('getProvider: Using default model by connectionId')
           return createProviderFromDefaultModel(defaultModelByConnectionId)
         }
       } catch (error) {
@@ -82,12 +81,9 @@ export function useLLM(): UseLLMReturn {
       try {
         // 获取所有默认模型，然后查找匹配的ID
         const allModels = await databaseManager.aiModels.getAllAIModels()
-        console.log('getProvider: allModels=', allModels)
         const defaultModelById = allModels.find(model => model.id === configId)
-        console.log('getProvider: defaultModelById=', defaultModelById)
         
         if (defaultModelById) {
-          console.log('getProvider: Using default model by database ID')
           return createProviderFromDefaultModel(defaultModelById)
         }
       } catch (error) {
@@ -96,15 +92,11 @@ export function useLLM(): UseLLMReturn {
       
       // 添加额外的调试信息：检查是否为默认模型
       try {
-        console.log('getProvider: Checking if configId is a default model')
         const defaultModels = await databaseManager.aiModels.getDefaultAIModels()
-        console.log('getProvider: defaultModels from DB=', defaultModels)
         const isDefaultModel = defaultModels.some(model => model.id === configId)
-        console.log('getProvider: isDefaultModel=', isDefaultModel)
         
         if (isDefaultModel) {
           const defaultModel = defaultModels.find(model => model.id === configId)
-          console.log('getProvider: Found default model by ID', defaultModel)
           return createProviderFromDefaultModel(defaultModel!)
         }
       } catch (error) {
@@ -113,14 +105,10 @@ export function useLLM(): UseLLMReturn {
       
       // 如果以上方法都失败了，尝试通过name字段查找
       try {
-        console.log('getProvider: Trying to find model by name');
         const allModels = await databaseManager.aiModels.getAllAIModels();
-        console.log('getProvider: allModels for name search=', allModels);
         const defaultModelByName = allModels.find(model => model.name === configId);
-        console.log('getProvider: defaultModelByName=', defaultModelByName);
         
         if (defaultModelByName) {
-          console.log('getProvider: Using default model by name');
           return createProviderFromDefaultModel(defaultModelByName);
         }
       } catch (error) {
@@ -129,9 +117,7 @@ export function useLLM(): UseLLMReturn {
       
       // 尝试通过模糊匹配查找模型
       try {
-        console.log('getProvider: Trying fuzzy matching');
         const allModels = await databaseManager.aiModels.getAllAIModels();
-        console.log('getProvider: allModels for fuzzy matching=', allModels);
         
         // 尝试通过部分匹配查找
         const fuzzyMatch = allModels.find(model => 
@@ -140,10 +126,7 @@ export function useLLM(): UseLLMReturn {
           model.name?.includes(configId)
         );
         
-        console.log('getProvider: fuzzyMatch=', fuzzyMatch);
-        
         if (fuzzyMatch) {
-          console.log('getProvider: Using default model by fuzzy matching');
           return createProviderFromDefaultModel(fuzzyMatch);
         }
       } catch (error) {
@@ -153,95 +136,71 @@ export function useLLM(): UseLLMReturn {
     
     // 如果没有指定configId，使用默认配置
     if (defaultConfig) {
-      console.log('getProvider: Using default config', defaultConfig)
       return createProviderFromUserConfig(defaultConfig, connections)
     }
 
     // 最后的备用方案：尝试获取第一个可用的默认模型
     try {
-      console.log('getProvider: Trying to get first available default model');
       const defaultModels = await databaseManager.aiModels.getDefaultAIModels();
       if (defaultModels.length > 0) {
-        console.log('getProvider: Using first default model', defaultModels[0]);
         return createProviderFromDefaultModel(defaultModels[0]);
       }
     } catch (error) {
       console.error('getProvider: Error getting first default model:', error);
     }
 
-    console.log('getProvider: No config found, returning null')
     return null
   }, [configs, defaultConfig, connections])
 
   // 从用户配置创建提供者
   const createProviderFromUserConfig = (config: LLMConfig, connections: any[]): BaseAIProvider | null => {
-    console.log('createProviderFromUserConfig: config=', config)
-    
     // 检查config.provider是否有效
-    console.log('createProviderFromUserConfig: config.provider=', config.provider)
-    
-    // 检查mapLLMProviderToAIServiceType是否能正确映射
     const expectedServiceType = mapLLMProviderToAIServiceType(config.provider)
-    console.log('createProviderFromUserConfig: expectedServiceType=', expectedServiceType)
     
     if (!expectedServiceType) {
-      console.log('createProviderFromUserConfig: No expectedServiceType found for provider', config.provider)
       return null
     }
 
-    console.log('createProviderFromUserConfig: all connections=', connections)
-
     // 首先尝试通过configId精确匹配连接
     const connection = connections.find(c => c.id === config.id)
-    console.log('createProviderFromUserConfig: exact match connection=', connection)
 
     if (connection && connection.provider === expectedServiceType) {
       // 精确匹配成功
-      console.log('createProviderFromUserConfig: Using exact match connection')
       const providerConfig = {
         aiServiceType: connection.provider,
         apiKey: connection.apiKey,
         baseUrl: connection.baseUrl,
       }
-      console.log('createProviderFromUserConfig: providerConfig=', providerConfig)
       return aiProviderFactory.createProvider(providerConfig) as BaseAIProvider
     }
 
     // 如果没有精确匹配，查找相同服务类型的连接
     const fallbackConnection = connections.find(c => c.provider === expectedServiceType)
-    console.log('createProviderFromUserConfig: fallback connection=', fallbackConnection)
     
     if (fallbackConnection) {
-      console.log('createProviderFromUserConfig: Using fallback connection')
       const providerConfig = {
         aiServiceType: fallbackConnection.provider,
         apiKey: fallbackConnection.apiKey,
         baseUrl: fallbackConnection.baseUrl,
       }
-      console.log('createProviderFromUserConfig: fallback providerConfig=', providerConfig)
       return aiProviderFactory.createProvider(providerConfig) as BaseAIProvider
     }
 
     // 如果仍然没有找到连接，尝试直接使用配置中的信息
-    console.log('createProviderFromUserConfig: No connection found, trying to use config directly')
     if (config.apiKey && config.baseURL) {
       const providerConfig = {
         aiServiceType: expectedServiceType,
         apiKey: config.apiKey,
         baseUrl: config.baseURL || '',
       }
-      console.log('createProviderFromUserConfig: direct config providerConfig=', providerConfig)
       return aiProviderFactory.createProvider(providerConfig) as BaseAIProvider
     }
 
-    console.log('createProviderFromUserConfig: No connection found for user config, returning null')
     return null
   }
 
   // 从默认模型创建提供者
   const createProviderFromDefaultModel = (defaultModel: AIModelRecord): BaseAIProvider | null => {
-    console.log('createProviderFromDefaultModel: defaultModel=', defaultModel)
-    
     // 从raw数据中提取API密钥和基础URL
     const raw = defaultModel.raw || {}
     const apiKey = raw.apiKey || ''
@@ -294,8 +253,6 @@ export function useLLM(): UseLLMReturn {
         serviceType = undefined
     }
     
-    console.log('createProviderFromDefaultModel: serviceType=', serviceType)
-    
     // ModelScope可能不需要API密钥
     if (serviceType && (apiKey || defaultModel.provider === 'ModelScope' || defaultModel.provider === 'modelScope') && baseUrl) {
       const providerConfig = {
@@ -303,11 +260,9 @@ export function useLLM(): UseLLMReturn {
         apiKey: apiKey,
         baseUrl: baseUrl,
       }
-      console.log('createProviderFromDefaultModel: providerConfig=', providerConfig)
       
       // 检查模型信息
       const modelName = raw.model || defaultModel.name;
-      console.log('createProviderFromDefaultModel: modelName=', modelName);
       
       // 验证API密钥
       if (!apiKey && (defaultModel.provider === 'ModelScope' || defaultModel.provider === 'modelScope')) {
@@ -353,8 +308,6 @@ export function useLLM(): UseLLMReturn {
       }
 
       // 处理LLMConfig和AIModelRecord的不同字段名
-      // 修复：应该使用config.model而不是config.name作为模型名称，但如果model为空则回退到name
-      // 对于AIModelRecord，模型名称存储在raw.model中
       let modelName = '';
       if ((config as any).model !== undefined) {
         // LLMConfig类型
@@ -367,9 +320,6 @@ export function useLLM(): UseLLMReturn {
         modelName = (config as any).name;
       }
       
-      console.log('generateText: modelName=', modelName);
-      console.log('generateText: config details=', config);
-      
       // 确保模型名称不为空
       if (!modelName) {
         throw new Error('模型名称不能为空');
@@ -381,10 +331,8 @@ export function useLLM(): UseLLMReturn {
           { role: 'user' as const, content: request.prompt }
         ],
         temperature: request.temperature ?? (config as any).temperature ?? 0.7,
-        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 2048,
+        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 128000, // 增加默认max_tokens到128000
       }
-      
-      console.log('generateText: payload=', payload);
 
       const result = await provider.sendRequest(payload)
 
@@ -406,28 +354,29 @@ export function useLLM(): UseLLMReturn {
 
   // 生成文本（流式）
   const generateTextStream = useCallback(async (request: GenerateRequest, configId?: string): Promise<void> => {
-    setStreaming(true)
-    setError(null)
-    setResponse('')
+    setStreaming(true);
+    setError(null);
+    setResponse('');
 
     const streamCallback: StreamCallback = {
       onData: (chunk: string) => {
-        setResponse(prev => prev + chunk)
+        setResponse(prev => {
+          const newResponse = prev + chunk;
+          return newResponse;
+        });
       },
       onComplete: (fullResponse: string) => {
-        setResponse(fullResponse)
-        setStreaming(false)
+        setResponse(fullResponse);
+        setStreaming(false);
       },
       onError: (error: Error) => {
-        setError(error.message)
-        setStreaming(false)
+        setError(error.message);
+        setStreaming(false);
       },
-    }
+    };
 
     try {
-      console.log('generateTextStream: configId=', configId)
       const provider = await getProvider(configId)
-      console.log('generateTextStream: provider=', provider)
       if (!provider) {
         throw new Error('无法获取AI提供者')
       }
@@ -443,21 +392,11 @@ export function useLLM(): UseLLMReturn {
         }
       }
       
-      console.log('generateTextStream: config=', config)
       if (!config) {
         throw new Error('未找到配置')
       }
 
-      // 添加调试信息
-      console.log('useLLM generateTextStream:', {
-        configId: configId,
-        config: config,
-        request: request
-      })
-
       // 处理LLMConfig和AIModelRecord的不同字段名
-      // 修复：应该使用config.model而不是config.name作为模型名称，但如果model为空则回退到name
-      // 对于AIModelRecord，模型名称存储在raw.model中
       let modelName = '';
       if ((config as any).model !== undefined) {
         // LLMConfig类型
@@ -470,9 +409,6 @@ export function useLLM(): UseLLMReturn {
         modelName = (config as any).name;
       }
       
-      console.log('generateTextStream: modelName=', modelName);
-      console.log('generateTextStream: config details=', config);
-      
       // 确保模型名称不为空
       if (!modelName) {
         throw new Error('模型名称不能为空');
@@ -484,14 +420,11 @@ export function useLLM(): UseLLMReturn {
           { role: 'user' as const, content: request.prompt }
         ],
         temperature: request.temperature ?? (config as any).temperature ?? 0.7,
-        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 2048,
+        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 128000, // 增加默认max_tokens到128000
       }
-      
-      console.log('generateTextStream: payload=', payload);
 
       // 生成请求ID
       const requestId = `stream-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      console.log('generateTextStream: requestId=', requestId)
       
       // 创建AbortController并存储到ref中，以便stopStream可以使用
       const abortController = new AbortController()
@@ -533,10 +466,13 @@ export function useLLM(): UseLLMReturn {
       })
       
       await provider.sendStreamingRequest(payload, (data) => {
-        streamCallback.onData?.(data.text)
-      }, requestId)
+        setResponse(prev => {
+          const newResponse = prev + data.text;
+          streamCallback.onData?.(data.text);
+          return newResponse;
+        });
+      }, requestId);
     } catch (err) {
-      console.error('generateTextStream error:', err)
       const errorMessage = err instanceof Error ? err.message : '未知错误'
       if (errorMessage.includes('aborted') || errorMessage.includes('AbortError')) {
         setStreaming(false) // 流被中止时只需设置状态

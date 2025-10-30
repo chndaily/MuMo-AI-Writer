@@ -20,8 +20,6 @@ import { Collection } from '#/promptLibrary'
 // API基础URL - 在生产环境中应该从环境变量读取
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
-console.log('API_BASE_URL:', API_BASE_URL)
-
 // API错误处理
 class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -30,14 +28,23 @@ class ApiError extends Error {
   }
 }
 
+// 扩展RequestInit类型以支持params参数
+interface ExtendedRequestInit extends RequestInit {
+  params?: Record<string, string>;
+}
+
 // 发送API请求的辅助函数
 const apiRequest = async <T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: ExtendedRequestInit = {}
 ): Promise<T> => {
-  const url = `${API_BASE_URL}${endpoint}`
-  
-  console.log(`Making API request to: ${url}`)
+  // 处理查询参数
+  let url = `${API_BASE_URL}${endpoint}`;
+  if (options.params) {
+    const params = new URLSearchParams(options.params).toString();
+    url += (url.includes('?') ? '&' : '?') + params;
+    delete options.params;
+  }
   
   const defaultOptions: RequestInit = {
     headers: {
@@ -210,6 +217,38 @@ export const userApi = {
     return apiRequest<{ success: boolean; message: string }>('/api/auth/admin-change-password', {
       method: 'POST',
       body: JSON.stringify({ adminEmail, targetEmail, newPassword }),
+    })
+  },
+  
+  // 验证邮箱
+  verifyEmail: async (token: string) => {
+    return apiRequest<{ success: boolean; message?: string }>('/api/auth/verify-email', {
+      method: 'GET',
+      params: { token }
+    })
+  },
+  
+  // 请求密码重置
+  forgotPassword: async (email: string) => {
+    return apiRequest<{ success: boolean; message?: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  },
+  
+  // 验证密码重置token
+  validateResetToken: async (token: string) => {
+    return apiRequest<{ success: boolean; message?: string }>('/api/auth/reset-password-validate', {
+      method: 'GET',
+      params: { token }
+    })
+  },
+  
+  // 重置密码
+  resetPassword: async (token: string, newPassword: string) => {
+    return apiRequest<{ success: boolean; message?: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
     })
   },
 }

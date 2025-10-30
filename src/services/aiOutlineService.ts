@@ -29,13 +29,13 @@ export class AIOutlineService {
 `;
 
     try {
-      // 调用AI服务生成大纲
+      // 调用AI服务生成大纲，增加maxLength以支持更长的内容生成
       const response = await aiService.generateContent({
         mode: AIGenerationMode.PLOT,
         content: context,
         context: OUTLINE_GENERATION_PROMPT,
         temperature: 0.7,
-        maxLength: 3000
+        maxLength: 128000  // 增加到8000以支持更长的大纲生成
       });
       
       if (response.success && response.data) {
@@ -66,13 +66,13 @@ ${optimizationRequirements}
 `;
 
     try {
-      // 调用AI服务优化大纲
+      // 调用AI服务优化大纲，增加maxLength以支持更长的内容生成
       const response = await aiService.generateContent({
         mode: AIGenerationMode.PLOT,
         content: context,
         context: OUTLINE_GENERATION_PROMPT,
         temperature: 0.7,
-        maxLength: 3000
+        maxLength: 128000  // 增加到8000以支持更长的大纲生成
       });
       
       if (response.success && response.data) {

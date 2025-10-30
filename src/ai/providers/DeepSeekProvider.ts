@@ -150,12 +150,27 @@ export class DeepSeekProvider extends BaseAIProvider {
   }
 
   // 添加带重试机制的请求函数
-  private async fetchWithRetry(url: string, options: RequestInit, maxRetries: number = 2): Promise<Response> {
+  private async fetchWithRetry(url: string, options: RequestInit, maxRetries: number = 1): Promise<Response> {
     let lastError: Error | null = null;
+    
+    // 添加超时控制
+    const timeout = 30000; // 30秒超时
     
     for (let i = 0; i <= maxRetries; i++) {
       try {
-        const response = await fetch(url, options);
+        // 创建超时Promise
+        const timeoutPromise = new Promise<Response>((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), timeout)
+        );
+        
+        // 创建实际请求Promise
+        const fetchPromise = fetch(url, {
+          ...options,
+          signal: options.signal
+        });
+        
+        // 等待最先完成的Promise
+        const response = await Promise.race([fetchPromise, timeoutPromise]);
         
         // 如果不是速率限制错误，直接返回响应
         if (response.status !== 429) {
@@ -167,8 +182,8 @@ export class DeepSeekProvider extends BaseAIProvider {
           return response;
         }
         
-        // 计算延迟时间（指数退避，但缩短延迟时间）
-        const delayTime = Math.pow(1.5, i) * 500 + Math.random() * 500;
+        // 计算延迟时间（减少重试延迟）
+        const delayTime = Math.min(1000 + i * 500, 2000); // 最大2秒延迟
         console.log(`Rate limited. Retrying in ${delayTime}ms... (attempt ${i + 1}/${maxRetries + 1})`);
         await this.delay(delayTime);
       } catch (error) {
@@ -179,8 +194,8 @@ export class DeepSeekProvider extends BaseAIProvider {
           throw lastError;
         }
         
-        // 等待后重试（缩短等待时间）
-        await this.delay(500);
+        // 等待后重试（减少等待时间）
+        await this.delay(300);
       }
     }
     
@@ -255,7 +270,7 @@ export class DeepSeekProvider extends BaseAIProvider {
           max_tokens: validatedMaxTokens
         }),
         signal: controller.signal
-      }, 2) // 缩短重试次数为2次
+      }, 1) // 减少重试次数为1次
 
       if (!response.ok) {
         const errorText = await response.text()

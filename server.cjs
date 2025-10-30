@@ -121,11 +121,12 @@ async function initializeAdminUser() {
       // 创建默认管理员账户
       const adminUserData = {
         _id: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-        email: 'admin@example.com',
+        email: 'chndaily@foxmail.com',
         username: 'admin',
         passwordHash: passwordHash,
         createdAt: new Date(),
         lastLoginAt: null,
+        isEmailVerified: true, // 管理员账户默认邮箱已验证
         membershipInfo: {
           level: 'PROFESSIONAL',
           expiryDate: null,
@@ -150,7 +151,7 @@ async function initializeAdminUser() {
           maxTeamMembers: 10,
           isAdmin: true,
           username: 'admin',
-          email: 'admin@example.com'
+          email: 'chndaily@foxmail.com'
         }
       };
       
@@ -158,6 +159,20 @@ async function initializeAdminUser() {
       console.log('Admin user created successfully');
     } else {
       console.log('Admin user already exists');
+      // 更新现有管理员账户的邮箱和邮箱验证状态（如果需要）
+      if (adminUser.email !== 'chndaily@foxmail.com' || !adminUser.isEmailVerified) {
+        await db.collection('users').updateOne(
+          { _id: adminUser._id },
+          { 
+            $set: { 
+              email: 'chndaily@foxmail.com',
+              'membershipInfo.email': 'chndaily@foxmail.com',
+              isEmailVerified: true // 确保管理员账户邮箱已验证
+            }
+          }
+        );
+        console.log('Admin user email and verification status updated');
+      }
     }
   } catch (error) {
     console.error('Failed to initialize admin user:', error);
@@ -432,6 +447,223 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// 验证邮箱
+app.get('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    
+    if (!token) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '缺少验证token' 
+      });
+    }
+    
+    // 查找具有此token的用户（无论是否过期）
+    const user = await db.collection('users').findOne({ 
+      emailVerificationToken: token
+    });
+    
+    // 如果找不到用户或token已过期
+    if (!user) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '验证链接无效' 
+      });
+    }
+    
+    // 检查token是否过期
+    if (user.emailVerificationExpires && new Date(user.emailVerificationExpires) < new Date()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '验证链接已过期' 
+      });
+    }
+    
+    // 如果用户已经验证过邮箱
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: '您的邮箱已验证，无需重复验证'
+      });
+    }
+    
+    // 更新用户为已验证状态
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          isEmailVerified: true 
+        },
+        $unset: { 
+          emailVerificationToken: "",
+          emailVerificationExpires: ""
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: '邮箱验证成功，现在可以正常登录了'
+    });
+  } catch (error) {
+    console.error('Failed to verify email:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '邮箱验证失败，请稍后重试' 
+    });
+  }
+});
+
+// 请求密码重置
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // 查找用户
+    const user = await db.collection('users').findOne({ email });
+    
+    if (!user) {
+      // 为了安全，即使用户不存在也返回成功消息
+      return res.json({ 
+        success: true, 
+        message: '如果该邮箱存在，我们已发送密码重置邮件' 
+      });
+    }
+    
+    // 生成密码重置token
+    const crypto = await import('crypto');
+    const passwordResetToken = crypto.default.randomBytes(32).toString('hex');
+    const passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1小时后过期
+    
+    // 更新用户文档
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          passwordResetToken: passwordResetToken,
+          passwordResetExpires: passwordResetExpires
+        }
+      }
+    );
+    
+    // 发送密码重置邮件
+    try {
+      const { sendPasswordResetEmail } = await import('./src/services/emailService.ts');
+      await sendPasswordResetEmail(email, passwordResetToken);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // 即使邮件发送失败，也返回成功消息以防止邮箱枚举攻击
+    }
+    
+    res.json({
+      success: true,
+      message: '如果该邮箱存在，我们已发送密码重置邮件'
+    });
+  } catch (error) {
+    console.error('Failed to process forgot password request:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '处理密码重置请求失败，请稍后重试' 
+    });
+  }
+});
+
+// 验证密码重置token
+app.get('/api/auth/reset-password-validate', async (req, res) => {
+  try {
+    const { token } = req.query;
+    
+    if (!token) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '缺少重置token' 
+      });
+    }
+    
+    // 查找具有此token且未过期的用户
+    const user = await db.collection('users').findOne({ 
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '重置链接无效或已过期' 
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: '重置链接有效'
+    });
+  } catch (error) {
+    console.error('Failed to validate password reset token:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '验证重置链接失败，请稍后重试' 
+    });
+  }
+});
+
+// 重置密码
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '缺少必要参数' 
+      });
+    }
+    
+    // 查找具有此token且未过期的用户
+    const user = await db.collection('users').findOne({ 
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: new Date() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({ 
+        success: false, 
+        message: '重置链接无效或已过期' 
+      });
+    }
+    
+    // 使用bcrypt加密新密码
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.default.hash(newPassword, saltRounds);
+    
+    // 更新用户密码并清除重置token
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          passwordHash: newPasswordHash
+        },
+        $unset: { 
+          passwordResetToken: "",
+          passwordResetExpires: ""
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: '密码重置成功，现在可以使用新密码登录了'
+    });
+  } catch (error) {
+    console.error('Failed to reset password:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: '密码重置失败，请稍后重试' 
+    });
+  }
+});
+
 // 用户登录
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -444,6 +676,14 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ 
         success: false, 
         message: '用户不存在' 
+      });
+    }
+    
+    // 检查邮箱是否已验证
+    if (!user.isEmailVerified) {
+      return res.status(401).json({ 
+        success: false, 
+        message: '请先验证邮箱再登录' 
       });
     }
     
@@ -468,7 +708,7 @@ app.post('/api/auth/login', async (req, res) => {
     const jwt = await import('jsonwebtoken');
     const token = jwt.default.sign(
       { userId: user._id, email: user.email, username: user.username },
-      'taotao-writing-jwt-secret-key',
+      'mumo-ai-writing-jwt-secret-key',
       { expiresIn: '24h' }
     );
     
@@ -487,6 +727,49 @@ app.post('/api/auth/login', async (req, res) => {
       success: false, 
       message: '登录失败，请稍后重试' 
     });
+  }
+});
+
+app.post('/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    // 检查用户名和邮箱是否已存在
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: '用户名或邮箱已存在' });
+    }
+
+    // 创建新用户
+    const newUser = new User({
+      username,
+      email,
+      passwordHash: await bcrypt.hash(password, 10),
+      emailVerified: false,
+    });
+
+    // 保存新用户到数据库
+    await newUser.save();
+
+    // 生成验证链接
+    const verificationToken = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${verificationToken}`;
+
+    // 发送验证邮件
+    await sendVerificationEmail(newUser.email, verificationLink);
+
+    // 返回不包含密码哈希的用户信息
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    
+    res.json({
+      success: true,
+      user: userWithoutPassword,
+      message: '注册成功！请检查您的邮箱并点击验证链接完成注册。验证完成后即可登录。',
+      // 不再返回token，因为用户需要先验证邮箱
+    });
+  } catch (error) {
+    console.error('Failed to register user:', error);
+    res.status(500).json({ success: false, message: '注册失败，请稍后重试' });
   }
 });
 
@@ -518,14 +801,22 @@ app.post('/api/auth/register', async (req, res) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.default.hash(password, saltRounds);
     
+    // 生成邮箱验证token
+    const crypto = await import('crypto');
+    const emailVerificationToken = crypto.default.randomBytes(32).toString('hex');
+    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24小时后过期
+    
     // 创建新用户（默认为免费会员）
     const newUser = {
       _id: 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-      email,
-      username,
-      passwordHash,
+      email: email,
+      username: username,
+      passwordHash: passwordHash,
       createdAt: new Date(),
       lastLoginAt: null,
+      isEmailVerified: false, // 默认邮箱未验证
+      emailVerificationToken: emailVerificationToken,
+      emailVerificationExpires: emailVerificationExpires,
       membershipInfo: {
         level: 'FREE',
         expiryDate: null,
@@ -548,13 +839,75 @@ app.post('/api/auth/register', async (req, res) => {
     
     await db.collection('users').insertOne(newUser);
     
-    // 生成 JWT token
-    const jwt = await import('jsonwebtoken');
-    const token = jwt.default.sign(
-      { userId: newUser._id, email: newUser.email, username: newUser.username },
-      'taotao-writing-jwt-secret-key',
-      { expiresIn: '24h' }
-    );
+    // 发送验证邮件
+    try {
+      console.log('Attempting to send verification email to:', email);
+      
+      // 直接在服务器文件中实现邮件发送功能
+      const nodemailer = await import('nodemailer');
+      const dotenv = await import('dotenv');
+      
+      // 加载环境变量
+      dotenv.default.config({ path: '.env.server' });
+      
+      // 创建邮件传输器
+      let transporter;
+      if (process.env.EMAIL_SERVICE === 'QQ') {
+        // QQ邮箱配置
+        transporter = nodemailer.default.createTransport({
+          host: 'smtp.qq.com',
+          port: 465,
+          secure: true, // 使用SSL
+          auth: {
+            user: process.env.EMAIL_USERNAME,
+            pass: process.env.EMAIL_PASSWORD, // 这里使用的是授权码，不是QQ密码
+          },
+        });
+      } else {
+        // 默认配置（Gmail）
+        transporter = nodemailer.default.createTransport({
+          service: process.env.EMAIL_SERVICE || 'gmail',
+          auth: {
+            user: process.env.EMAIL_USERNAME,
+            pass: process.env.EMAIL_PASSWORD,
+          },
+        });
+      }
+      
+      const verificationUrl = `http://localhost:3030/verify-email?token=${emailVerificationToken}`;
+      
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: '木墨文坊 - 邮箱验证',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333;">欢迎注册木墨文坊</h2>
+            <p style="color: #666;">请点击下面的链接完成邮箱验证：</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verificationUrl}" 
+                 style="display: inline-block; padding: 12px 24px; background-color: #1890ff; color: white; 
+                        text-decoration: none; border-radius: 4px; font-weight: bold;">
+                验证邮箱
+              </a>
+            </div>
+            <p style="color: #666;">如果按钮无法点击，请复制以下地址到浏览器中打开：</p>
+            <p style="color: #999; word-break: break-all;">${verificationUrl}</p>
+            <p style="color: #666; font-size: 14px;">此链接将在24小时后过期。</p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="color: #999; font-size: 12px;">如果您没有注册木墨文坊账户，请忽略此邮件。</p>
+          </div>
+        `,
+      };
+      
+      await transporter.sendMail(mailOptions);
+      console.log('Verification email sent successfully to:', email);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // 即使邮件发送失败，也允许用户注册，但需要在响应中提示用户
+    }
+    
+    // 不再生成 JWT token，因为用户需要先验证邮箱
     
     // 返回不包含密码哈希的用户信息
     const { passwordHash: _, ...userWithoutPassword } = newUser;
@@ -562,8 +915,8 @@ app.post('/api/auth/register', async (req, res) => {
     res.json({
       success: true,
       user: userWithoutPassword,
-      message: '注册成功',
-      token
+      message: '注册成功！请检查您的邮箱并点击验证链接完成注册。验证完成后即可登录。'
+      // 不再返回token，因为用户需要先验证邮箱
     });
   } catch (error) {
     console.error('Failed to register user:', error);
@@ -572,6 +925,10 @@ app.post('/api/auth/register', async (req, res) => {
       message: '注册失败，请稍后重试' 
     });
   }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
 
 // 获取所有小说
@@ -611,6 +968,12 @@ app.get('/api/novels/:id', async (req, res) => {
 app.post('/api/novels', async (req, res) => {
   try {
     const novel = req.body;
+    
+    // 设置创建时间和最后修改时间
+    const now = new Date().toISOString();
+    novel.createdAt = novel.createdAt || now;
+    novel.lastModified = novel.lastModified || now;
+    
     // 如果没有提供id，则生成一个唯一的id
     if (!novel.id) {
       novel._id = 'novel-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -631,6 +994,10 @@ app.put('/api/novels/:id', async (req, res) => {
   try {
     const novel = req.body;
     delete novel.id;
+    
+    // 更新最后修改时间
+    novel.lastModified = new Date().toISOString();
+    
     await db.collection('novels').updateOne(
       { _id: req.params.id },
       { $set: novel }

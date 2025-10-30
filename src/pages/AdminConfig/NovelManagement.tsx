@@ -28,6 +28,29 @@ import { useMembershipStore } from '@/stores/membershipStore'
 import { apiService } from '@/services/apiService'
 import type { Novel } from '#/novel'
 
+// 安全格式化日期的工具函数
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return '未知';
+  
+  try {
+    // 尝试不同的日期解析方式
+    let date: Date;
+    
+    // 如果是数字字符串，假设它是时间戳
+    if (/^\d+$/.test(dateString)) {
+      date = new Date(parseInt(dateString));
+    } else {
+      // 否则直接解析日期字符串
+      date = new Date(dateString);
+    }
+    
+    // 检查日期是否有效
+    return isNaN(date.getTime()) ? '未知' : date.toLocaleString();
+  } catch (error) {
+    return '未知';
+  }
+};
+
 const { Title, Text } = Typography
 const { Option } = Select
 
@@ -65,7 +88,19 @@ const NovelManagementPage: React.FC = () => {
         novelList = await apiService.novels.getCurrentUserNovels(currentUserId)
       }
       
+      // 调试信息
       console.log('Loaded novel list:', novelList)
+      novelList.forEach((novel, index) => {
+        console.log(`Novel ${index}:`, {
+          id: novel.id,
+          title: novel.title,
+          createdAt: novel.createdAt,
+          lastModified: novel.lastModified,
+          createdAtType: typeof novel.createdAt,
+          lastModifiedType: typeof novel.lastModified
+        });
+      });
+      
       setNovels(novelList)
       setFilteredNovels(novelList)
       
@@ -266,6 +301,24 @@ const NovelManagementPage: React.FC = () => {
         render: (text: number) => (text != null ? text.toLocaleString() : '0')
       },
       {
+        title: '创建时间',
+        dataIndex: 'createdAt',
+        key: 'createdAt',
+        render: (text: string) => {
+          console.log('Table - createdAt:', text, typeof text);
+          return formatDate(text);
+        }
+      },
+      {
+        title: '最后修改',
+        dataIndex: 'lastModified',
+        key: 'lastModified',
+        render: (text: string) => {
+          console.log('Table - lastModified:', text, typeof text);
+          return formatDate(text);
+        }
+      },
+      {
         title: '操作',
         key: 'action',
         render: (_: any, record: Novel) => (
@@ -426,10 +479,10 @@ const NovelManagementPage: React.FC = () => {
                   : '无'}
               </Descriptions.Item>
               <Descriptions.Item label="创建时间">
-                {new Date(selectedNovel.createdAt).toLocaleString()}
+                {formatDate(selectedNovel.createdAt)}
               </Descriptions.Item>
               <Descriptions.Item label="最后修改">
-                {new Date(selectedNovel.lastModified).toLocaleString()}
+                {formatDate(selectedNovel.lastModified)}
               </Descriptions.Item>
             </Descriptions>
           )}

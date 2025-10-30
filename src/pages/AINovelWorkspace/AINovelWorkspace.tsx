@@ -84,6 +84,7 @@ import { databaseManager } from '@/services/index';
 
 // 修改为使用优化的数据同步服务
 import { optimizedDataSyncService } from '@/services/optimizedDataSyncService';
+import { outlineSyncService } from '@/services/outlineSyncService';
 
 const { Content, Sider } = Layout
 const { TextArea } = Input
@@ -373,6 +374,10 @@ const AINovelWorkspace: React.FC = () => {
             message.warning('请选择目标章节');
             return;
           }
+          break;
+        case 'outline':
+          // 对于大纲生成，使用专门的大纲同步服务
+          result = await outlineSyncService.syncOutline(content, targetNovel.id);
           break;
         default:
           // 对于世界观设定相关操作，使用优化的数据同步服务进行全量同步
@@ -1073,13 +1078,14 @@ const AINovelWorkspace: React.FC = () => {
         console.warn('Prompt too long, truncated to 10000 characters');
       }
 
-      // 调用LLM生成文本
+      // 调用LLM生成文本，增加maxTokens以支持更长的内容生成
       console.log('Calling generateTextStream with configId:', selectedConfigId)
       await generateTextStream(
         {
           prompt: truncatedPrompt,
           systemPrompt: typeSystemPrompt,
-          temperature: temperature
+          temperature: temperature,
+          maxTokens: 128000  // 增加maxTokens到8192以支持更长的内容生成
         },
         selectedConfigId
       )
