@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建测试用户</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #40a9ff;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .error {
+            background-color: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        .loading {
+            text-align: center;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1890ff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>创建测试用户</h1>
+        <form id="createUsersForm">
+            <div class="form-group">
+                <label for="adminEmail">管理员邮箱:</label>
+                <input type="email" id="adminEmail" required placeholder="请输入管理员邮箱">
+            </div>
+            <div class="form-group">
+                <label for="adminPassword">管理员密码:</label>
+                <input type="password" id="adminPassword" required placeholder="请输入管理员密码">
+            </div>
+            <button type="submit" id="submitBtn">创建测试用户</button>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在创建测试用户...</p>
+        </div>
+        
+        <div class="result success" id="successResult"></div>
+        <div class="result error" id="errorResult"></div>
+    </div>
+
+    <script>
+        document.getElementById('createUsersForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const adminEmail = document.getElementById('adminEmail').value;
+            const adminPassword = document.getElementById('adminPassword').value;
+            
+            // 显示加载状态
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('successResult').style.display = 'none';
+            document.getElementById('errorResult').style.display = 'none';
+            
+            try {
+                // 获取当前域名作为API基础URL
+                const baseUrl = window.location.origin;
+                const apiUrl = `${baseUrl}/api/users/create-test-users`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        adminEmail: adminEmail,
+                        adminPassword: adminPassword
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('successResult').innerHTML = `
+                        <h3>✅ 测试用户创建成功</h3>
+                        <p>${result.message}</p>
+                        <ul>
+                            ${result.results.map(user => 
+                                `<li>${user.username}: ${user.status === 'created' ? '已创建' : user.status === 'updated' ? '已更新' : '失败'}</li>`
+                            ).join('')}
+                        </ul>
+                        <p><strong>测试账户信息：</strong></p>
+                        <ul>
+                            <li>用户名：蜗牛丢了壳，邮箱：763337611@qq.com</li>
+                            <li>用户名：测试员1，邮箱：test1@example.com</li>
+                            <li>用户名：测试员2，邮箱：test2@example.com</li>
+                            <li>统一密码：mumo123</li>
+                        </ul>
+                    `;
+                    document.getElementById('successResult').style.display = 'block';
+                } else {
+                    document.getElementById('errorResult').innerHTML = `
+                        <h3>❌ 创建失败</h3>
+                        <p>${result.message}</p>
+                    `;
+                    document.getElementById('errorResult').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('errorResult').innerHTML = `
+                    <h3>❌ 请求失败</h3>
+                    <p>${error.message}</p>
+                `;
+                document.getElementById('errorResult').style.display = 'block';
+            } finally {
+                // 恢复按钮状态
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

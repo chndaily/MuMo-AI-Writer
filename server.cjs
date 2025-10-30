@@ -2387,6 +2387,11 @@ app.delete('/api/prompt-library/:id', async (req, res) => {
 });
 
 // 启动服务器
+// 提供创建测试用户的HTML页面
+app.get('/create-test-users', (req, res) => {
+  res.sendFile(__dirname + '/create-test-users.html');
+});
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
