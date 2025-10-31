@@ -39,11 +39,11 @@ export class DeepSeekProvider extends BaseAIProvider {
       return undefined;
     }
     
-    // DeepSeek API对max_tokens的限制是[1, 65536]
+    // DeepSeek API对max_tokens的限制是[1, 128000]
     const minTokens = 1;
-    const maxTokensLimit = 65536;
+    const maxTokensLimit = 128000;
     
-    // 确保maxTokens在有效范围内 [1, 65536]
+    // 确保maxTokens在有效范围内 [1, 128000]
     if (maxTokens < minTokens) {
       return minTokens;
     }

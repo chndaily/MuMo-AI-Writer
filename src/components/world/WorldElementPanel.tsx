@@ -1260,8 +1260,8 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
       <Card
         key={element.id}
         size="small"
-        className="world-element-card"
-        actions={[
+        className="world-element-card "
+        actions={[ 
           <Button 
             type="text" 
             icon={<EditOutlined />} 
@@ -1318,7 +1318,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         <div 
           className="element-content" 
           style={{ 
-            minHeight: '60px', 
+            minHeight: '100px', 
             marginBottom: '12px', 
             color: '#595959', 
             fontSize: '13px', 
@@ -1328,7 +1328,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
           {displayDescription}
         </div>
         {/* 根据用户需求，恢复角色和地点的标签显示，使其像文化、科技设定一样显示标签内容 */}
-        <div className="element-tags" style={{ marginBottom: '12px' }}>
+        <div className="element-tags" style={{ marginBottom: '12px',minHeight: '50px' }}>
           {Array.isArray(element.tags) && element.tags.map(tag => (
             <Tag 
               key={tag} 

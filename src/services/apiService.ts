@@ -13,6 +13,7 @@ import {
   WritingRecord 
 } from '#/novel'
 import { User } from '@/services/realAuthService'
+import { useMembershipStore } from '@/stores/membershipStore'
 import { AIModelRecord } from './aiModelStore'
 import { Message, ChatHistory } from './chatStore'
 import { Collection } from '#/promptLibrary'
@@ -51,6 +52,15 @@ const apiRequest = async <T>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  }
+  
+  // 添加认证token到请求头
+  const { authToken } = useMembershipStore.getState();
+  if (authToken) {
+    defaultOptions.headers = {
+      ...defaultOptions.headers,
+      'Authorization': `Bearer ${authToken}`
+    };
   }
   
   const response = await fetch(url, {
@@ -265,12 +275,12 @@ export const novelApi = {
     return apiRequest<Novel>(`/api/novels/${id}`)
   },
   
-  // 根据作者ID获取小说
-  getNovelsByAuthorId: async (authorId: string) => {
-    return apiRequest<Novel[]>(`/api/novels?authorId=${authorId}`)
+  // 根据作者ID获取小说 (修改为使用userId参数)
+  getNovelsByAuthorId: async (userId: string) => {
+    return apiRequest<Novel[]>(`/api/novels?authorId=${userId}`)
   },
   
-  // 获取当前用户的小说
+  // 获取当前用户的小说 (修改为使用userId参数)
   getCurrentUserNovels: async (userId: string) => {
     return apiRequest<Novel[]>(`/api/novels?authorId=${userId}`)
   },

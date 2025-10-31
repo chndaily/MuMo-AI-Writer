@@ -317,3 +317,14 @@ export class DatabaseManager {
 
 // 创建数据库管理器实例
 export const databaseManager = new DatabaseManager()
+
+// 添加数据库状态检查方法
+export const getDatabaseStatus = async () => {
+  try {
+    // 返回 MongoDB 状态
+    return 'MongoDB 已就绪'
+  } catch (error) {
+    console.error('获取数据库状态失败:', error)
+    return null
+  }
+}

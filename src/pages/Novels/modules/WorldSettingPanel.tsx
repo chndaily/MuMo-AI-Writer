@@ -459,12 +459,21 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
             <Tag color={typeInfo?.color}>{element.locationType}</Tag>
           )}
         </div>
-        <div className="element-content">
+        <div 
+          className="element-content" 
+          style={{ 
+            minHeight: '100px', 
+            marginBottom: '12px', 
+            color: '#595959', 
+            fontSize: '13px', 
+            lineHeight: '1.5' 
+          }}
+        >
           {displayDescription}
         </div>
-        <div className="element-tags">
+        <div className="element-tags" style={{ marginBottom: '12px',minHeight: '50px' }}>
           {element.tags.map(tag => (
-            <Tag key={tag} color={typeInfo?.color}>
+            <Tag key={tag} color={typeInfo?.color} style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}>
               {tag}
             </Tag>
           ))}

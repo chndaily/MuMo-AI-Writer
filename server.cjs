@@ -1,5 +1,6 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
+const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: '.env.server' });
 
 const app = express();
@@ -21,6 +22,68 @@ let db;
 
 // 添加环境变量用于配置真实MongoDB连接
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mumo-ai-writer';
+
+// JWT密钥
+const JWT_SECRET = 'mumo-ai-writing-jwt-secret-key';
+
+// 认证中间件
+const authenticateToken = async (req, res, next) => {
+  try {
+    // 从请求头中获取token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: '缺少认证token' });
+    }
+    
+    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+    
+    // 验证token
+    const payload = jwt.verify(token, JWT_SECRET);
+    
+    // 将用户信息添加到请求对象中
+    req.user = {
+      userId: payload.userId,
+      email: payload.email,
+      username: payload.username
+    };
+    
+    next();
+  } catch (error) {
+    console.error('认证失败:', error);
+    return res.status(401).json({ error: '认证失败' });
+  }
+};
+
+// 可选认证中间件
+const optionalAuthenticateToken = async (req, res, next) => {
+  try {
+    // 从请求头中获取token
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // 没有token，继续处理请求
+      next();
+      return;
+    }
+    
+    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+    
+    // 验证token
+    const payload = jwt.verify(token, JWT_SECRET);
+    
+    // 将用户信息添加到请求对象中
+    req.user = {
+      userId: payload.userId,
+      email: payload.email,
+      username: payload.username
+    };
+    
+    next();
+  } catch (error) {
+    console.error('可选认证失败:', error);
+    // 即使认证失败也继续处理请求
+    next();
+  }
+};
 
 // 支付配置（从环境变量获取）
 const PAYMENT_CONFIG = {
@@ -936,18 +999,41 @@ app.listen(port, () => {
 });
 
 // 获取所有小说
-app.get('/api/novels', async (req, res) => {
+app.get('/api/novels', optionalAuthenticateToken, async (req, res) => {
   try {
     // 检查是否有authorId查询参数
     const authorId = req.query.authorId;
     
     let query = {};
-    // 如果有authorId参数，按作者ID过滤
+    
+    // 如果提供了authorId参数，按作者ID过滤
     if (authorId) {
-      // 同时检查author和userId字段，确保兼容性
+      // 如果authorId是邮箱格式，需要查找对应的用户ID
+      if (authorId.includes('@')) {
+        // 查找用户获取userId
+        const user = await db.collection('users').findOne({ email: authorId });
+        if (user) {
+          query.$or = [
+            { author: user._id },
+            { userId: user._id },
+            { author: authorId }  // 兼容旧数据
+          ];
+        } else {
+          // 如果找不到用户，返回空数组
+          return res.json([]);
+        }
+      } else {
+        // 如果authorId不是邮箱格式，直接使用
+        query.$or = [
+          { author: authorId },
+          { userId: authorId }
+        ];
+      }
+    } else if (req.user) {
+      // 如果没有提供authorId但用户已认证，使用认证用户ID
       query.$or = [
-        { author: authorId },
-        { userId: authorId }
+        { author: req.user.userId },
+        { userId: req.user.userId }
       ];
     }
     
@@ -969,7 +1055,7 @@ app.get('/api/novels/:id', async (req, res) => {
 });
 
 // 创建小说
-app.post('/api/novels', async (req, res) => {
+app.post('/api/novels', authenticateToken, async (req, res) => {
   try {
     const novel = req.body;
     
@@ -977,6 +1063,10 @@ app.post('/api/novels', async (req, res) => {
     const now = new Date().toISOString();
     novel.createdAt = novel.createdAt || now;
     novel.lastModified = novel.lastModified || now;
+    
+    // 设置作者信息
+    novel.author = req.user.userId;
+    novel.userId = req.user.userId;
     
     // 如果没有提供id，则生成一个唯一的id
     if (!novel.id) {
@@ -994,13 +1084,17 @@ app.post('/api/novels', async (req, res) => {
 });
 
 // 更新小说
-app.put('/api/novels/:id', async (req, res) => {
+app.put('/api/novels/:id', authenticateToken, async (req, res) => {
   try {
     const novel = req.body;
     delete novel.id;
     
     // 更新最后修改时间
     novel.lastModified = new Date().toISOString();
+    
+    // 确保作者信息不被修改
+    delete novel.author;
+    delete novel.userId;
     
     await db.collection('novels').updateOne(
       { _id: req.params.id },
@@ -1013,7 +1107,7 @@ app.put('/api/novels/:id', async (req, res) => {
 });
 
 // 删除小说
-app.delete('/api/novels/:id', async (req, res) => {
+app.delete('/api/novels/:id', authenticateToken, async (req, res) => {
   try {
     await db.collection('novels').deleteOne({ _id: req.params.id });
     res.json({ message: 'Novel deleted' });
@@ -1023,7 +1117,7 @@ app.delete('/api/novels/:id', async (req, res) => {
 });
 
 // 获取所有角色
-app.get('/api/characters', async (req, res) => {
+app.get('/api/characters', authenticateToken, async (req, res) => {
   try {
     // 检查是否有novelId查询参数
     const novelId = req.query.novelId;
@@ -1052,7 +1146,7 @@ app.get('/api/characters/:id', async (req, res) => {
 });
 
 // 创建角色
-app.post('/api/characters', async (req, res) => {
+app.post('/api/characters', authenticateToken, async (req, res) => {
   try {
     const character = req.body;
     
@@ -1065,6 +1159,13 @@ app.post('/api/characters', async (req, res) => {
     const generatedId = 'character-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     character._id = generatedId;
     delete character.id;
+    
+    // 确保时间戳字段存在
+    character.createdAt = character.createdAt || new Date().toISOString();
+    character.lastModified = character.lastModified || new Date().toISOString();
+    
+    // 设置作者信息
+    character.authorId = req.user.userId;
     
     const result = await db.collection('characters').insertOne(character);
     // 确保返回实际保存到数据库中的完整角色对象，包括所有字段
@@ -1079,10 +1180,12 @@ app.post('/api/characters', async (req, res) => {
 });
 
 // 更新角色
-app.put('/api/characters/:id', async (req, res) => {
+app.put('/api/characters/:id', authenticateToken, async (req, res) => {
   try {
     const character = req.body;
     delete character.id;
+    // 确保更新时间戳
+    character.lastModified = new Date().toISOString();
     // 确保所有字段都被正确更新
     await db.collection('characters').updateOne(
       { _id: req.params.id },
@@ -1095,7 +1198,7 @@ app.put('/api/characters/:id', async (req, res) => {
 });
 
 // 删除角色
-app.delete('/api/characters/:id', async (req, res) => {
+app.delete('/api/characters/:id', authenticateToken, async (req, res) => {
   try {
     await db.collection('characters').deleteOne({ _id: req.params.id });
     res.json({ message: 'Character deleted' });
@@ -1105,7 +1208,7 @@ app.delete('/api/characters/:id', async (req, res) => {
 });
 
 // 获取所有地点
-app.get('/api/locations', async (req, res) => {
+app.get('/api/locations', authenticateToken, async (req, res) => {
   try {
     // 检查是否有novelId查询参数
     const novelId = req.query.novelId;
@@ -1134,7 +1237,7 @@ app.get('/api/locations/:id', async (req, res) => {
 });
 
 // 创建地点
-app.post('/api/locations', async (req, res) => {
+app.post('/api/locations', authenticateToken, async (req, res) => {
   try {
     const location = req.body;
     // 如果没有提供id，则生成一个唯一的id
@@ -1144,6 +1247,10 @@ app.post('/api/locations', async (req, res) => {
       location._id = location.id;
     }
     delete location.id;
+    
+    // 设置作者信息
+    location.authorId = req.user.userId;
+    
     await db.collection('locations').insertOne(location);
     // 确保返回完整的地点对象，包括所有字段
     res.json({ ...location, _id: location._id });
@@ -1154,7 +1261,7 @@ app.post('/api/locations', async (req, res) => {
 });
 
 // 更新地点
-app.put('/api/locations/:id', async (req, res) => {
+app.put('/api/locations/:id', authenticateToken, async (req, res) => {
   try {
     const location = req.body;
     delete location.id;
@@ -1170,7 +1277,7 @@ app.put('/api/locations/:id', async (req, res) => {
 });
 
 // 删除地点
-app.delete('/api/locations/:id', async (req, res) => {
+app.delete('/api/locations/:id', authenticateToken, async (req, res) => {
   try {
     await db.collection('locations').deleteOne({ _id: req.params.id });
     res.json({ message: 'Location deleted' });
@@ -1927,7 +2034,7 @@ app.post('/api/ai-models/:id/unset-default', async (req, res) => {
 
 // 大纲API路由
 // 获取所有大纲
-app.get('/api/outlines', async (req, res) => {
+app.get('/api/outlines', authenticateToken, async (req, res) => {
   try {
     // 检查是否有novelId查询参数
     const novelId = req.query.novelId;
@@ -1956,7 +2063,7 @@ app.get('/api/outlines/:id', async (req, res) => {
 });
 
 // 创建大纲
-app.post('/api/outlines', async (req, res) => {
+app.post('/api/outlines', authenticateToken, async (req, res) => {
   try {
     const outline = req.body;
     // 如果没有提供id，则生成一个唯一的id
@@ -1966,6 +2073,10 @@ app.post('/api/outlines', async (req, res) => {
       outline._id = outline.id;
     }
     delete outline.id;
+    
+    // 设置作者信息
+    outline.authorId = req.user.userId;
+    
     const result = await db.collection('outlines').insertOne(outline);
     res.json({ ...req.body, _id: result.insertedId || outline._id });
   } catch (error) {
@@ -1975,7 +2086,7 @@ app.post('/api/outlines', async (req, res) => {
 });
 
 // 更新大纲
-app.put('/api/outlines/:id', async (req, res) => {
+app.put('/api/outlines/:id', authenticateToken, async (req, res) => {
   try {
     const outline = req.body;
     delete outline.id;
@@ -1990,7 +2101,7 @@ app.put('/api/outlines/:id', async (req, res) => {
 });
 
 // 删除大纲
-app.delete('/api/outlines/:id', async (req, res) => {
+app.delete('/api/outlines/:id', authenticateToken, async (req, res) => {
   try {
     await db.collection('outlines').deleteOne({ _id: req.params.id });
     res.json({ message: 'Outline deleted' });
@@ -2001,7 +2112,7 @@ app.delete('/api/outlines/:id', async (req, res) => {
 
 // 世界观设定API路由
 // 获取所有世界观设定
-app.get('/api/world-settings', async (req, res) => {
+app.get('/api/world-settings', authenticateToken, async (req, res) => {
   try {
     // 检查是否有novelId和type查询参数
     const novelId = req.query.novelId;
@@ -2035,7 +2146,7 @@ app.get('/api/world-settings/:id', async (req, res) => {
 });
 
 // 创建世界观设定
-app.post('/api/world-settings', async (req, res) => {
+app.post('/api/world-settings', authenticateToken, async (req, res) => {
   try {
     const worldSetting = req.body;
     // 如果没有提供id，则生成一个唯一的id
@@ -2045,6 +2156,10 @@ app.post('/api/world-settings', async (req, res) => {
       worldSetting._id = worldSetting.id;
     }
     delete worldSetting.id;
+    
+    // 设置作者信息
+    worldSetting.authorId = req.user.userId;
+    
     const result = await db.collection('worldSettings').insertOne(worldSetting);
     res.json({ ...req.body, _id: result.insertedId || worldSetting._id });
   } catch (error) {
@@ -2054,7 +2169,7 @@ app.post('/api/world-settings', async (req, res) => {
 });
 
 // 更新世界观设定
-app.put('/api/world-settings/:id', async (req, res) => {
+app.put('/api/world-settings/:id', authenticateToken, async (req, res) => {
   try {
     const worldSetting = req.body;
     delete worldSetting.id;
@@ -2069,7 +2184,7 @@ app.put('/api/world-settings/:id', async (req, res) => {
 });
 
 // 删除世界观设定
-app.delete('/api/world-settings/:id', async (req, res) => {
+app.delete('/api/world-settings/:id', authenticateToken, async (req, res) => {
   try {
     await db.collection('worldSettings').deleteOne({ _id: req.params.id });
     res.json({ message: 'World setting deleted' });

@@ -29,7 +29,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useNovelIndexDBStore } from '@/stores/novelIndexDBStore'
 import { Novel } from '#/novel'
-import { databaseManager, getDatabaseStatus } from '@/services'  // 修改导入，添加 getDatabaseStatus
+import { databaseManager } from '@/services'  // 修改导入，移除 getDatabaseStatus
 import CreateNovelModal from '@/pages/Novels/modules/CreateNovelModal'
 import EditNovelModal from '@/pages/Novels/modules/EditNovelModal'
 
@@ -63,9 +63,7 @@ const NovelListIndexDB: React.FC = () => {
     const initialize = async () => {
       try {
         // 检查数据库状态
-        const status = await getDatabaseStatus();  // 修改：直接调用函数而不是通过 databaseManager
-        // 修复：getDatabaseStatus 返回的是字符串，不是对象
-        setDbStatus(status ? '已就绪' : '未就绪');
+        setDbStatus('MongoDB 已就绪');
         
         // 刷新小说列表（移除refreshGenres调用，因为genres模块已移除）
         await refreshNovels();
@@ -212,7 +210,7 @@ const NovelListIndexDB: React.FC = () => {
   // 获取活跃的类型（由于genres模块已移除，使用默认的类型列表）
   const activeGenres = [
     { name: 'fantasy', displayName: '奇幻' },
-    { name: 'scifi', displayName: '科幻' },
+    { name: 'scifi', displayName: '科幻' }, 
     { name: 'romance', displayName: '言情' },
     { name: 'mystery', displayName: '悬疑' },
     { name: 'thriller', displayName: '惊悚' },

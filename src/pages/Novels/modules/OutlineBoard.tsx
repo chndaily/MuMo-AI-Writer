@@ -701,7 +701,16 @@ const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
         version: '1.0'
       };
       
-      exportService.exportAsJson(exportData, `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.json`);
+      // 创建一个虚拟的a标签来触发下载
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       message.success('大纲导出成功');
     } catch (error) {
       console.error('导出大纲失败:', error);
@@ -712,7 +721,32 @@ const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
   // 新增：导出为Markdown格式
   const handleExportOutlineAsMarkdown = () => {
     try {
-      exportService.exportAsMarkdown(outlineData.acts, `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.md`);
+      // 导出为Markdown需要先获取完整的小说对象，这里简化处理
+      const markdownContent = `# 小说大纲\n\n${outlineData.acts.map(act => 
+        `## ${act.title}
+
+${act.content || ''}
+
+${act.chapters.map(ch => 
+          `### ${ch.title}
+
+${ch.content || ''}
+
+${ch.summary ? `**摘要**: ${ch.summary}
+
+` : ''}`
+        ).join('')}`
+      ).join('\n\n')}`;
+      
+      const blob = new Blob([markdownContent], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       message.success('大纲导出为Markdown成功');
     } catch (error) {
       console.error('导出大纲为Markdown失败:', error);
@@ -723,7 +757,32 @@ const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
   // 新增：导出为TXT格式
   const handleExportOutlineAsTxt = () => {
     try {
-      exportService.exportAsTxt(outlineData.acts, `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.txt`);
+      // 导出为TXT格式
+      const txtContent = `小说大纲\n\n${outlineData.acts.map(act => 
+        `${act.title}
+
+${act.content || ''}
+
+${act.chapters.map(ch => 
+          `${ch.title}
+
+${ch.content || ''}
+
+${ch.summary ? `摘要: ${ch.summary}
+
+` : ''}`
+        ).join('')}`
+      ).join('\n\n')}`;
+      
+      const blob = new Blob([txtContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       message.success('大纲导出为TXT成功');
     } catch (error) {
       console.error('导出大纲为TXT失败:', error);
@@ -734,8 +793,7 @@ const OutlineBoard: React.FC<OutlineBoardProps> = ({ aiSyncData, novelId }) => {
   // 新增：导出为DOCX格式
   const handleExportOutlineAsDocx = () => {
     try {
-      exportService.exportAsDocx(outlineData.acts, `小说大纲_${novelId}_${new Date().toISOString().slice(0, 10)}.docx`);
-      message.success('大纲导出为DOCX成功');
+      message.warning('DOCX格式导出功能暂未实现，请使用其他格式导出');
     } catch (error) {
       console.error('导出大纲为DOCX失败:', error);
       message.error('导出大纲为DOCX失败');

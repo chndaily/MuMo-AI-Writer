@@ -874,8 +874,40 @@ const ManuscriptEditor: React.FC = () => {
       // 生成文件名
       const fileName = `${chapterTitle}_${new Date().toISOString().slice(0, 10)}.${format}`;
 
-      // 导出内容
-      exportService.exportChapterContent(content, chapterTitle, format, fileName);
+      // 根据格式导出内容
+      let blob: Blob;
+      let mimeType: string;
+      
+      switch (format) {
+        case 'txt':
+          blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+          mimeType = 'text/plain;charset=utf-8';
+          break;
+        case 'md':
+          blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+          mimeType = 'text/markdown;charset=utf-8';
+          break;
+        case 'docx':
+          // 对于DOCX格式，暂时导出为文本格式
+          blob = new Blob([content], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+          mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          message.warning('DOCX格式导出功能暂未实现，将导出为文本格式');
+          break;
+        default:
+          blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+          mimeType = 'text/plain;charset=utf-8';
+      }
+
+      // 创建下载链接
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
       message.success(`章节内容已导出为${format.toUpperCase()}格式`);
     } catch (error) {
       console.error('导出章节内容失败:', error);

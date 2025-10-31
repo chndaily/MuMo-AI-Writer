@@ -87,7 +87,6 @@ export const useMembershipStore = create<MembershipState & MembershipActions>()(
       authToken: null, // 默认无认证token
       
       setMembershipInfo: (info) => {
-        console.log('Setting membership info:', info);
         // 确保处理null值
         const processedInfo: MembershipInfo = {
           ...info,
@@ -101,22 +100,18 @@ export const useMembershipStore = create<MembershipState & MembershipActions>()(
             info.aiGenerationLimit,
           isAdmin: info.isAdmin ?? false
         };
-        console.log('Processed membership info:', processedInfo);
         set({ membershipInfo: processedInfo });
       },
       
       setIsAuthenticated: (isAuthenticated) => {
-        console.log('Setting isAuthenticated:', isAuthenticated);
         set({ isAuthenticated });
       },
       
       setAuthToken: (authToken) => {
-        console.log('Setting authToken:', authToken);
         set({ authToken });
       },
       
       clearAuth: () => {
-        console.log('Clearing auth - this should only happen on logout or token invalidation');
         set({ 
           isAuthenticated: false, 
           authToken: null,

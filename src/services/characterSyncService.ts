@@ -3,6 +3,7 @@ import { SyncResult } from '@/types/ai-generation'
 // 导入标签同步工具函数
 import { extractTagsFromAIContent, syncTagsToElement, normalizeTags, areTagsEqual, categorizeTags } from '@/utils/tagSyncUtils'
 import worldSettingParserService from '@/services/worldSettingParserService'
+import { hybridStorageService } from '@/services/hybridStorageService'
 
 /**
  * 角色同步服务
@@ -26,7 +27,7 @@ export class CharacterSyncService {
       
       // 创建角色对象
       const character: any = {
-        novelId,
+        novelId: novelId,  // 确保novelId字段正确设置
         name: characterData.name || 'AI生成角色',
         description: characterData.description || content,
         role: characterData.role || 'supporting',
@@ -45,9 +46,14 @@ export class CharacterSyncService {
         lastModified: new Date().toISOString(),
       };
 
+      // 验证必要字段
+      if (!character.novelId) {
+        throw new Error('缺少novelId字段，无法保存角色');
+      }
+
       // 保存角色
-      // 这里需要调用混合存储服务来保存角色
-      // await hybridStorageService.saveWorldElement(character, 'character');
+      // 确保传递正确的参数给saveWorldElement方法
+      await hybridStorageService.saveWorldElement(character, 'character');
 
       console.log('角色同步完成:', character.name);
       return {

@@ -380,8 +380,16 @@ app.get('/api/novels', async (req, res) => {
   }
   
   try {
-    // 修复：正确使用MongoDB查询方法
-    const novelsCursor = await db.collection('novels').find({});
+    // 获取查询参数
+    const { authorId } = req.query;
+    
+    let query = {};
+    // 如果有authorId参数，优先使用userId字段进行过滤
+    if (authorId) {
+      query.userId = authorId;
+    }
+    
+    const novelsCursor = await db.collection('novels').find(query);
     const novels = await novelsCursor.toArray();
     res.json(novels);
   } catch (error) {
@@ -413,6 +421,116 @@ app.get('/api/health', (req, res) => {
     database: db ? 'Connected' : 'Disconnected',
     timestamp: new Date().toISOString()
   });
+});
+
+// 角色API路由
+// 获取小说的所有角色
+app.get('/api/characters', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const { novelId } = req.query;
+    const query = novelId ? { novelId } : {};
+    const characters = await db.collection('characters').find(query).toArray();
+    res.json(characters);
+  } catch (error) {
+    console.error('Get characters error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 根据ID获取角色
+app.get('/api/characters/:id', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const character = await db.collection('characters').findOne({ _id: req.params.id });
+    if (character) {
+      res.json(character);
+    } else {
+      res.status(404).json({ error: 'Character not found' });
+    }
+  } catch (error) {
+    console.error('Get character error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 创建角色
+app.post('/api/characters', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const characterData = req.body;
+    const newCharacter = {
+      ...characterData,
+      _id: 'character-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+      createdAt: new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    };
+    
+    const result = await db.collection('characters').insertOne(newCharacter);
+    res.status(201).json(newCharacter);
+  } catch (error) {
+    console.error('Create character error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 更新角色
+app.put('/api/characters/:id', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const updateData = req.body;
+    const updatedCharacter = {
+      ...updateData,
+      lastModified: new Date().toISOString()
+    };
+    
+    const result = await db.collection('characters').updateOne(
+      { _id: req.params.id },
+      { $set: updatedCharacter }
+    );
+    
+    if (result.matchedCount > 0) {
+      const character = await db.collection('characters').findOne({ _id: req.params.id });
+      res.json(character);
+    } else {
+      res.status(404).json({ error: 'Character not found' });
+    }
+  } catch (error) {
+    console.error('Update character error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除角色
+app.delete('/api/characters/:id', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const result = await db.collection('characters').deleteOne({ _id: req.params.id });
+    
+    if (result.deletedCount > 0) {
+      res.json({ message: 'Character deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Character not found' });
+    }
+  } catch (error) {
+    console.error('Delete character error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 导出为Vercel Serverless Function

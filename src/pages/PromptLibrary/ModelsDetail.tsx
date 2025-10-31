@@ -161,7 +161,7 @@ const ModelsDetail: React.FC<ModelsDetailProps> = ({ collection }) => {
                           <Checkbox checked={model.maxTokens !== undefined}
                             onChange={e => onChangeModel(model.internalId, 'maxTokens', e.target.checked ? 0 : undefined)}
                           />
-                          <InputNumber max={100000} min={0} step={1000} precision={0} value={model.maxTokens} onChange={e => onChangeModel(model.internalId, 'maxTokens', e ?? 0)} onBlur={handleSave} /></>}
+                          <InputNumber max={128000} min={0} step={1000} precision={0} value={model.maxTokens} onChange={e => onChangeModel(model.internalId, 'maxTokens', e ?? 0)} onBlur={handleSave} /></>}
                       />
                       <FieldItem
                         title='Freq. Penalty'

@@ -331,7 +331,7 @@ export function useLLM(): UseLLMReturn {
           { role: 'user' as const, content: request.prompt }
         ],
         temperature: request.temperature ?? (config as any).temperature ?? 0.7,
-        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 128000, // 增加默认max_tokens到128000
+        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 128000, // 默认max_tokens设置为128000
       }
 
       const result = await provider.sendRequest(payload)
@@ -420,7 +420,7 @@ export function useLLM(): UseLLMReturn {
           { role: 'user' as const, content: request.prompt }
         ],
         temperature: request.temperature ?? (config as any).temperature ?? 0.7,
-        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 128000, // 增加默认max_tokens到128000
+        max_tokens: request.maxTokens ?? (config as any).maxTokens ?? 128000, // 默认max_tokens设置为128000
       }
 
       // 生成请求ID

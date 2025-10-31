@@ -1,5 +1,5 @@
 // 真实的用户认证服务
-import { MembershipLevel, MembershipInfo } from '@/stores/membershipStore'
+import { MembershipLevel, MembershipInfo, useMembershipStore } from '@/stores/membershipStore'
 import { safeUpdateUser, isUserAdminAccount } from '@/services/adminProtectionService'
 import { connectToDatabase, getUsersCollection, UserDocument } from '@/services/mongodbService'
 import { PasswordService } from '@/services/passwordService'
@@ -348,6 +348,17 @@ class RealAuthService {
     try {
       // 使用API服务进行登录
       const response = await apiService.users.login(email, password);
+      
+      // 登录成功后，更新会员存储中的认证状态
+      if (response.success && response.token) {
+        useMembershipStore.getState().setIsAuthenticated(true);
+        useMembershipStore.getState().setAuthToken(response.token);
+        
+        // 如果返回了用户信息，更新会员信息
+        if (response.user) {
+          useMembershipStore.getState().setMembershipInfo(response.user.membershipInfo);
+        }
+      }
       
       return response;
     } catch (error: any) {

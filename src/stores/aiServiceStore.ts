@@ -395,7 +395,7 @@ export const useAIServiceStore = create<AIServiceState>()(
             let presetParams = {
               description: `自动获取的模型: ${model.name}`,
               temperature: 0.7,
-              maxTokens: 128000 // 默认值
+              maxTokens: 128000 // 默认maxTokens设置为128000
             };
             
             // 将提供商映射回LLMProvider

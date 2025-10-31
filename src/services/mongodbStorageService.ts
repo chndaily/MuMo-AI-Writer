@@ -11,6 +11,7 @@ import {
   WritingRecord
 } from '#/novel'
 import { apiService } from '@/services/apiService'
+import { useMembershipStore } from '@/stores/membershipStore'
 import { AIModelRecord } from './aiModelStore'
 import { Message, ChatHistory } from './chatStore'
 import { AIUsageRecord } from './aiUsageHistoryService'
@@ -85,10 +86,11 @@ export class MongodbStorageService {
   }
 
   /**
-   * 根据用户ID获取小说
+   * 根据用户ID获取小说 (修改为使用userId字段)
    */
   async getNovelsByUserId(userId: string): Promise<Novel[]> {
     try {
+      console.log('获取小说，用户ID:', userId);
       return await apiService.novels.getCurrentUserNovels(userId);
     } catch (error) {
       console.error('根据用户ID获取小说失败:', error);

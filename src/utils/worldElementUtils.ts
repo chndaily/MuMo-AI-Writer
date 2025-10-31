@@ -3,6 +3,10 @@ import { hybridStorageService } from '@/services/hybridStorageService'
 
 /**
  * 获取已有元素信息，用于增强AI生成内容的关联性
+ * 优化策略：
+ * 1. 大纲作为主要上下文信息
+ * 2. 世界观设定仅提供关键信息（名称和标签）
+ * 3. 控制整体提示词长度
  * @param novelId 小说ID
  * @returns 已有元素信息字符串
  */
@@ -25,107 +29,300 @@ export async function getExistingElementsInfo(novelId: string): Promise<string> 
 
     let elementsInfo = ''
 
-    // 添加大纲信息
+    // 添加大纲信息（作为主要上下文）- 优化处理长大纲
     if (outlines && outlines.length > 0) {
       elementsInfo += '【小说大纲信息】\n'
       // 按照层级结构组织大纲信息
       const mainOutlines = outlines.filter(outline => outline.type === 'main')
       const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
       
-      mainOutlines.forEach(mainOutline => {
+      // 限制主卷数量和内容长度，避免信息过载
+      const maxMainOutlines = Math.min(mainOutlines.length, 5); // 最多显示5个主卷
+      for (let i = 0; i < maxMainOutlines; i++) {
+        const mainOutline = mainOutlines[i];
         elementsInfo += `卷：${mainOutline.title}\n`
-        if (mainOutline.content) elementsInfo += `卷描述：${mainOutline.content}\n`
+        // 只添加关键的大纲信息，避免过长
+        if (mainOutline.content) {
+          // 如果内容过长，只显示前200个字符并添加省略号
+          const displayContent = mainOutline.content.length <= 200 
+            ? mainOutline.content 
+            : mainOutline.content.substring(0, 197) + '...'
+          elementsInfo += `卷描述：${displayContent}\n`
+        }
         
-        // 添加该卷下的章节信息
+        // 添加该卷下的章节信息（仅标题和关键摘要）
         const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
-        chaptersInThisAct.forEach(chapter => {
-          elementsInfo += `  章节：${chapter.title}\n`
-          if (chapter.content) elementsInfo += `  章节内容：${chapter.content}\n`
-        })
-        elementsInfo += '\n'
-      })
+        // 限制每卷显示的章节数量
+        const maxChaptersToShow = Math.min(chaptersInThisAct.length, 10); // 每卷最多显示10个章节
+        if (maxChaptersToShow > 0) {
+          elementsInfo += '  章节：'
+          for (let j = 0; j < maxChaptersToShow; j++) {
+            const chapter = chaptersInThisAct[j];
+            elementsInfo += `${chapter.title}${j < maxChaptersToShow - 1 ? '、' : ''}`
+          }
+          elementsInfo += '\n'
+        }
+      }
       
-      // 如果有未归属于任何卷的章节，单独列出
+      // 如果有未归属于任何卷的章节，单独列出（限制数量）
       const unassignedChapters = chapterOutlines.filter(chapter => !chapter.parentId || !mainOutlines.some(act => act.id === chapter.parentId))
-      if (unassignedChapters.length > 0) {
-        elementsInfo += '未归属于卷的章节：\n'
-        unassignedChapters.forEach(chapter => {
-          elementsInfo += `  章节：${chapter.title}\n`
-          if (chapter.content) elementsInfo += `  章节内容：${chapter.content}\n`
-        })
+      const maxUnassignedToShow = Math.min(unassignedChapters.length, 15); // 最多显示15个未分配章节
+      if (maxUnassignedToShow > 0) {
+        elementsInfo += '未归属于卷的章节：'
+        for (let i = 0; i < maxUnassignedToShow; i++) {
+          const chapter = unassignedChapters[i];
+          elementsInfo += `${chapter.title}${i < maxUnassignedToShow - 1 ? '、' : ''}`
+        }
         elementsInfo += '\n'
       }
+      elementsInfo += '\n'
     }
 
-    // 添加角色信息
+    // 添加角色信息（仅名称和标签）- 增强格式以提高AI识别度
     if (characters && characters.length > 0) {
-      elementsInfo += '【已有角色信息】\n'
-      characters.forEach((character: any) => {
-        elementsInfo += `角色名称：${character.name}\n`
-        if (character.description) elementsInfo += `角色描述：${character.description}\n`
-        if (character.tags && character.tags.length > 0) elementsInfo += `标签：${character.tags.join('、')}\n`
+      elementsInfo += '【已有角色信息（请勿重复生成以下角色）】\n'
+      characters.forEach((character: any, index) => {
+        elementsInfo += `${index + 1}. 角色名称：${character.name}\n`
+        if (character.tags && Array.isArray(character.tags) && character.tags.length > 0) {
+          elementsInfo += `   角色标签：${character.tags.join('、')}\n`
+        }
         elementsInfo += '\n'
       })
     }
 
-    // 添加地点信息
+    // 添加地点信息（仅名称和标签）- 增强格式以提高AI识别度
     if (locations && locations.length > 0) {
-      elementsInfo += '【已有地点信息】\n'
-      locations.forEach((location: any) => {
-        elementsInfo += `地点名称：${location.name}\n`
-        if (location.description) elementsInfo += `地点描述：${location.description}\n`
-        if (location.tags && location.tags.length > 0) elementsInfo += `标签：${location.tags.join('、')}\n`
+      elementsInfo += '【已有地点信息（请勿重复生成以下地点）】\n'
+      locations.forEach((location: any, index) => {
+        elementsInfo += `${index + 1}. 地点名称：${location.name}\n`
+        if (location.tags && Array.isArray(location.tags) && location.tags.length > 0) {
+          elementsInfo += `   地点标签：${location.tags.join('、')}\n`
+        }
         elementsInfo += '\n'
       })
     }
 
-    // 添加文化信息
+    // 添加文化信息（仅名称和标签）- 增强格式以提高AI识别度
     if (cultures && cultures.length > 0) {
-      elementsInfo += '【已有文化信息】\n'
-      cultures.forEach((culture: any) => {
-        elementsInfo += `文化名称：${culture.name}\n`
-        if (culture.description) elementsInfo += `文化描述：${culture.description}\n`
-        if (culture.tags && culture.tags.length > 0) elementsInfo += `标签：${culture.tags.join('、')}\n`
+      elementsInfo += '【已有文化信息（请勿重复生成以下文化）】\n'
+      cultures.forEach((culture: any, index) => {
+        elementsInfo += `${index + 1}. 文化名称：${culture.name}\n`
+        if (culture.tags && Array.isArray(culture.tags) && culture.tags.length > 0) {
+          elementsInfo += `   文化标签：${culture.tags.join('、')}\n`
+        }
         elementsInfo += '\n'
       })
     }
 
-    // 添加科技信息
+    // 添加科技信息（仅名称和标签）- 增强格式以提高AI识别度
     if (technologies && technologies.length > 0) {
-      elementsInfo += '【已有科技信息】\n'
-      technologies.forEach((technology: any) => {
-        elementsInfo += `科技名称：${technology.name}\n`
-        if (technology.description) elementsInfo += `科技描述：${technology.description}\n`
-        if (technology.tags && technology.tags.length > 0) elementsInfo += `标签：${technology.tags.join('、')}\n`
+      elementsInfo += '【已有科技信息（请勿重复生成以下科技）】\n'
+      technologies.forEach((technology: any, index) => {
+        elementsInfo += `${index + 1}. 科技名称：${technology.name}\n`
+        if (technology.tags && Array.isArray(technology.tags) && technology.tags.length > 0) {
+          elementsInfo += `   科技标签：${technology.tags.join('、')}\n`
+        }
         elementsInfo += '\n'
       })
     }
 
-    // 添加魔法信息
+    // 添加魔法信息（仅名称和标签）- 增强格式以提高AI识别度
     if (magics && magics.length > 0) {
-      elementsInfo += '【已有魔法信息】\n'
-      magics.forEach((magic: any) => {
-        elementsInfo += `魔法名称：${magic.name}\n`
-        if (magic.description) elementsInfo += `魔法描述：${magic.description}\n`
-        if (magic.tags && magic.tags.length > 0) elementsInfo += `标签：${magic.tags.join('、')}\n`
+      elementsInfo += '【已有魔法信息（请勿重复生成以下魔法）】\n'
+      magics.forEach((magic: any, index) => {
+        elementsInfo += `${index + 1}. 魔法名称：${magic.name}\n`
+        if (magic.tags && Array.isArray(magic.tags) && magic.tags.length > 0) {
+          elementsInfo += `   魔法标签：${magic.tags.join('、')}\n`
+        }
         elementsInfo += '\n'
       })
     }
 
-    // 添加历史信息
+    // 添加历史信息（仅名称和标签）- 增强格式以提高AI识别度
     if (histories && histories.length > 0) {
-      elementsInfo += '【已有历史信息】\n'
-      histories.forEach((history: any) => {
-        elementsInfo += `历史名称：${history.name}\n`
-        if (history.description) elementsInfo += `历史描述：${history.description}\n`
-        if (history.tags && history.tags.length > 0) elementsInfo += `标签：${history.tags.join('、')}\n`
+      elementsInfo += '【已有历史信息（请勿重复生成以下历史）】\n'
+      histories.forEach((history: any, index) => {
+        elementsInfo += `${index + 1}. 历史名称：${history.name}\n`
+        if (history.tags && Array.isArray(history.tags) && history.tags.length > 0) {
+          elementsInfo += `   历史标签：${history.tags.join('、')}\n`
+        }
         elementsInfo += '\n'
       })
+    }
+
+    // 限制总长度以避免提示词过长，但确保关键信息不被截断
+    if (elementsInfo.length > 8000) {  // 增加长度限制以保留更多关键信息
+      elementsInfo = elementsInfo.substring(0, 8000) + '\n...（信息已截断以控制提示词长度）\n'
     }
 
     return elementsInfo
   } catch (error) {
     console.error('获取已有元素信息失败:', error)
+    return ''
+  }
+}
+
+/**
+ * 获取大纲摘要信息，用于处理长大纲的情况
+ * @param novelId 小说ID
+ * @returns 大纲摘要信息字符串
+ */
+export async function getOutlineSummaryInfo(novelId: string): Promise<string> {
+  try {
+    // 获取大纲信息
+    const outlines = await hybridStorageService.getOutlines(novelId)
+
+    let summaryInfo = ''
+
+    // 添加大纲摘要信息（针对长大纲优化）
+    if (outlines && outlines.length > 0) {
+      summaryInfo += '【小说大纲摘要】\n'
+      // 按照层级结构组织大纲信息
+      const mainOutlines = outlines.filter(outline => outline.type === 'main')
+      const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
+      
+      // 统计信息
+      summaryInfo += `总卷数：${mainOutlines.length}\n`
+      summaryInfo += `总章节数：${chapterOutlines.length}\n\n`
+      
+      // 显示主要的卷结构（限制数量）
+      const maxMainOutlines = Math.min(mainOutlines.length, 3); // 最多显示3个主卷
+      for (let i = 0; i < maxMainOutlines; i++) {
+        const mainOutline = mainOutlines[i];
+        summaryInfo += `${i + 1}. ${mainOutline.title}\n`
+        
+        // 显示该卷下的关键章节（限制数量）
+        const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
+        const maxChaptersToShow = Math.min(chaptersInThisAct.length, 5); // 每卷最多显示5个章节
+        if (maxChaptersToShow > 0) {
+          summaryInfo += '   关键章节：'
+          for (let j = 0; j < maxChaptersToShow; j++) {
+            const chapter = chaptersInThisAct[j];
+            summaryInfo += `${chapter.title}${j < maxChaptersToShow - 1 ? '、' : ''}`
+          }
+          summaryInfo += '\n'
+        }
+      }
+      
+      // 如果还有更多卷，显示省略信息
+      if (mainOutlines.length > maxMainOutlines) {
+        summaryInfo += `...还有${mainOutlines.length - maxMainOutlines}个卷未显示\n`
+      }
+      
+      summaryInfo += '\n'
+    }
+
+    return summaryInfo
+  } catch (error) {
+    console.error('获取大纲摘要信息失败:', error)
+    return ''
+  }
+}
+
+/**
+ * 获取精简的已有元素信息，用于处理信息过载的情况
+ * @param novelId 小说ID
+ * @returns 精简的已有元素信息字符串
+ */
+export async function getCondensedElementsInfo(novelId: string): Promise<string> {
+  try {
+    // 获取已有的元素信息
+    const characters = await hybridStorageService.getWorldElements('character', novelId)
+    const locations = await hybridStorageService.getWorldElements('location', novelId)
+    const cultures = await hybridStorageService.getWorldElements('culture', novelId)
+    const technologies = await hybridStorageService.getWorldElements('technology', novelId)
+    const magics = await hybridStorageService.getWorldElements('magic', novelId)
+    const histories = await hybridStorageService.getWorldElements('history', novelId)
+
+    let condensedInfo = ''
+
+    // 添加精简的角色信息
+    if (characters && characters.length > 0) {
+      condensedInfo += '【角色概览】\n'
+      const maxCharactersToShow = Math.min(characters.length, 10); // 最多显示10个角色
+      for (let i = 0; i < maxCharactersToShow; i++) {
+        const character = characters[i];
+        condensedInfo += `${i + 1}. ${character.name}\n`
+      }
+      if (characters.length > maxCharactersToShow) {
+        condensedInfo += `...还有${characters.length - maxCharactersToShow}个角色\n`
+      }
+      condensedInfo += '\n'
+    }
+
+    // 添加精简的地点信息
+    if (locations && locations.length > 0) {
+      condensedInfo += '【地点概览】\n'
+      const maxLocationsToShow = Math.min(locations.length, 10); // 最多显示10个地点
+      for (let i = 0; i < maxLocationsToShow; i++) {
+        const location = locations[i];
+        condensedInfo += `${i + 1}. ${location.name}\n`
+      }
+      if (locations.length > maxLocationsToShow) {
+        condensedInfo += `...还有${locations.length - maxLocationsToShow}个地点\n`
+      }
+      condensedInfo += '\n'
+    }
+
+    // 添加精简的文化信息
+    if (cultures && cultures.length > 0) {
+      condensedInfo += '【文化概览】\n'
+      const maxCulturesToShow = Math.min(cultures.length, 10); // 最多显示10个文化
+      for (let i = 0; i < maxCulturesToShow; i++) {
+        const culture = cultures[i];
+        condensedInfo += `${i + 1}. ${culture.name}\n`
+      }
+      if (cultures.length > maxCulturesToShow) {
+        condensedInfo += `...还有${cultures.length - maxCulturesToShow}个文化\n`
+      }
+      condensedInfo += '\n'
+    }
+
+    // 添加精简的科技信息
+    if (technologies && technologies.length > 0) {
+      condensedInfo += '【科技概览】\n'
+      const maxTechnologiesToShow = Math.min(technologies.length, 10); // 最多显示10个科技
+      for (let i = 0; i < maxTechnologiesToShow; i++) {
+        const technology = technologies[i];
+        condensedInfo += `${i + 1}. ${technology.name}\n`
+      }
+      if (technologies.length > maxTechnologiesToShow) {
+        condensedInfo += `...还有${technologies.length - maxTechnologiesToShow}个科技\n`
+      }
+      condensedInfo += '\n'
+    }
+
+    // 添加精简的魔法信息
+    if (magics && magics.length > 0) {
+      condensedInfo += '【魔法概览】\n'
+      const maxMagicsToShow = Math.min(magics.length, 10); // 最多显示10个魔法
+      for (let i = 0; i < maxMagicsToShow; i++) {
+        const magic = magics[i];
+        condensedInfo += `${i + 1}. ${magic.name}\n`
+      }
+      if (magics.length > maxMagicsToShow) {
+        condensedInfo += `...还有${magics.length - maxMagicsToShow}个魔法\n`
+      }
+      condensedInfo += '\n'
+    }
+
+    // 添加精简的历史信息
+    if (histories && histories.length > 0) {
+      condensedInfo += '【历史概览】\n'
+      const maxHistoriesToShow = Math.min(histories.length, 10); // 最多显示10个历史
+      for (let i = 0; i < maxHistoriesToShow; i++) {
+        const history = histories[i];
+        condensedInfo += `${i + 1}. ${history.name}\n`
+      }
+      if (histories.length > maxHistoriesToShow) {
+        condensedInfo += `...还有${histories.length - maxHistoriesToShow}个历史\n`
+      }
+      condensedInfo += '\n'
+    }
+
+    return condensedInfo
+  } catch (error) {
+    console.error('获取精简元素信息失败:', error)
     return ''
   }
 }
@@ -185,7 +382,12 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 设定角色的成长弧线和潜在变化\n' +
                 '- 生成多维度标签，包括职业标签、性格标签、功能标签\n' +
                 '- 增加角色内在矛盾和动机合理性\n' +
-                '- 强化角色与世界观及其他角色的动态关系\n\n' +
+                '- 强化角色与世界观及其他角色的动态关系\n' +
+                '- 如果大纲中提及了相关人物，请确保角色设定与大纲描述保持一致\n' +
+                '- 角色的行为和动机应符合大纲中的情节发展要求\n' +
+                '- 角色的成长弧线应与大纲中的故事线索相呼应\n' +
+                '- 请不要生成与【已有角色信息】中列出的角色重复的角色\n' +
+                '- 请不要生成与大纲中已提及角色重复的角色\n\n' +
                 '请按照以下结构生成角色信息：\n' +
                 '【角色设定1：名称】\n' +
                 '【基本信息】\n' +
@@ -223,7 +425,8 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 使用丰富的感官细节增强真实感\n' +
                 '- 突出地点在故事中的独特作用\n' +
                 '- 注重感官细节描写，通过视觉、听觉、嗅觉、触觉等多维度展现地理环境\n' +
-                '- 强化历史背景与当前状态的联系，展现地点的演变过程\n\n' +
+                '- 强化历史背景与当前状态的联系，展现地点的演变过程\n' +
+                '- 请不要生成与【已有地点信息】中列出的地点重复的地点\n\n' +
                 '请按照以下结构生成地点信息：\n' +
                 '【地点设定1：名称】\n' +
                 '---\n' +
@@ -262,7 +465,8 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 考虑不同文化间的交流和冲突\n' +
                 '- 体现文化的独特性和深度\n' +
                 '- 与故事发展和人物塑造相关联\n' +
-                '- 增加日常习俗、象征意义、文化冲突与融合等内容\n\n' +
+                '- 增加日常习俗、象征意义、文化冲突与融合等内容\n' +
+                '- 请不要生成与【已有文化信息】中列出的文化重复的文化\n\n' +
                 '请按照以下结构生成文化设定：\n' +
                 '【文化设定1：名称】\n' +
                 '---\n' +
@@ -333,7 +537,8 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 考虑科技与魔法、文化的相互作用\n' +
                 '- 体现技术的独特性和创新性\n' +
                 '- 与故事情节发展相关联\n' +
-                '- 增加发展时间线、伦理考量、原创性考量等内容\n\n' +
+                '- 增加发展时间线、伦理考量、原创性考量等内容\n' +
+                '- 请不要生成与【已有科技信息】中列出的科技重复的科技\n\n' +
                 '请按照以下结构生成科技设定：\n' +
                 '【科技设定1：名称】\n' +
                 '---\n' +
@@ -389,7 +594,8 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 考虑魔法与科技、文化的关系\n' +
                 '- 体现体系的平衡性和独特性\n' +
                 '- 与故事情节发展相关联\n' +
-                '- 增加平衡性原则、施法代价、风险设定、世界观关联等内容\n\n' +
+                '- 增加平衡性原则、施法代价、风险设定、世界观关联等内容\n' +
+                '- 请不要生成与【已有魔法信息】中列出的魔法重复的魔法\n\n' +
                 '请按照以下结构生成魔法设定：\n' +
                 '【魔法设定1：名称】\n' +
                 '---\n' +
@@ -460,10 +666,7 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 体现历史的复杂性和深度\n' +
                 '- 与现有情节和角色相关联\n' +
                 '- 需详细描述各时期的特点和转变\n' +
-                '- 强化事件间的因果关系\n' +
-                '- 确保人物行为合理且符合时代背景\n' +
-                '- 详细说明历史对当前世界状态和情节发展的具体影响\n\n' +
-                '请按照以下结构生成历史设定：\n' +
+                '- 请不要生成与【已有历史信息】中列出的历史重复的历史\n\n' +
                 '【历史设定1：名称】\n' +
                 '---\n' +
                 '【基本信息】\n' +

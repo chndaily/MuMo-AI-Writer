@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Row, Col, Card, Typography, Button, Statistic, Space, Divider, List, Avatar, Modal } from 'antd'
 import {
   EditOutlined,
@@ -32,14 +32,14 @@ const HomePage: React.FC = () => {
   const [genres, setGenres] = useState<any[]>([]);
   const { membershipInfo, isAuthenticated } = useMembershipStore()
   
-  const refreshNovels = async () => {
+  const refreshNovels = useCallback(async () => {
     const { databaseManager } = await import('@/services/index');
     // 修改为只获取当前用户的小说
     const novelsData = await databaseManager.novels.getNovelsByUserId(membershipInfo.email || 'anonymous');
     setNovels(novelsData);
-  };
+  }, [membershipInfo.email]);
   
-  const refreshGenres = async () => {
+  const refreshGenres = useCallback(async () => {
     const { databaseManager } = await import('@/services/index');
     // 获取所有文化设定并过滤出类型
     const allCultures = await databaseManager.worldSettings.getAllData('culture');
@@ -55,7 +55,7 @@ const HomePage: React.FC = () => {
         createdAt: culture.createdAt,
       }));
     setGenres(genresData);
-  };
+  }, []);
 
   const [totalWords, setTotalWords] = useState(0)
   const [completionRate, setCompletionRate] = useState(0)
@@ -78,19 +78,16 @@ const HomePage: React.FC = () => {
           refreshNovels(),
           refreshGenres()
         ]);
-        
-        // 计算统计数据
-        calculateStats();
       } catch (err) {
         console.error('初始化数据失败:', err);
       }
     };
     
     initialize();
-  }, [refreshNovels, refreshGenres]);
+  }, [refreshNovels, refreshGenres]); // 添加依赖项
 
   // 计算统计数据
-  const calculateStats = () => {
+  const calculateStats = useCallback(() => {
     // 计算总字数
     const totalWords = novels.reduce((sum, novel) => sum + (novel.wordCount || 0), 0);
     setTotalWords(totalWords);
@@ -105,12 +102,12 @@ const HomePage: React.FC = () => {
     
     // 计算创作天数（简化计算，实际应该从统计数据中获取）
     setWritingDays(novels.length > 0 ? novels.length * 2 : 0);
-  };
+  }, [novels]);
 
-  // 当小说数据和类型数据变化时重新计算统计
+  // 当小说数据变化时重新计算统计
   useEffect(() => {
     calculateStats();
-  }, [novels, genres]);
+  }, [calculateStats]);
 
   // 处理登录
   const handleLogin = () => {
@@ -125,7 +122,8 @@ const HomePage: React.FC = () => {
     setShowLoginModal(false)
   }
 
-  const quickActions = [
+  // 快速操作
+  const quickActions = useMemo(() => [
     {
       title: 'AI智能工作台',
       description: '进入专业的AI辅助创作环境',
@@ -154,10 +152,10 @@ const HomePage: React.FC = () => {
       action: () => navigate('/prompts'),
       color: '#faad14',
     },
-  ]
+  ], [navigate]);
 
   // 新增功能快捷操作
-  const featureActions = [
+  const featureActions = useMemo(() => [
     {
       title: '基础提示词模板',
       description: '系统预设的提示词模板，可作为创作基础',
@@ -171,7 +169,7 @@ const HomePage: React.FC = () => {
       icon: <SettingOutlined style={{ fontSize: '18px' }} />,
       action: () => {
         // 如果有小说，跳转到第一本小说的提示词库
-        if (novels.length > 0) {
+        if (novels.length > 0 && novels[0].id) {
           navigate(`/novels/${novels[0].id}/prompts`);
         } else {
           // 否则跳转到创作中心
@@ -187,7 +185,7 @@ const HomePage: React.FC = () => {
       action: () => navigate('/prompts'),
       color: '#722ed1',
     }
-  ]
+  ], [navigate, novels]);
 
   // 定义小说类型映射
   const genreMap: Record<string, string> = {
@@ -206,7 +204,7 @@ const HomePage: React.FC = () => {
   };
 
   // 获取类型显示名称
-  const getGenreDisplayName = (genre: string): string => {
+  const getGenreDisplayName = useCallback((genre: string): string => {
     // 首先尝试从store中的genres查找匹配的类型
     const genreInfo = genres.find(g => g.name === genre);
     if (genreInfo) {
@@ -230,7 +228,7 @@ const HomePage: React.FC = () => {
     };
     
     return genreMap[genre] || genre;
-  };
+  }, [genres]);
 
   return (
     <div style={{ padding: '24px' }}>
@@ -538,13 +536,13 @@ const HomePage: React.FC = () => {
       </div>
 
       {/* 最近创作的小说 */}
-      {novels.length > 0 && (
-        <div style={{ marginTop: '48px' }}>
-          <Title level={3} style={{ marginBottom: '24px' }}>
-            最近创作
-          </Title>
-          <Row gutter={[16, 16]}>
-            {novels
+      <div style={{ marginTop: '48px' }}>
+        <Title level={3} style={{ marginBottom: '24px' }}>
+          最近创作
+        </Title>
+        <Row gutter={[16, 16]}>
+          {novels.length > 0 ? (
+            novels
               .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
               .slice(0, 4)
               .map((novel) => (
@@ -586,10 +584,25 @@ const HomePage: React.FC = () => {
                   </Card>
                 </Col>
               ))
-            }
-          </Row>
-        </div>
-      )}
+          ) : (
+            <Col span={24}>
+              <Card>
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <BookOutlined style={{ fontSize: 48, color: '#ccc', marginBottom: 16 }} />
+                  <Paragraph>暂无小说作品，点击下方按钮开始创作</Paragraph>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    onClick={() => navigate('/novels')}
+                  >
+                    创建第一部小说
+                  </Button>
+                </div>
+              </Card>
+            </Col>
+          )}
+        </Row>
+      </div>
     </div>
   )
 }

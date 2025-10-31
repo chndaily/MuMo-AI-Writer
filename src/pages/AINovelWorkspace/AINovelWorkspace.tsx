@@ -623,6 +623,70 @@ const AINovelWorkspace: React.FC = () => {
         contextInfo += `当前字数：${targetNovel.wordCount?.toLocaleString() || 0}字\n`
         contextInfo += `目标字数：${targetNovel.targetWordCount?.toLocaleString() || '未设定'}字\n`
         contextInfo += `状态：${targetNovel.status || '创作中'}\n\n`
+        
+        // 对于大纲很长的小说，使用精简的大纲信息
+        try {
+          const outlines = await hybridStorageService.getOutlines(targetNovel.id);
+          if (outlines && outlines.length > 0) {
+            // 计算大纲总字数
+            const outlineWordCount = outlines.reduce((sum, outline) => sum + (outline.content?.length || 0), 0);
+            
+            // 检查是否为超长大纲（超过30000字）
+            if (outlineWordCount > 30000) {
+              // 使用超长大纲摘要信息
+              const { getSuperLargeOutlineStructureSummary } = await import('@/utils/superLargeOutlineHandler');
+              const outlineSummary = await getSuperLargeOutlineStructureSummary(targetNovel.id);
+              contextInfo += `【小说大纲信息（超长大纲，${outlineWordCount.toLocaleString()}字）】\n`;
+              contextInfo += outlineSummary;
+              contextInfo += '\n';
+            } else if (outlines.length > 50) { // 如果大纲项超过50个，认为是长大纲
+              // 使用大纲摘要信息
+              const { getOutlineSummaryInfo } = await import('@/utils/worldElementUtils');
+              const outlineSummary = await getOutlineSummaryInfo(targetNovel.id);
+              contextInfo += `【小说大纲信息（长大纲，${outlineWordCount.toLocaleString()}字）】\n`;
+              contextInfo += outlineSummary;
+              contextInfo += '\n';
+            } else {
+              // 使用原有的大纲信息处理方式
+              // 获取大纲信息
+              contextInfo += '【小说大纲信息】\n'
+              // 按照层级结构组织大纲信息
+              const mainOutlines = outlines.filter(outline => outline.type === 'main')
+              const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
+              
+              mainOutlines.forEach(mainOutline => {
+                contextInfo += `卷：${mainOutline.title}\n`
+                // 只添加关键的大纲信息，避免过长
+                if (mainOutline.content && mainOutline.content.length <= 200) {
+                  contextInfo += `卷描述：${mainOutline.content}\n`
+                }
+                
+                // 添加该卷下的章节信息（仅标题和关键摘要）
+                const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
+                if (chaptersInThisAct.length > 0) {
+                  contextInfo += '  章节：'
+                  chaptersInThisAct.forEach((chapter, index) => {
+                    contextInfo += `${chapter.title}${index < chaptersInThisAct.length - 1 ? '、' : ''}`
+                  })
+                  contextInfo += '\n'
+                }
+              })
+              
+              // 如果有未归属于任何卷的章节，单独列出
+              const unassignedChapters = chapterOutlines.filter(chapter => !chapter.parentId || !mainOutlines.some(act => act.id === chapter.parentId))
+              if (unassignedChapters.length > 0) {
+                contextInfo += '未归属于卷的章节：'
+                unassignedChapters.forEach((chapter, index) => {
+                  contextInfo += `${chapter.title}${index < unassignedChapters.length - 1 ? '、' : ''}`
+                })
+                contextInfo += '\n'
+              }
+              contextInfo += '\n'
+            }
+          }
+        } catch (outlineError) {
+          console.warn('获取大纲信息失败:', outlineError);
+        }
       }
       
       // 当前内容上下文
@@ -693,14 +757,21 @@ const AINovelWorkspace: React.FC = () => {
               contextInfo += `【之前章节摘要】\n`
               contextInfo += `以下是之前章节的内容摘要，用于保持文章的连续性：\n\n`
               
-              // 添加每个之前章节的摘要
-              previousChapters.forEach((chapter, index) => {
+              // 添加每个之前章节的摘要（限制数量）
+              const maxPreviousToShow = Math.min(previousChapters.length, 10); // 最多显示10个之前章节
+              for (let i = 0; i < maxPreviousToShow; i++) {
+                const chapter = previousChapters[i];
                 // 使用大纲中存储的摘要，如果没有则使用章节标题
                 const chapterSummary = chapter.summary || `${chapter.title}（无摘要）`;
                 
-                contextInfo += `--- 第${index + 1}章：${chapter.title} ---\n`
+                contextInfo += `--- 第${i + 1}章：${chapter.title} ---\n`
                 contextInfo += `${chapterSummary}\n\n`
-              });
+              }
+              
+              // 如果还有更多章节，显示省略信息
+              if (previousChapters.length > maxPreviousToShow) {
+                contextInfo += `...还有${previousChapters.length - maxPreviousToShow}个之前章节未显示\n\n`
+              }
             }
           }
         } catch (error) {
@@ -727,7 +798,7 @@ const AINovelWorkspace: React.FC = () => {
           contextInfo += `【知识库搜索结果】\n搜索失败，请稍后重试。\n\n`;
         }
       }
-      
+
       // 使用增强的特定指导功能
       let typeSpecificGuidance = ''
       if (targetNovel) {
@@ -1127,11 +1198,11 @@ const AINovelWorkspace: React.FC = () => {
         aiMode: aiMode
       })
 
-      // 检查提示词长度，如果过长则截断
+      // 检查提示词长度，如果过长则截断（增加长度限制以保留关键信息）
       let truncatedPrompt = fullPrompt;
-      if (fullPrompt.length > 10000) {
-        truncatedPrompt = fullPrompt.substring(0, 10000);
-        console.warn('Prompt too long, truncated to 10000 characters');
+      if (fullPrompt.length > 15000) {  // 增加长度限制
+        truncatedPrompt = fullPrompt.substring(0, 15000);
+        console.warn('Prompt too long, truncated to 15000 characters');
       }
 
       // 调用LLM生成文本，增加maxTokens以支持更长的内容生成
@@ -1141,7 +1212,7 @@ const AINovelWorkspace: React.FC = () => {
           prompt: truncatedPrompt,
           systemPrompt: typeSystemPrompt,
           temperature: temperature,
-          maxTokens: 128000  // 增加maxTokens到8192以支持更长的内容生成
+          maxTokens: 128000  // 增加maxTokens到128000以支持更长的内容生成
         },
         selectedConfigId
       )

@@ -132,13 +132,10 @@ export const useNovelIndexDBStore = create<NovelIndexDBState & NovelIndexDBActio
   initializeData: async () => {
     set({ isLoading: true, error: null })
     try {
-      // 初始化数据库（移除initializeDatabase调用，因为该方法已不存在）
-      // await databaseManager.initializeDatabase()
-      
-      // 由于genres和tags模块已移除，只获取novels和stats
       // 获取当前用户信息
       const { membershipInfo } = useMembershipStore.getState();
       const currentUserId = membershipInfo.email || 'anonymous';
+      console.log('初始化数据，当前用户ID:', currentUserId);
       
       const [novels, stats] = await Promise.all([
         databaseManager.novels.getNovelsByUserId(currentUserId),
@@ -154,6 +151,7 @@ export const useNovelIndexDBStore = create<NovelIndexDBState & NovelIndexDBActio
         isLoading: false,
       })
     } catch (error) {
+      console.error('初始化失败:', error)
       set({
         error: error instanceof Error ? error.message : '初始化失败',
         isLoading: false,
@@ -571,11 +569,10 @@ export const useNovelIndexDBStore = create<NovelIndexDBState & NovelIndexDBActio
   // 刷新数据
   refreshNovels: async () => {
     try {
-      // 移除initializeDatabase调用，因为该方法已不存在
-      // await databaseManager.initializeDatabase()
       // 获取当前用户信息
       const { membershipInfo } = useMembershipStore.getState();
       const currentUserId = membershipInfo.email || 'anonymous';
+      console.log('刷新小说数据，用户ID:', currentUserId);
       
       const novels = await databaseManager.novels.getNovelsByUserId(currentUserId)
       console.log('刷新小说数据:', novels); // 添加调试日志

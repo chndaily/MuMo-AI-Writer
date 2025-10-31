@@ -110,30 +110,65 @@ export class CharacterParserService {
       } else if (trimmedLine.includes('【外貌特征】')) {
         currentSection = 'appearance';
         currentField = 'appearance';
+        // 处理同一行的内容
+        const appearanceValue = this.extractValue(trimmedLine);
+        if (appearanceValue) {
+          character.appearance = this.normalizeLineBreaks(appearanceValue);
+        }
         continue;
       } else if (trimmedLine.includes('【性格特质】')) {
         currentSection = 'personality';
         currentField = 'personality';
+        // 处理同一行的内容
+        const personalityValue = this.extractValue(trimmedLine);
+        if (personalityValue) {
+          character.personality = this.normalizeLineBreaks(personalityValue);
+        }
         continue;
       } else if (trimmedLine.includes('【背景故事】')) {
         currentSection = 'background';
         currentField = 'background';
+        // 处理同一行的内容
+        const backgroundValue = this.extractValue(trimmedLine);
+        if (backgroundValue) {
+          character.background = this.normalizeLineBreaks(backgroundValue);
+        }
         continue;
       } else if (trimmedLine.includes('【能力设定】')) {
         currentSection = 'abilities';
         currentField = 'abilities';
+        // 处理同一行的内容
+        const abilitiesValue = this.extractValue(trimmedLine);
+        if (abilitiesValue) {
+          character.abilities = this.normalizeLineBreaks(abilitiesValue);
+        }
         continue;
       } else if (trimmedLine.includes('【人际关系】')) {
         currentSection = 'relationships';
         currentField = 'relationships';
+        // 处理同一行的内容
+        const relationshipsValue = this.extractValue(trimmedLine);
+        if (relationshipsValue) {
+          character.relationships = this.normalizeLineBreaks(relationshipsValue);
+        }
         continue;
       } else if (trimmedLine.includes('【角色发展弧光】')) {
         currentSection = 'characterArc';
         currentField = 'characterArc';
+        // 处理同一行的内容
+        const characterArcValue = this.extractValue(trimmedLine);
+        if (characterArcValue) {
+          character.characterArc = this.normalizeLineBreaks(characterArcValue);
+        }
         continue;
       } else if (trimmedLine.includes('【细节补充】')) {
         currentSection = 'details';
         currentField = 'details';
+        // 处理同一行的内容
+        const detailsValue = this.extractValue(trimmedLine);
+        if (detailsValue) {
+          character.details = this.normalizeLineBreaks(detailsValue);
+        }
         continue;
       }
       
@@ -370,6 +405,7 @@ export class CharacterParserService {
         line.trim() && 
         !line.includes('【') && 
         !line.startsWith('---') &&
+        !line.includes('---') &&
         !line.includes('角色设定') &&
         !line.includes('基本信息') &&
         line.trim() !== '```' // 过滤掉代码块标记
@@ -478,7 +514,31 @@ export class CharacterParserService {
           character.description = this.normalizeLineBreaks(descMatch[1].trim());
         } else {
           // 如果找不到明确的描述字段，使用完整内容作为最后的备选
-          character.description = content;
+          // 但要过滤掉其他字段内容
+          const lines = content.split('\n');
+          const cleanLines = lines.filter(line => {
+            const trimmedLine = line.trim();
+            return trimmedLine && 
+              !trimmedLine.includes('【角色设定') &&
+              !trimmedLine.includes('【基本信息】') &&
+              !trimmedLine.includes('【名称】') &&
+              !trimmedLine.includes('【角色类型】') &&
+              !trimmedLine.includes('【标签】') &&
+              !trimmedLine.includes('【外貌特征】') &&
+              !trimmedLine.includes('【性格特质】') &&
+              !trimmedLine.includes('【背景故事】') &&
+              !trimmedLine.includes('【能力设定】') &&
+              !trimmedLine.includes('【人际关系】') &&
+              !trimmedLine.includes('【角色发展弧光】') &&
+              !trimmedLine.includes('【细节补充】') &&
+              !trimmedLine.startsWith('---');
+          });
+          
+          if (cleanLines.length > 0) {
+            character.description = this.normalizeLineBreaks(cleanLines.join('\n').trim());
+          } else {
+            character.description = this.normalizeLineBreaks(content);
+          }
         }
       }
     }

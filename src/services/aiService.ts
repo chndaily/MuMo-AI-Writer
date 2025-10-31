@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { isSuperLargeOutline } from '@/utils/superLargeOutlineHandler';
 
 // AI服务配置
 const AI_CONFIG = {
@@ -111,7 +112,7 @@ class AIService {
   // 生成大纲内容
   private generateOutlineContent(params: AIGenerationParams): string {
     // 根据maxLength参数决定生成内容的长度
-    const maxLength = params.maxLength || 100000;
+    const maxLength = params.maxLength || 128000;
     let content = '';
     
     // 生成符合格式的大纲内容
@@ -130,7 +131,7 @@ class AIService {
     content += '- 高潮：主角离开家乡，正式踏上冒险之路\n';
     content += '- 影响：主角开始接触更广阔的世界\n\n';
     
-    // 根据maxLength添加更多内容
+    // 根据maxLength添加更多内容，但对于长大纲生成，我们需要更智能的处理
     if (maxLength > 3000) {
       content += '## 第二卷：深入的挑战\n\n';
       content += '### 第三章：初遇敌人\n';
@@ -148,7 +149,7 @@ class AIService {
       content += '- 影响：主角变得更加成熟和谨慎\n\n';
     }
     
-    // 如果需要更长的内容，继续添加
+    // 如果需要更长的内容，继续添加，但要注意结构清晰
     if (maxLength > 5000) {
       content += '## 第三卷：最终的对决\n\n';
       content += '### 第五章：真相大白\n';
@@ -166,13 +167,35 @@ class AIService {
       content += '- 影响：世界恢复和平，主角完成成长\n\n';
     }
     
+    // 对于超长大纲生成，添加结构化提示
+    if (maxLength > 10000) {
+      content += '## 注意事项\n\n';
+      content += '对于包含大量卷和章节的复杂故事结构，请注意：\n';
+      content += '1. 保持每卷有明确的主题和目标\n';
+      content += '2. 确保章节间逻辑关系清晰\n';
+      content += '3. 合理安排关键转折点\n';
+      content += '4. 控制每个章节的内容复杂度\n';
+      content += '5. 保持角色发展的一致性\n\n';
+    }
+    
+    // 对于超长大纲（30000字以上），添加特殊处理提示
+    if (maxLength > 30000) {
+      content += '## 超长大纲处理建议\n\n';
+      content += '对于超过30000字的超长大纲，请注意以下要点：\n';
+      content += '1. 采用分卷分章节的层级结构管理\n';
+      content += '2. 每卷控制在5-8个章节以内\n';
+      content += '3. 使用摘要方式管理各章节内容\n';
+      content += '4. 保持核心主线清晰，支线适度展开\n';
+      content += '5. 定期回顾和调整大纲结构\n\n';
+    }
+    
     return content;
   }
 
   // 生成通用内容
   private generateGenericContent(params: AIGenerationParams): string {
     // 根据参数生成不同类型的内容
-    const contentLength = params.maxLength || 1000;
+    const contentLength = params.maxLength || 128000;
     let content = '';
     
     // 生成符合长度要求的内容

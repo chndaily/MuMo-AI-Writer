@@ -111,6 +111,10 @@ async function listUsers() {
     // 获取所有用户
     const users = await usersCollection.find({}).toArray();
     
+    // 获取所有小说
+    const novelsCollection = db.collection('novels');
+    const novels = await novelsCollection.find({}).toArray();
+    
     console.log(`\n📋 数据库中共有 ${users.length} 个用户:\n`);
     
     users.forEach((user, index) => {
@@ -122,6 +126,39 @@ async function listUsers() {
       console.log(`   邮箱已验证: ${user.isEmailVerified ? '是' : '否'}`);
       console.log(`   创建时间: ${user.createdAt ? user.createdAt.toISOString() : 'N/A'}\n`);
     });
+    
+    console.log(`\n📚 数据库中共有 ${novels.length} 本小说:\n`);
+    
+    novels.forEach((novel, index) => {
+      console.log(`${index + 1}. ${novel.title || 'N/A'} (${novel._id})`);
+      console.log(`   作者ID: ${novel.author || novel.userId || 'N/A'}`);
+      console.log(`   字数: ${novel.wordCount || 0}`);
+      console.log(`   状态: ${novel.status || 'N/A'}`);
+      console.log(`   创建时间: ${novel.createdAt ? novel.createdAt : 'N/A'}\n`);
+    });
+    
+    // 检查chndaily@foxmail.com用户的小说
+    const adminUser = users.find(user => user.email === 'chndaily@foxmail.com');
+    if (adminUser) {
+      console.log(`\n🔍 检查用户 ${adminUser.email} (ID: ${adminUser._id}) 的小说:\n`);
+      
+      // 查找该用户作为作者的小说
+      const userNovels = novels.filter(novel => 
+        novel.author === adminUser._id || 
+        novel.userId === adminUser._id ||
+        novel.author === 'admin'  // 兼容旧数据
+      );
+      
+      console.log(`   该用户共有 ${userNovels.length} 本小说:\n`);
+      
+      userNovels.forEach((novel, index) => {
+        console.log(`${index + 1}. ${novel.title || 'N/A'} (${novel._id})`);
+        console.log(`   作者字段: author=${novel.author || 'N/A'}, userId=${novel.userId || 'N/A'}`);
+        console.log(`   字数: ${novel.wordCount || 0}`);
+        console.log(`   状态: ${novel.status || 'N/A'}`);
+        console.log(`   创建时间: ${novel.createdAt ? novel.createdAt : 'N/A'}\n`);
+      });
+    }
     
   } catch (error) {
     console.error("❌ 列出用户过程中发生错误:", error);
