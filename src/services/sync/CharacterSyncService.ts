@@ -154,13 +154,14 @@ export class CharacterSyncService {
             console.log(`✅ 成功同步角色设定: ${characterElement.name}`);
           } catch (saveError) {
             console.error(`保存角色设定失败 ${characterElement.name}:`, saveError);
-            throw new Error(`保存角色设定失败: ${saveError instanceof Error ? saveError.message : String(saveError)}`);
+            // 不中断整个同步过程，继续处理其他角色
+            continue;
           }
           
         } catch (settingError) {
           console.error(`同步单个角色设定失败:`, settingError);
           // 继续处理其他设定项，但记录错误
-          throw new Error(`同步角色设定失败: ${settingError instanceof Error ? settingError.message : String(settingError)}`);
+          continue;
         }
       }
 
