@@ -25,11 +25,15 @@ interface ExtendedNovelOutline {
  */
 export class OutlineSyncService {
   /**
-   * 同步大纲内容
+   * 同步大纲内容 - 智能合并模式
    */
-  async syncOutline(content: string, novelId: string, options?: any): Promise<SyncResult> {
+  async syncOutline(content: string, novelId: string, options?: { 
+    syncMode?: 'replace' | 'merge' | 'specific'; 
+    targetVolume?: string; 
+    targetChapter?: string 
+  }): Promise<SyncResult> {
     try {
-      console.log('开始同步大纲内容', { novelId, contentLength: content.length });
+      console.log('开始同步大纲内容', { novelId, contentLength: content.length, options });
       
       // 检查参数
       if (!content || content.trim().length === 0) {
@@ -48,94 +52,16 @@ export class OutlineSyncService {
         };
       }
       
-      // 先清空现有的大纲项目
-      const existingOutlines = await databaseManager.outlines.getOutlinesByNovelId(novelId)
-      console.log('现有大纲项目数量:', existingOutlines.length);
-      for (const outline of existingOutlines) {
-        await databaseManager.outlines.deleteOutline(outline.id)
-        console.log('删除大纲项目:', outline.id);
-      }
-      
-      // 预处理内容，修复AI生成的非法格式
-      const processedContent = this.preprocessContent(content);
-      console.log('预处理后的内容长度:', processedContent.length);
-      
-      // 解析内容并保存
-      const parsedItems = this.parseOutlineContent(processedContent);
-      console.log('解析出的大纲项目数量:', parsedItems.length);
-      
-      // 如果没有解析出任何项目，返回错误
-      if (parsedItems.length === 0) {
-        return {
-          success: false,
-          message: '未能解析出有效的大纲内容',
-          syncedItems: 0
-        };
-      }
-      
-      // 创建映射表，使用临时ID作为键，确保可以正确建立父子关系
-      const tempIdToRealIdMap = new Map<string, string>();
-      
-      // 先保存所有大纲项目（暂不设置parentId）
-      const savedOutlines: NovelOutline[] = [];
-      let order = 1;
-      
-      // 首先保存所有的卷和章节，但不设置parentId
-      for (const item of parsedItems) {
-        const outline: any = {
-          novelId,
-          title: item.title,
-          content: item.content || '', // 确保内容被正确保存
-          type: item.type,
-          order: order++,
-          createdAt: new Date().toISOString(),
-          lastModified: new Date().toISOString()
-        }
-        
-        // 保存大纲并获取生成的ID
-        const savedOutline = await databaseManager.outlines.addOutline(outline);
-        savedOutlines.push(savedOutline);
-        
-        // 保存临时索引到真实ID的映射
-        tempIdToRealIdMap.set(item.tempId || `temp-${item.type}-${parsedItems.indexOf(item)}`, savedOutline.id);
-        
-        // 添加日志以确认内容被保存
-        console.log(`保存大纲项目 - 类型: ${item.type}, 标题: ${item.title}, 内容长度: ${item.content ? item.content.length : 0}`);
-      }
-      
-      // 然后批量更新所有大纲项目的parentId
-      const updates: { id: string; parentId: string }[] = [];
-      for (const item of parsedItems) {
-        const currentOutlineId = tempIdToRealIdMap.get(item.tempId || `temp-${item.type}-${parsedItems.indexOf(item)}`);
-        
-        if (currentOutlineId && item.type === 'chapter' && item.parentTempId) {
-          // 使用parentTempId查找对应的卷的真实ID
-          const parentOutlineId = tempIdToRealIdMap.get(item.parentTempId);
-          
-          if (parentOutlineId) {
-            updates.push({
-              id: currentOutlineId,
-              parentId: parentOutlineId
-            });
-          }
-        }
-      }
-      
-      // 使用混合存储服务的批量更新方法
-      if (updates.length > 0) {
-        console.log('需要更新parentId的项目数量:', updates.length);
-        await hybridStorageService.batchUpdateOutlinesParentId(updates);
+      // 根据同步模式执行不同的处理逻辑
+      if (options?.syncMode === 'specific' && options.targetVolume && options.targetChapter) {
+        // 精准同步模式：只更新指定的章节内容
+        return await this.syncSpecificChapter(content, novelId, options.targetVolume, options.targetChapter);
+      } else if (options?.syncMode === 'merge') {
+        // 合并模式：保留现有结构，合并新内容
+        return await this.mergeOutline(content, novelId);
       } else {
-        console.log('没有需要更新parentId的项目');
-      }
-
-      // 触发大纲同步完成事件，用于通知相关组件刷新
-      eventBus.emit('outlineSyncComplete', { novelId, content });
-
-      return {
-        success: true,
-        message: '大纲同步成功',
-        syncedItems: order - 1
+        // 默认替换模式：完全替换现有大纲
+        return await this.replaceOutline(content, novelId);
       }
     } catch (error) {
       console.error('大纲同步失败:', error)
@@ -144,6 +70,330 @@ export class OutlineSyncService {
         message: '大纲同步失败: ' + (error instanceof Error ? error.message : String(error)),
         syncedItems: 0
       }
+    }
+  }
+  
+  /**
+   * 替换模式：完全替换现有大纲
+   */
+  private async replaceOutline(content: string, novelId: string): Promise<SyncResult> {
+    // 先清空现有的大纲项目
+    const existingOutlines = await databaseManager.outlines.getOutlinesByNovelId(novelId)
+    console.log('现有大纲项目数量:', existingOutlines.length);
+    for (const outline of existingOutlines) {
+      await databaseManager.outlines.deleteOutline(outline.id)
+      console.log('删除大纲项目:', outline.id);
+    }
+    
+    // 预处理内容，修复AI生成的非法格式
+    const processedContent = this.preprocessContent(content);
+    console.log('预处理后的内容长度:', processedContent.length);
+    
+    // 解析内容并保存
+    const parsedItems = this.parseOutlineContent(processedContent);
+    console.log('解析出的大纲项目数量:', parsedItems.length);
+    
+    // 如果没有解析出任何项目，返回错误
+    if (parsedItems.length === 0) {
+      return {
+        success: false,
+        message: '未能解析出有效的大纲内容',
+        syncedItems: 0
+      };
+    }
+    
+    // 创建映射表，使用临时ID作为键，确保可以正确建立父子关系
+    const tempIdToRealIdMap = new Map<string, string>();
+    
+    // 先保存所有大纲项目（暂不设置parentId）
+    const savedOutlines: NovelOutline[] = [];
+    let order = 1;
+    
+    // 首先保存所有的卷和章节，但不设置parentId
+    for (const item of parsedItems) {
+      const outline: any = {
+        novelId,
+        title: item.title,
+        content: item.content || '', // 确保内容被正确保存
+        type: item.type,
+        order: order++,
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      }
+      
+      // 保存大纲并获取生成的ID
+      const savedOutline = await databaseManager.outlines.addOutline(outline);
+      savedOutlines.push(savedOutline);
+      
+      // 保存临时索引到真实ID的映射
+      tempIdToRealIdMap.set(item.tempId || `temp-${item.type}-${parsedItems.indexOf(item)}`, savedOutline.id);
+      
+      // 添加日志以确认内容被保存
+      console.log(`保存大纲项目 - 类型: ${item.type}, 标题: ${item.title}, 内容长度: ${item.content ? item.content.length : 0}`);
+    }
+    
+    // 然后批量更新所有大纲项目的parentId
+    const updates: { id: string; parentId: string }[] = [];
+    for (const item of parsedItems) {
+      const currentOutlineId = tempIdToRealIdMap.get(item.tempId || `temp-${item.type}-${parsedItems.indexOf(item)}`);
+      
+      if (currentOutlineId && item.type === 'chapter' && item.parentTempId) {
+        // 使用parentTempId查找对应的卷的真实ID
+        const parentOutlineId = tempIdToRealIdMap.get(item.parentTempId);
+        
+        if (parentOutlineId) {
+          updates.push({
+            id: currentOutlineId,
+            parentId: parentOutlineId
+          });
+        }
+      }
+    }
+    
+    // 使用混合存储服务的批量更新方法
+    if (updates.length > 0) {
+      console.log('需要更新parentId的项目数量:', updates.length);
+      await hybridStorageService.batchUpdateOutlinesParentId(updates);
+    } else {
+      console.log('没有需要更新parentId的项目');
+    }
+
+    // 触发大纲同步完成事件，用于通知相关组件刷新
+    eventBus.emit('outlineSyncComplete', { novelId, content });
+
+    return {
+      success: true,
+      message: '大纲同步成功',
+      syncedItems: order - 1
+    }
+  }
+  
+  /**
+   * 合并模式：保留现有结构，合并新内容
+   */
+  private async mergeOutline(content: string, novelId: string): Promise<SyncResult> {
+    // 获取现有的大纲结构
+    const existingOutlines = await databaseManager.outlines.getOutlinesByNovelId(novelId);
+    console.log('现有大纲项目数量:', existingOutlines.length);
+    
+    // 预处理内容，修复AI生成的非法格式
+    const processedContent = this.preprocessContent(content);
+    console.log('预处理后的内容长度:', processedContent.length);
+    
+    // 解析新内容
+    const newItems = this.parseOutlineContent(processedContent);
+    console.log('解析出的新大纲项目数量:', newItems.length);
+    
+    // 如果没有解析出任何项目，返回错误
+    if (newItems.length === 0) {
+      return {
+        success: false,
+        message: '未能解析出有效的大纲内容',
+        syncedItems: 0
+      };
+    }
+    
+    // 创建现有大纲的映射表，便于查找
+    const existingOutlineMap = new Map<string, NovelOutline>();
+    const existingOutlineByTypeAndTitle = new Map<string, NovelOutline>();
+    
+    existingOutlines.forEach(outline => {
+      existingOutlineMap.set(outline.id, outline);
+      existingOutlineByTypeAndTitle.set(`${outline.type}-${outline.title}`, outline);
+    });
+    
+    // 创建映射表，使用临时ID作为键，确保可以正确建立父子关系
+    const tempIdToRealIdMap = new Map<string, string>();
+    
+    // 处理新项目，决定是更新还是创建
+    const savedOutlines: NovelOutline[] = [];
+    let order = existingOutlines.length + 1; // 新项目的起始顺序号
+    let syncedItems = 0;
+    
+    // 先处理卷（main类型）
+    for (const item of newItems.filter(i => i.type === 'main')) {
+      const key = `${item.type}-${item.title}`;
+      const existingOutline = existingOutlineByTypeAndTitle.get(key);
+      
+      if (existingOutline) {
+        // 更新现有卷
+        const updatedOutline: NovelOutline = {
+          ...existingOutline,
+          content: item.content || existingOutline.content,
+          lastModified: new Date().toISOString()
+        };
+        
+        await databaseManager.outlines.updateOutline(updatedOutline);
+        savedOutlines.push(updatedOutline);
+        tempIdToRealIdMap.set(item.tempId || `temp-${item.type}-${newItems.indexOf(item)}`, existingOutline.id);
+        syncedItems++;
+        console.log(`更新现有卷: ${item.title}`);
+      } else {
+        // 创建新卷
+        const outline: any = {
+          novelId,
+          title: item.title,
+          content: item.content || '',
+          type: item.type,
+          order: order++,
+          createdAt: new Date().toISOString(),
+          lastModified: new Date().toISOString()
+        }
+        
+        const savedOutline = await databaseManager.outlines.addOutline(outline);
+        savedOutlines.push(savedOutline);
+        tempIdToRealIdMap.set(item.tempId || `temp-${item.type}-${newItems.indexOf(item)}`, savedOutline.id);
+        syncedItems++;
+        console.log(`创建新卷: ${item.title}`);
+      }
+    }
+    
+    // 再处理章节（chapter类型）
+    for (const item of newItems.filter(i => i.type === 'chapter')) {
+      const key = `${item.type}-${item.title}`;
+      const existingOutline = existingOutlineByTypeAndTitle.get(key);
+      
+      if (existingOutline) {
+        // 更新现有章节
+        const updatedOutline: NovelOutline = {
+          ...existingOutline,
+          content: item.content || existingOutline.content,
+          lastModified: new Date().toISOString()
+        };
+        
+        await databaseManager.outlines.updateOutline(updatedOutline);
+        savedOutlines.push(updatedOutline);
+        tempIdToRealIdMap.set(item.tempId || `temp-${item.type}-${newItems.indexOf(item)}`, existingOutline.id);
+        syncedItems++;
+        console.log(`更新现有章节: ${item.title}`);
+      } else {
+        // 创建新章节
+        const outline: any = {
+          novelId,
+          title: item.title,
+          content: item.content || '',
+          type: item.type,
+          order: order++,
+          createdAt: new Date().toISOString(),
+          lastModified: new Date().toISOString()
+        }
+        
+        const savedOutline = await databaseManager.outlines.addOutline(outline);
+        savedOutlines.push(savedOutline);
+        tempIdToRealIdMap.set(item.tempId || `temp-${item.type}-${newItems.indexOf(item)}`, savedOutline.id);
+        syncedItems++;
+        console.log(`创建新章节: ${item.title}`);
+      }
+    }
+    
+    // 更新父子关系
+    const updates: { id: string; parentId: string }[] = [];
+    for (const item of newItems) {
+      const currentOutlineId = tempIdToRealIdMap.get(item.tempId || `temp-${item.type}-${newItems.indexOf(item)}`);
+      
+      if (currentOutlineId && item.type === 'chapter' && item.parentTempId) {
+        // 使用parentTempId查找对应的卷的真实ID
+        const parentOutlineId = tempIdToRealIdMap.get(item.parentTempId);
+        
+        if (parentOutlineId) {
+          updates.push({
+            id: currentOutlineId,
+            parentId: parentOutlineId
+          });
+        }
+      }
+    }
+    
+    // 使用混合存储服务的批量更新方法
+    if (updates.length > 0) {
+      console.log('需要更新parentId的项目数量:', updates.length);
+      await hybridStorageService.batchUpdateOutlinesParentId(updates);
+    } else {
+      console.log('没有需要更新parentId的项目');
+    }
+
+    // 触发大纲同步完成事件，用于通知相关组件刷新
+    eventBus.emit('outlineSyncComplete', { novelId, content });
+
+    return {
+      success: true,
+      message: '大纲合并同步成功',
+      syncedItems: syncedItems
+    }
+  }
+  
+  /**
+   * 精准同步模式：只更新指定的章节内容
+   */
+  private async syncSpecificChapter(content: string, novelId: string, targetVolume: string, targetChapter: string): Promise<SyncResult> {
+    console.log('执行精准同步模式', { targetVolume, targetChapter });
+    
+    // 获取现有的大纲结构
+    const existingOutlines = await databaseManager.outlines.getOutlinesByNovelId(novelId);
+    console.log('现有大纲项目数量:', existingOutlines.length);
+    
+    // 查找目标卷
+    const targetVolumeOutline = existingOutlines.find(outline => 
+      outline.type === 'main' && outline.title === targetVolume
+    );
+    
+    if (!targetVolumeOutline) {
+      return {
+        success: false,
+        message: `未找到目标卷: ${targetVolume}`,
+        syncedItems: 0
+      };
+    }
+    
+    // 查找目标章节
+    const targetChapterOutline = existingOutlines.find(outline => 
+      outline.type === 'chapter' && 
+      outline.title === targetChapter && 
+      outline.parentId === targetVolumeOutline.id
+    );
+    
+    if (!targetChapterOutline) {
+      return {
+        success: false,
+        message: `未找到目标章节: ${targetChapter}`,
+        syncedItems: 0
+      };
+    }
+    
+    // 预处理内容，修复AI生成的非法格式
+    const processedContent = this.preprocessContent(content);
+    console.log('预处理后的内容长度:', processedContent.length);
+    
+    // 解析新内容（只需要章节内容）
+    const parsedItems = this.parseOutlineContent(processedContent);
+    console.log('解析出的新大纲项目数量:', parsedItems.length);
+    
+    // 获取章节内容（通常是第一个章节的内容）
+    let chapterContent = '';
+    const chapterItems = parsedItems.filter(item => item.type === 'chapter');
+    if (chapterItems.length > 0) {
+      chapterContent = chapterItems[0].content || '';
+    } else {
+      // 如果没有解析出章节，尝试使用整个内容
+      chapterContent = processedContent;
+    }
+    
+    // 更新目标章节内容
+    const updatedOutline: NovelOutline = {
+      ...targetChapterOutline,
+      content: chapterContent,
+      lastModified: new Date().toISOString()
+    };
+    
+    await databaseManager.outlines.updateOutline(updatedOutline);
+    
+    // 触发大纲同步完成事件，用于通知相关组件刷新
+    eventBus.emit('outlineSyncComplete', { novelId, content });
+
+    return {
+      success: true,
+      message: `成功更新章节 "${targetChapter}" 的内容`,
+      syncedItems: 1
     }
   }
   
@@ -213,8 +463,7 @@ export class OutlineSyncService {
     processed = processed.replace(/^\s*###第(\S+?)章[:：]\s*(.+)$/gm, '### 第$1章：$2');
     
     // 8. 处理有空格但格式错误的标题
-    // 修复有空格但位置错误的卷标题格式：## 第X卷：标题 -> ## 第X卷：标题（已经是正确格式，但需要确保）
-    // 修复有空格但位置错误的章节标题格式：## 第X章：标题 -> ### 第X章：标题
+    // 修复有空格但位置错误的卷标题格式：## 第X章：标题 -> ### 第X章：标题
     processed = processed.replace(/^##\s+第(\S+?)章[:：]\s*(.+)$/gm, '### 第$1章：$2');
     
     // 修复有空格但位置错误的卷标题格式：### 第X卷：标题 -> ## 第X卷：标题

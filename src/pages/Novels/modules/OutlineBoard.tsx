@@ -919,8 +919,27 @@ ${ch.summary ? `摘要: ${ch.summary}
   // 处理AI生成的大纲内容同步
   const handleAISync = async (content: string) => {
     try {
-      // 使用大纲同步服务解析和保存AI生成的大纲内容
-      const result = await outlineSyncService.syncOutline(content, novelId);
+      // 检查是否是精准同步模式（通过URL参数或全局状态判断）
+      const urlParams = new URLSearchParams(window.location.search);
+      const syncMode = urlParams.get('syncMode');
+      const targetVolume = urlParams.get('targetVolume');
+      const targetChapter = urlParams.get('targetChapter');
+      
+      let result;
+      
+      if (syncMode === 'specific' && targetVolume && targetChapter) {
+        // 精准同步模式：只更新指定的章节内容
+        result = await outlineSyncService.syncOutline(content, novelId, {
+          syncMode: 'specific',
+          targetVolume,
+          targetChapter
+        });
+      } else {
+        // 默认使用智能合并模式
+        result = await outlineSyncService.syncOutline(content, novelId, {
+          syncMode: 'merge'
+        });
+      }
       
       // 显示同步结果
       if (result.success) {

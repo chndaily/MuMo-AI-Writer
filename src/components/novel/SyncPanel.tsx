@@ -11,7 +11,7 @@ import {
   ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { Novel } from '#/novel';
-import { AIGenerationType, SyncOption, WorldSettingType } from '@/types/ai-generation';
+import { AIGenerationType, SyncOption, WorldSettingType, SyncResult } from '@/types/ai-generation';
 // 移除对旧同步服务的引用
 // import { syncService } from '@/services/syncService';
 import { contentSyncService } from '@/services/contentSyncService'; // 导入新的内容同步服务
@@ -40,6 +40,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
 }) => {
   const [syncing, setSyncing] = useState(false);
   const [syncModalVisible, setSyncModalVisible] = useState(false);
+  const [syncModeModalVisible, setSyncModeModalVisible] = useState(false); // 添加同步模式模态框状态
   const [selectedSyncOption, setSelectedSyncOption] = useState<string>('');
   const [syncOptions, setSyncOptions] = useState<{
     overwrite?: boolean;
@@ -63,6 +64,184 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       }
     }
   }, [content]);
+
+  // 执行同步操作
+  const performSync = useCallback(async (optionKey: string) => {
+    if (!content || !novel.id) {
+      message.error('缺少必要参数');
+      return;
+    }
+
+    setSelectedSyncOption(optionKey);
+    setSyncing(true);
+    try {
+      let result: SyncResult;
+      
+      switch (optionKey) {
+        case 'character':
+          // 导入并使用角色同步服务
+          const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
+          result = await characterSyncService.syncCharacters(content, novel.id);
+          break;
+        case 'location':
+          // 导入并使用地点同步服务
+          const { locationSyncService } = await import('@/services/sync/LocationSyncService');
+          result = await locationSyncService.syncLocations(content, novel.id);
+          break;
+        case 'culture':
+          // 导入并使用文化同步服务
+          const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
+          result = await cultureSyncService.syncCultures(content, novel.id);
+          break;
+        case 'technology':
+          // 导入并使用科技同步服务
+          const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
+          result = await technologySyncService.syncTechnologies(content, novel.id);
+          break;
+        case 'magic':
+          // 导入并使用魔法同步服务
+          const { magicSyncService } = await import('@/services/sync/MagicSyncService');
+          result = await magicSyncService.syncMagics(content, novel.id);
+          break;
+        case 'history':
+          // 导入并使用历史同步服务
+          const { historySyncService } = await import('@/services/sync/HistorySyncService');
+          result = await historySyncService.syncHistories(content, novel.id);
+          break;
+        case 'outline':
+        case 'plot':
+          // 对于大纲生成，使用专门的大纲同步服务，采用智能合并模式
+          if (parsedContent && parsedContent.content) {
+            // 如果有解析出的内容，使用解析后的内容
+            result = await outlineSyncService.syncOutline(parsedContent.content, novel.id, { syncMode: 'merge' });
+          } else {
+            // 否则使用原始内容，采用智能合并模式
+            result = await outlineSyncService.syncOutline(content, novel.id, { syncMode: 'merge' });
+          }
+          break;
+        default:
+          // 对于其他类型，使用优化的数据同步服务
+          result = await optimizedDataSyncService.syncAllData();
+      }
+
+      if (result.success) {
+        message.success(result.message);
+        // 添加额外的延迟确保数据完全同步
+        await new Promise(resolve => setTimeout(resolve, 300));
+        onSync?.(result);
+      } else {
+        message.warning(`同步存在问题：${result.message}`);
+      }
+    } catch (error) {
+      console.error('同步失败:', error);
+      message.error('同步失败，请重试');
+    } finally {
+      setSyncing(false);
+      setSyncModalVisible(false);
+    }
+  }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
+
+  const handleSyncClick = useCallback((optionKey: string) => {
+    // 对于大纲同步，提供智能同步选项
+    if (optionKey === 'outline' || optionKey === 'plot') {
+      // 显示智能同步选项模态框
+      setSyncModeModalVisible(true);
+    } else {
+      // 对于其他类型，直接执行同步
+      performSync(optionKey);
+    }
+  }, [performSync]);
+
+  // 执行同步操作（带同步模式）
+  const performSyncWithMode = useCallback(async (optionKey: string, syncMode: 'replace' | 'merge' | 'specific' = 'merge') => {
+    if (!content || !novel.id) {
+      message.error('缺少必要参数');
+      return;
+    }
+
+    setSelectedSyncOption(optionKey);
+    setSyncing(true);
+    try {
+      let result: SyncResult;
+      
+      switch (optionKey) {
+        case 'character':
+          // 导入并使用角色同步服务
+          const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
+          result = await characterSyncService.syncCharacters(content, novel.id);
+          break;
+        case 'location':
+          // 导入并使用地点同步服务
+          const { locationSyncService } = await import('@/services/sync/LocationSyncService');
+          result = await locationSyncService.syncLocations(content, novel.id);
+          break;
+        case 'culture':
+          // 导入并使用文化同步服务
+          const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
+          result = await cultureSyncService.syncCultures(content, novel.id);
+          break;
+        case 'technology':
+          // 导入并使用科技同步服务
+          const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
+          result = await technologySyncService.syncTechnologies(content, novel.id);
+          break;
+        case 'magic':
+          // 导入并使用魔法同步服务
+          const { magicSyncService } = await import('@/services/sync/MagicSyncService');
+          result = await magicSyncService.syncMagics(content, novel.id);
+          break;
+        case 'history':
+          // 导入并使用历史同步服务
+          const { historySyncService } = await import('@/services/sync/HistorySyncService');
+          result = await historySyncService.syncHistories(content, novel.id);
+          break;
+        case 'outline':
+        case 'plot':
+          // 对于大纲生成，使用专门的大纲同步服务
+          if (parsedContent && parsedContent.content) {
+            // 如果有解析出的内容，使用解析后的内容
+            result = await outlineSyncService.syncOutline(parsedContent.content, novel.id, { syncMode });
+          } else {
+            // 否则使用原始内容
+            result = await outlineSyncService.syncOutline(content, novel.id, { syncMode });
+          }
+          break;
+        default:
+          // 对于其他类型，使用优化的数据同步服务
+          result = await optimizedDataSyncService.syncAllData();
+      }
+
+      if (result.success) {
+        message.success(result.message);
+        // 添加额外的延迟确保数据完全同步
+        await new Promise(resolve => setTimeout(resolve, 300));
+        onSync?.(result);
+      } else {
+        message.error(result.message);
+      }
+    } catch (error) {
+      console.error('同步失败:', error);
+      message.error('同步失败，请重试');
+    } finally {
+      setSyncing(false);
+      setSyncModeModalVisible(false);
+    }
+  }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
+
+  const handleConfirmReplace = () => {
+    setShowReplaceConfirm(false);
+    performSync('optimize');
+  };
+
+  const handleCancelReplace = () => {
+    setShowReplaceConfirm(false);
+    setSelectedSyncOption('');
+  };
+
+  const handleModalOk = () => {
+    // 不再需要手动选择世界观设定类型，直接执行同步
+    performSync(selectedSyncOption);
+  };
 
   const getSyncOptions = (): SyncOption[] => {
     switch (generationType) {
@@ -171,160 +350,6 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     }
   };
 
-  const handleSyncClick = (optionKey: string) => {
-    setSelectedSyncOption(optionKey);
-    
-    // 自动设置世界观设定类型，无需手动选择
-    const settingTypeMap: Record<AIGenerationType, WorldSettingType | undefined> = {
-      'character': 'character',
-      'location': 'location', 
-      'culture': 'culture',
-      'technology': 'technology',
-      'magic': 'magic',
-      'history': 'history',
-      'outline': undefined,
-      'plot': undefined,
-      'content': undefined,
-      'optimize': undefined
-    };
-    
-    const settingType = settingTypeMap[generationType];
-    if (settingType) {
-      setSyncOptions({ ...syncOptions, settingType });
-    }
-    
-    // 对于可能替换原有内容的操作，显示确认对话框
-    // 1. 章节相关操作且有选中章节时需要确认
-    const isChapterOperation = (optionKey === 'optimize' || optionKey === 'content' || optionKey === 'plot') && selectedChapterId;
-    // 2. 世界观设定操作（角色、地点、文化等）且不是新增操作时需要确认
-    const isWorldSettingOperation = (['character', 'location', 'culture', 'technology', 'magic', 'history'].includes(generationType)) && optionKey === generationType;
-    
-    if (isChapterOperation || isWorldSettingOperation) {
-      setShowReplaceConfirm(true);
-    } else {
-      performSync(optionKey);
-    }
-  };
-
-  const handleConfirmReplace = () => {
-    setShowReplaceConfirm(false);
-    performSync('optimize');
-  };
-
-  const handleCancelReplace = () => {
-    setShowReplaceConfirm(false);
-    setSelectedSyncOption('');
-  };
-
-  const performSync = useCallback(async (optionKey: string) => {
-    setSyncing(true);
-    
-    try {
-      let result;
-      
-      // 如果是内容创作、内容优化或情节发展且有选中的章节ID，使用新的contentSyncService
-      if ((generationType === 'content' || generationType === 'optimize' || generationType === 'plot') && selectedChapterId) {
-        // 使用解析后的内容和摘要（如果有的话）
-        const contentToSync = parsedContent ? parsedContent.content : content;
-        const fullContentToSync = parsedContent 
-          ? `${contentToSync}\n#SUMMARY#\n${parsedContent.summary}` 
-          : contentToSync;
-          
-        // 根据操作类型选择不同的同步方法
-        if (generationType === 'optimize') {
-          // 内容优化使用替换方式
-          result = await contentSyncService.syncToChapter(
-            fullContentToSync,  // 传递包含摘要的完整内容
-            novel.id,
-            selectedChapterId
-          );
-        } else if (generationType === 'plot') {
-          // 情节发展使用追加方式
-          result = await contentSyncService.appendToChapter(
-            fullContentToSync,  // 传递包含摘要的完整内容
-            novel.id,
-            selectedChapterId
-          );
-        } else {
-          // 内容创作使用追加方式
-          result = await contentSyncService.appendToChapter(
-            fullContentToSync,  // 传递包含摘要的完整内容
-            novel.id,
-            selectedChapterId
-          );
-        }
-      } else {
-        // 否则使用专门的同步服务
-        switch (generationType) {
-          case 'character':
-            // 导入并使用角色同步服务
-            const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
-            result = await characterSyncService.syncCharacters(content, novel.id);
-            break;
-          case 'location':
-            // 导入并使用地点同步服务
-            const { locationSyncService } = await import('@/services/sync/LocationSyncService');
-            result = await locationSyncService.syncLocations(content, novel.id);
-            break;
-          case 'culture':
-            // 导入并使用文化同步服务
-            const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
-            result = await cultureSyncService.syncCultures(content, novel.id);
-            break;
-          case 'technology':
-            // 导入并使用科技同步服务
-            const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
-            result = await technologySyncService.syncTechnologies(content, novel.id);
-            break;
-          case 'magic':
-            // 导入并使用魔法同步服务
-            const { magicSyncService } = await import('@/services/sync/MagicSyncService');
-            result = await magicSyncService.syncMagics(content, novel.id);
-            break;
-          case 'history':
-            // 导入并使用历史同步服务
-            const { historySyncService } = await import('@/services/sync/HistorySyncService');
-            result = await historySyncService.syncHistories(content, novel.id);
-            break;
-          case 'outline':
-          case 'plot':
-            // 对于大纲生成，使用专门的大纲同步服务
-            if (parsedContent && parsedContent.content) {
-              // 如果有解析出的内容，使用解析后的内容
-              result = await outlineSyncService.syncOutline(parsedContent.content, novel.id);
-            } else {
-              // 否则使用原始内容
-              result = await outlineSyncService.syncOutline(content, novel.id);
-            }
-            break;
-          default:
-            // 对于其他类型，使用优化的数据同步服务
-            result = await optimizedDataSyncService.syncAllData();
-        }
-      }
-
-      if (result.success) {
-        message.success(result.message);
-        // 添加额外的延迟确保数据完全同步
-        await new Promise(resolve => setTimeout(resolve, 300));
-        onSync?.(result);
-      } else {
-        message.error(result.message);
-      }
-    } catch (error) {
-      console.error('同步失败:', error);
-      message.error('同步失败，请重试');
-    } finally {
-      setSyncing(false);
-      setSyncModalVisible(false);
-    }
-  }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
-
-  const handleModalOk = () => {
-    // 不再需要手动选择世界观设定类型，直接执行同步
-    performSync(selectedSyncOption);
-  };
-
   const currentSyncOptions = getSyncOptions();
 
   if (currentSyncOptions.length === 0) {
@@ -428,6 +453,31 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
             <p>是否确认替换？</p>
           </>
         )}
+      </Modal>
+
+      {/* 同步模式选择对话框 */}
+      <Modal
+        title="选择大纲同步模式"
+        open={syncModeModalVisible}
+        onCancel={() => setSyncModeModalVisible(false)}
+        footer={[
+          <Button key="replace" onClick={() => performSyncWithMode('outline', 'replace')}>
+            完全替换
+          </Button>,
+          <Button key="merge" type="primary" onClick={() => performSyncWithMode('outline', 'merge')}>
+            智能合并
+          </Button>,
+          <Button key="cancel" onClick={() => setSyncModeModalVisible(false)}>
+            取消
+          </Button>
+        ]}
+      >
+        <p>请选择大纲同步模式：</p>
+        <ul>
+          <li><strong>完全替换</strong>：删除现有大纲，用新内容完全替换</li>
+          <li><strong>智能合并</strong>：保留现有结构，只更新或添加新内容</li>
+        </ul>
+        <p>推荐使用<strong>智能合并</strong>模式，以保护您已有的创作内容。</p>
       </Modal>
     </>
   );

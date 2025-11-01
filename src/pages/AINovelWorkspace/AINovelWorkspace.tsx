@@ -347,22 +347,22 @@ const AINovelWorkspace: React.FC = () => {
   // 处理同步点击
   const handleSyncClick = (optionKey: string) => {
     if (!targetNovel || !content) {
-      message.warning('请先选择目标小说并生成内容')
-      return
+      message.warning('请先选择目标小说并生成内容');
+      return;
     }
     
     // 直接执行同步
-    performSync(optionKey)
+    performSync(optionKey);
   }
 
   // 执行同步
   const performSync = async (optionKey: string) => {
-    if (!targetNovel || !content) return
+    if (!targetNovel || !content) return;
     
     try {
       // 使用优化的数据同步服务替换旧的同步服务
       // 根据generationType执行相应的同步操作
-      let result;
+      let result: any;
       switch (generationType) {
         case 'content':
         case 'optimize':
@@ -404,8 +404,8 @@ const AINovelWorkspace: React.FC = () => {
           }
           break;
         case 'outline':
-          // 对于大纲生成，使用专门的大纲同步服务
-          result = await outlineSyncService.syncOutline(content, targetNovel.id);
+          // 对于大纲生成，使用专门的大纲同步服务，采用智能合并模式
+          result = await outlineSyncService.syncOutline(content, targetNovel.id, { syncMode: 'merge' });
           break;
         case 'character':
         case 'location':
@@ -531,6 +531,23 @@ const AINovelWorkspace: React.FC = () => {
     }
   }
 
+  // 添加一个辅助函数来生成内容
+  const generateContent = async (prompt: string, systemPrompt: string, config: any) => {
+    // 调用AI服务生成内容
+    await generateTextStream(
+      {
+        prompt: prompt,
+        systemPrompt: systemPrompt,
+        temperature: temperature,
+        maxTokens: 128000
+      },
+      config.id
+    );
+    
+    // 从响应状态中获取生成的内容
+    return llmResponse || '';
+  };
+
   // AI生成处理 - 增强上下文信息整合
   const handleAIGenerate = async (prompt: string, systemPrompt?: string) => {
     if (!prompt.trim()) {
@@ -598,650 +615,78 @@ const AINovelWorkspace: React.FC = () => {
     }
 
     setIsAIGenerating(true)
-    // 清除上次的响应，确保不会重复插入旧内容
-    clearLLMResponse()
-    clearLLMError()
-    // 重置已处理的响应状态
-    setProcessedResponse(null)
-
+    
     try {
-      // 重新获取最新的collections数据
-      const { collections } = usePromptLibraryStore.getState();
-      console.log('Current collections count:', collections.length);
+      // 获取选中的AI配置
+      const config = configs.find(c => c.id === selectedConfigId);
+      if (!config) {
+        throw new Error('未找到AI配置');
+      }
 
-      const typeSystemPrompt = systemPrompt || getSystemPromptByType(generationType)
+      // 构建完整的提示词上下文
+      let fullPrompt = prompt;
       
-      // 构建更丰富的上下文信息
-      let contextInfo = ''
-      
-      // 小说基本信息
-      if (targetNovel) {
-        contextInfo += `【目标小说信息】\n`
-        contextInfo += `标题：《${targetNovel.title}》\n`
-        contextInfo += `类型：${targetNovel.genre}\n`
-        contextInfo += `描述：${targetNovel.description || '无'}\n`
-        contextInfo += `当前字数：${targetNovel.wordCount?.toLocaleString() || 0}字\n`
-        contextInfo += `目标字数：${targetNovel.targetWordCount?.toLocaleString() || '未设定'}字\n`
-        contextInfo += `状态：${targetNovel.status || '创作中'}\n\n`
+      // 对于大纲生成，添加小说信息作为上下文
+      if (generationType === 'outline' && targetNovel) {
+        // 获取小说的现有大纲信息作为上下文
+        const existingOutlines = await hybridStorageService.getOutlines(targetNovel.id);
+        const existingOutlineText = existingOutlines.map(outline => 
+          `${outline.type === 'main' ? '##' : '###'} ${outline.title}\n${outline.content || ''}`
+        ).join('\n\n');
         
-        // 对于大纲很长的小说，使用精简的大纲信息
-        try {
-          const outlines = await hybridStorageService.getOutlines(targetNovel.id);
-          if (outlines && outlines.length > 0) {
-            // 计算大纲总字数
-            const outlineWordCount = outlines.reduce((sum, outline) => sum + (outline.content?.length || 0), 0);
-            
-            // 检查是否为超长大纲（超过30000字）
-            if (outlineWordCount > 30000) {
-              // 使用超长大纲摘要信息
-              const { getSuperLargeOutlineStructureSummary } = await import('@/utils/superLargeOutlineHandler');
-              const outlineSummary = await getSuperLargeOutlineStructureSummary(targetNovel.id);
-              contextInfo += `【小说大纲信息（超长大纲，${outlineWordCount.toLocaleString()}字）】\n`;
-              contextInfo += outlineSummary;
-              contextInfo += '\n';
-            } else if (outlines.length > 50) { // 如果大纲项超过50个，认为是长大纲
-              // 使用大纲摘要信息
-              const { getOutlineSummaryInfo } = await import('@/utils/worldElementUtils');
-              const outlineSummary = await getOutlineSummaryInfo(targetNovel.id);
-              contextInfo += `【小说大纲信息（长大纲，${outlineWordCount.toLocaleString()}字）】\n`;
-              contextInfo += outlineSummary;
-              contextInfo += '\n';
-            } else {
-              // 使用原有的大纲信息处理方式
-              // 获取大纲信息
-              contextInfo += '【小说大纲信息】\n'
-              // 按照层级结构组织大纲信息
-              const mainOutlines = outlines.filter(outline => outline.type === 'main')
-              const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
-              
-              mainOutlines.forEach(mainOutline => {
-                contextInfo += `卷：${mainOutline.title}\n`
-                // 只添加关键的大纲信息，避免过长
-                if (mainOutline.content && mainOutline.content.length <= 200) {
-                  contextInfo += `卷描述：${mainOutline.content}\n`
-                }
-                
-                // 添加该卷下的章节信息（仅标题和关键摘要）
-                const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
-                if (chaptersInThisAct.length > 0) {
-                  contextInfo += '  章节：'
-                  chaptersInThisAct.forEach((chapter, index) => {
-                    contextInfo += `${chapter.title}${index < chaptersInThisAct.length - 1 ? '、' : ''}`
-                  })
-                  contextInfo += '\n'
-                }
-              })
-              
-              // 如果有未归属于任何卷的章节，单独列出
-              const unassignedChapters = chapterOutlines.filter(chapter => !chapter.parentId || !mainOutlines.some(act => act.id === chapter.parentId))
-              if (unassignedChapters.length > 0) {
-                contextInfo += '未归属于卷的章节：'
-                unassignedChapters.forEach((chapter, index) => {
-                  contextInfo += `${chapter.title}${index < unassignedChapters.length - 1 ? '、' : ''}`
-                })
-                contextInfo += '\n'
-              }
-              contextInfo += '\n'
-            }
-          }
-        } catch (outlineError) {
-          console.warn('获取大纲信息失败:', outlineError);
-        }
+        // 构建包含现有大纲的完整提示词
+        fullPrompt = `小说信息：
+标题：${targetNovel.title}
+类型：${targetNovel.genre}
+描述：${targetNovel.description || '无'}
+
+现有大纲结构：
+${existingOutlineText || '暂无'}
+
+请基于以上信息生成新的大纲内容：
+${prompt}`;
       }
       
-      // 当前内容上下文
-      if (content) {
-        const contentLength = content.length
-        const wordCount = content.split(/\s+/).length
-        const paragraphCount = content.split('\n\n').length
-        
-        contextInfo += `【当前内容上下文】\n`
-        contextInfo += `内容长度：${contentLength}字符（约${wordCount}词，${paragraphCount}段落）\n`
-        
-        // 对于内容创作、内容优化和情节发展，使用大纲中的摘要作为上下文
-        if (['content', 'optimize', 'plot'].includes(generationType) && targetNovel && selectedChapterId) {
-          try {
-            // 获取当前章节的摘要
-            const allChapters = await hybridStorageService.getOutlines(targetNovel.id);
-            const currentChapter = allChapters.find(chapter => chapter.id === selectedChapterId);
-            
-            if (currentChapter && currentChapter.summary) {
-              contextInfo += `当前章节摘要：\n${currentChapter.summary}\n\n`
-            } else {
-              // 如果没有摘要，使用原有的截取方式
-              if (contentLength > 500) {
-                const lastContent = content.slice(-500)
-                contextInfo += `最近内容：\n${lastContent}\n\n`
-              } else if (contentLength > 0) {
-                contextInfo += `完整内容：\n${content}\n\n`
-              }
-            }
-          } catch (error) {
-            console.error('获取当前章节摘要失败:', error);
-            // 出错时回退到原有的截取方式
-            if (contentLength > 500) {
-              const lastContent = content.slice(-500)
-              contextInfo += `最近内容：\n${lastContent}\n\n`
-            } else if (contentLength > 0) {
-              contextInfo += `完整内容：\n${content}\n\n`
-            }
-          }
-        } else {
-          // 对于其他生成类型，使用原有的截取方式
-          if (contentLength > 500) {
-            const lastContent = content.slice(-500)
-            contextInfo += `最近内容：\n${lastContent}\n\n`
-          } else if (contentLength > 0) {
-            contextInfo += `完整内容：\n${content}\n\n`
-          }
-        }
-      }
+      // 对于其他类型，可以添加类似的上下文处理逻辑
       
-      // 对于内容生成、内容优化和情节发展，添加之前章节的摘要作为上下文
-      if (['content', 'optimize', 'plot'].includes(generationType) && targetNovel && selectedChapterId) {
-        try {
-          // 获取所有章节
-          const allChapters = await hybridStorageService.getOutlines(targetNovel.id);
-          
-          // 找到当前选中的章节
-          const currentChapter = allChapters.find(chapter => chapter.id === selectedChapterId);
-          
-          if (currentChapter) {
-            // 获取之前章节的内容（按order排序）
-            const previousChapters = allChapters
-              .filter(chapter => chapter.type === 'chapter' && chapter.order < (currentChapter.order || 0))
-              .sort((a, b) => (a.order || 0) - (b.order || 0));
-            
-            // 如果有之前的章节，将它们的摘要添加到上下文信息中
-            if (previousChapters.length > 0) {
-              contextInfo += `【之前章节摘要】\n`
-              contextInfo += `以下是之前章节的内容摘要，用于保持文章的连续性：\n\n`
-              
-              // 添加每个之前章节的摘要（限制数量）
-              const maxPreviousToShow = Math.min(previousChapters.length, 10); // 最多显示10个之前章节
-              for (let i = 0; i < maxPreviousToShow; i++) {
-                const chapter = previousChapters[i];
-                // 使用大纲中存储的摘要，如果没有则使用章节标题
-                const chapterSummary = chapter.summary || `${chapter.title}（无摘要）`;
-                
-                contextInfo += `--- 第${i + 1}章：${chapter.title} ---\n`
-                contextInfo += `${chapterSummary}\n\n`
-              }
-              
-              // 如果还有更多章节，显示省略信息
-              if (previousChapters.length > maxPreviousToShow) {
-                contextInfo += `...还有${previousChapters.length - maxPreviousToShow}个之前章节未显示\n\n`
-              }
-            }
-          }
-        } catch (error) {
-          console.error('获取之前章节内容失败:', error);
-          // 不中断生成过程，只是记录错误
-        }
-      }
+      console.log('开始AI生成，配置:', config, '提示词:', fullPrompt);
       
-      // 检查用户输入中是否包含知识库搜索指令
-      const searchMatch = prompt.match(/@search\(([^)]+)\)/);
-      if (searchMatch) {
-        const keyword = searchMatch[1];
-        try {
-          console.log('Searching knowledge base for keyword:', keyword);
-          console.log('Collections available for search:', collections.length);
-          // 添加调试信息，检查collections的内容
-          collections.forEach((collection, index) => {
-            console.log(`Collection ${index}:`, collection.attributes.name, collection.type);
-          });
-          const searchResults = await searchKnowledgeBase(collections, keyword, 2000);
-          contextInfo += `【知识库搜索结果】\n${searchResults}\n\n`;
-        } catch (error) {
-          console.error('知识库搜索失败:', error);
-          contextInfo += `【知识库搜索结果】\n搜索失败，请稍后重试。\n\n`;
-        }
-      }
-
-      // 使用增强的特定指导功能
-      let typeSpecificGuidance = ''
-      if (targetNovel) {
-        typeSpecificGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id)
-      } else {
-        // 如果没有目标小说，使用原有的特定指导逻辑
-        switch (generationType) {
-          case 'plot':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 基于提供的上下文继续创作情节，保持故事连贯性\n' +
-                                  '- 深化人物性格展现，推动角色成长弧线\n' +
-                                  '- 增加戏剧冲突和悬念，提升故事张力\n' +
-                                  '- 注重细节描写和情感渲染，增强读者代入感\n' +
-                                  '- 确保情节发展符合逻辑，避免突兀转折\n' +
-                                  '- 为后续发展预留合理空间和可能性'
-            break
-          case 'character':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 结合小说的世界观和背景创建角色\n' +
-                                  '- 确保角色设定与故事风格相符\n' +
-                                  '- 提供详细的外貌、性格、背景描述\n' +
-                                  '- 包含角色类型分类：主角、反派、配角等\n' +
-                                  '- 描述角色在故事中的作用和影响\n' +
-                                  '- 设定角色的成长弧线和潜在变化\n\n' +
-                                  '请按照以下结构生成角色信息：\n' +
-                                  '【角色设定1：名称】\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【角色类型】：\n' +
-                                  '【标签】：\n' +
-                                  '【描述】：\n' +
-                                  '【外貌特征】\n' +
-                                  '【性格特质】\n' +
-                                  '【背景故事】\n' +
-                                  '【能力设定】\n' +
-                                  '【人际关系】\n' +
-                                  '【角色发展弧光】\n' +
-                                  '【细节补充】\n' +
-                                  '【角色设定2：名称】\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【角色类型】：\n' +
-                                  '【标签】：\n' +
-                                  '【描述】：\n' +
-                                  '【外貌特征】\n' +
-                                  '【性格特质】\n' +
-                                  '【背景故事】\n' +
-                                  '【能力设定】\n' +
-                                  '【人际关系】\n' +
-                                  '【角色发展弧光】\n' +
-                                  '【细节补充】'
-            break
-          case 'location':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 结合小说的世界观创建地点设定\n' +
-                                  '- 描述地理位置、环境特征、气候条件\n' +
-                                  '- 包括建筑风格、文化背景、历史意义\n' +
-                                  '- 考虑与其他地点的关系和连接\n' +
-                                  '- 使用丰富的感官细节增强真实感\n' +
-                                  '- 突出地点在故事中的独特作用\n\n' +
-                                  '请按照以下结构生成地点信息：\n' +
-                                  '---\n' +
-                                  '【地点设定1：名称】\n' +
-                                  '---\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：城市、繁华、港口\n' +
-                                  '【描述】：\n' +
-                                  '【类型】：由AI生成具体的类型描述，而非从预设选项中选择\n' +
-                                  '【重要性】：由AI生成具体的重要性描述，而非从预设选项中选择\n' +
-                                  '【地理环境】\n' +
-                                  '地理位置：\n' +
-                                  '气候特征：\n' +
-                                  '地形特征：\n' +
-                                  '自然资源：\n' +
-                                  '生态环境：\n' +
-                                  '【文化背景】\n' +
-                                  '历史背景：\n' +
-                                  '文化特色：\n' +
-                                  '建筑风格：\n' +
-                                  '社会结构：\n' +
-                                  '【政治环境】\n' +
-                                  '统治体系：\n' +
-                                  '法律法规：\n' +
-                                  '【经济状况】\n' +
-                                  '主要产业：\n' +
-                                  '贸易情况：\n' +
-                                  '财富水平：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '【地点设定2：名称】\n' +
-                                  '---\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：城市、繁华、港口\n' +
-                                  '【描述】：\n' +
-                                  '【类型】：由AI生成具体的类型描述，而非从预设选项中选择\n' +
-                                  '【重要性】：由AI生成具体的重要性描述，而非从预设选项中选择\n' +
-                                  '【地理环境】\n' +
-                                  '地理位置：\n' +
-                                  '气候特征：\n' +
-                                  '地形特征：\n' +
-                                  '自然资源：\n' +
-                                  '生态环境：\n' +
-                                  '【文化背景】\n' +
-                                  '历史背景：\n' +
-                                  '文化特色：\n' +
-                                  '建筑风格：\n' +
-                                  '社会结构：\n' +
-                                  '【政治环境】\n' +
-                                  '统治体系：\n' +
-                                  '法律法规：\n' +
-                                  '【经济状况】\n' +
-                                  '主要产业：\n' +
-                                  '贸易情况：\n' +
-                                  '财富水平：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '生成的地点设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
-            break
-          case 'culture':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 结合小说的世界观创建文化设定\n' +
-                                  '- 描述传统习俗、价值观念、艺术表现\n' +
-                                  '- 包括宗教信仰、语言文字\n' +
-                                  '- 考虑不同文化间的交流和冲突\n' +
-                                  '- 体现文化的独特性和深度\n' +
-                                  '- 与故事发展和人物塑造相关联\n\n' +
-                                  '请按照以下结构生成文化设定：\n' +
-                                  '【文化设定1：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：东方、西方、古代、现代等\n' +
-                                  '【描述】：\n' +
-                                  '【传统习俗】\n' +
-                                  '主要节日：\n' +
-                                  '礼仪规范：\n' +
-                                  '【价值观念】\n' +
-                                  '核心价值：\n' +
-                                  '道德标准：\n' +
-                                  '【艺术表现】\n' +
-                                  '文学形式：\n' +
-                                  '音乐舞蹈：\n' +
-                                  '视觉艺术：\n' +
-                                  '【宗教信仰】\n' +
-                                  '主要信仰：\n' +
-                                  '宗教仪式：\n' +
-                                  '【语言文字】\n' +
-                                  '语言特点：\n' +
-                                  '文字系统：\n' +
-                                  '【文化互动】\n' +
-                                  '文化冲突：\n' +
-                                  '文化融合：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '【文化设定2：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：东方、西方、古代、现代等\n' +
-                                  '【描述】：\n' +
-                                  '【传统习俗】\n' +
-                                  '主要节日：\n' +
-                                  '礼仪规范：\n' +
-                                  '【价值观念】\n' +
-                                  '核心价值：\n' +
-                                  '道德标准：\n' +
-                                  '【艺术表现】\n' +
-                                  '文学形式：\n' +
-                                  '音乐舞蹈：\n' +
-                                  '视觉艺术：\n' +
-                                  '【宗教信仰】\n' +
-                                  '主要信仰：\n' +
-                                  '宗教仪式：\n' +
-                                  '【语言文字】\n' +
-                                  '语言特点：\n' +
-                                  '文字系统：\n' +
-                                  '【文化互动】\n' +
-                                  '文化冲突：\n' +
-                                  '文化融合：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '生成的文化设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
-            break
-          case 'technology':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 结合小说的世界观创建科技设定\n' +
-                                  '- 描述科技水平、应用场景、使用限制\n' +
-                                  '- 包括社会影响\n' +
-                                  '- 考虑科技与魔法、文化的相互作用\n' +
-                                  '- 体现技术的独特性和创新性\n' +
-                                  '- 与故事情节发展相关联\n\n' +
-                                  '请按照以下结构生成科技设定：\n' +
-                                  '【科技设定1：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：能源、交通、医疗、通讯等\n' +
-                                  '【描述】：\n' +
-                                  '【科技水平】\n' +
-                                  '发展阶段：\n' +
-                                  '核心技术：\n' +
-                                  '发展时间线：\n' +
-                                  '【应用场景】\n' +
-                                  '主要用途：\n' +
-                                  '应用领域：\n' +
-                                  '【使用限制】\n' +
-                                  '能源需求：\n' +
-                                  '副作用：\n' +
-                                  '伦理考量：\n' +
-                                  '【社会影响】\n' +
-                                  '对社会的影响：\n' +
-                                  '原创性考量：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '【科技设定2：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：能源、交通、医疗、通讯等\n' +
-                                  '【描述】：\n' +
-                                  '【科技水平】\n' +
-                                  '发展阶段：\n' +
-                                  '核心技术：\n' +
-                                  '发展时间线：\n' +
-                                  '【应用场景】\n' +
-                                  '主要用途：\n' +
-                                  '应用领域：\n' +
-                                  '【使用限制】\n' +
-                                  '能源需求：\n' +
-                                  '副作用：\n' +
-                                  '伦理考量：\n' +
-                                  '【社会影响】\n' +
-                                  '对社会的影响：\n' +
-                                  '原创性考量：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '生成的科技设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
-            break
-          case 'magic':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 结合小说的世界观创建魔法设定\n' +
-                                  '- 描述魔法系统、能量源泉、施法规则\n' +
-                                  '- 包括法术示例、魔法物品\n' +
-                                  '- 考虑魔法与科技、文化的关系\n' +
-                                  '- 体现体系的平衡性和独特性\n' +
-                                  '- 与故事情节发展相关联\n\n' +
-                                  '请按照以下结构生成魔法设定：\n' +
-                                  '【魔法设定1：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：元素、召唤、治愈、诅咒等\n' +
-                                  '【描述】：\n' +
-                                  '【魔法系统】\n' +
-                                  '体系特点：\n' +
-                                  '修行方式：\n' +
-                                  '平衡性原则：\n' 
-                                  '【能量源泉】\n' +
-                                  '来源：\n' +
-                                  '获取方式：\n' +
-                                  '【施法规则】\n' +
-                                  '施法条件：\n' +
-                                  '限制因素：\n' +
-                                  '施法代价：\n' +
-                                  '风险设定：\n' +
-                                  '【法术示例】\n' +
-                                  '基础法术：\n' +
-                                  '高级法术：\n' +
-                                  '【魔法物品】\n' +
-                                  '代表性物品：\n' +
-                                  '制作方法：\n' +
-                                  '【世界观关联】\n' +
-                                  '与科技的关系：\n' +
-                                  '与文化的关联：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '【魔法设定2：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：元素、召唤、治愈、诅咒等\n' +
-                                  '【描述】：\n' +
-                                  '【魔法系统】\n' +
-                                  '体系特点：\n' +
-                                  '修行方式：\n' +
-                                  '平衡性原则：\n' 
-                                  '【能量源泉】\n' +
-                                  '来源：\n' +
-                                  '获取方式：\n' +
-                                  '【施法规则】\n' +
-                                  '施法条件：\n' +
-                                  '限制因素：\n' +
-                                  '施法代价：\n' +
-                                  '风险设定：\n' +
-                                  '【法术示例】\n' +
-                                  '基础法术：\n' +
-                                  '高级法术：\n' +
-                                  '【魔法物品】\n' +
-                                  '代表性物品：\n' +
-                                  '制作方法：\n' +
-                                  '【世界观关联】\n' +
-                                  '与科技的关系：\n' +
-                                  '与文化的关联：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '生成的魔法设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
-            break
-          case 'history':
-            typeSpecificGuidance = '\n【生成要求】\n' +
-                                  '- 结合小说的世界观创建历史设定\n' +
-                                  '- 描述基本信息、时间线、重要事件\n' +
-                                  '- 包括历史人物、历史后果\n' +
-                                  '- 考虑历史对现在的影响和遗留\n' +
-                                  '- 体现历史的复杂性和深度\n' +
-                                  '- 与现有情节和角色相关联\n\n' +
-                                  '请按照以下结构生成历史设定：\n' +
-                                  '【历史设定1：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝等\n' +
-                                  '【描述】：\n' +
-                                  '【时间线】\n' +
-                                  '重要时期：\n' +
-                                  '时间节点：\n' +
-                                  '【重要事件】\n' +
-                                  '重大事件：\n' +
-                                  '影响：\n' +
-                                  '【历史人物】\n' +
-                                  '关键人物：\n' +
-                                  '贡献：\n' +
-                                  '【历史后果】\n' +
-                                  '对后世的影响：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '【历史设定2：名称】\n' +
-                                  '---\n' +
-                                  '【基本信息】\n' +
-                                  '【名称】：\n' +
-                                  '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝等\n' +
-                                  '【描述】：\n' +
-                                  '【时间线】\n' +
-                                  '重要时期：\n' +
-                                  '时间节点：\n' +
-                                  '【重要事件】\n' +
-                                  '重大事件：\n' +
-                                  '影响：\n' +
-                                  '【历史人物】\n' +
-                                  '关键人物：\n' +
-                                  '贡献：\n' +
-                                  '【历史后果】\n' +
-                                  '对后世的影响：\n' +
-                                  '【细节补充】\n' +
-                                  '---\n' +
-                                  '生成的历史设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
-            break
-          default:
-            typeSpecificGuidance = ''
-        }
-      }
-
-      // 根据创作模式调整提示词
-      let modeSpecificGuidance = ''
-      switch (aiMode) {
-        case 'free':
-          modeSpecificGuidance = '\n【创作模式：自由创作】\n' +
-                                '- 请根据用户提供的主题和要求自由发挥创作\n' +
-                                '- 不受特定风格或上下文的严格限制\n' +
-                                '- 可以创新性地添加新的元素和情节\n' +
-                                '- 保持内容的连贯性和逻辑性'
-          break
-        case 'style':
-          modeSpecificGuidance = '\n【创作模式：风格模仿】\n' +
-                                '- 请模仿指定的写作风格或作者风格\n' +
-                                '- 分析并复制该风格的语调、用词、句式等特征\n' +
-                                '- 保持内容与用户要求的一致性\n' +
-                                '- 在模仿风格的同时确保内容的原创性'
-          break
-        case 'fill':
-          modeSpecificGuidance = '\n【创作模式：续写填充】\n' +
-                                '- 请在现有内容的基础上继续创作\n' +
-                                '- 分析已有的上下文内容，然后自然地延续故事情节\n' +
-                                '- 保持与前文的一致性和连贯性\n' +
-                                '- 避免重复已有内容，推进故事发展'
-          break
-      }
-
-      // 构建完整的提示词
-      const fullPrompt = `${contextInfo}${typeSpecificGuidance}${modeSpecificGuidance}\n\n${prompt}`
-      
-      // 添加调试信息
-      console.log('AI Generate Request:', {
-        promptLength: fullPrompt.length,
-        systemPromptLength: typeSystemPrompt?.length || 0,
-        temperature: temperature,
-        selectedConfigId: selectedConfigId,
-        aiMode: aiMode
-      })
-
-      // 检查提示词长度，如果过长则截断（增加长度限制以保留关键信息）
-      let truncatedPrompt = fullPrompt;
-      if (fullPrompt.length > 15000) {  // 增加长度限制
-        truncatedPrompt = fullPrompt.substring(0, 15000);
-        console.warn('Prompt too long, truncated to 15000 characters');
-      }
-
-      // 调用LLM生成文本，增加maxTokens以支持更长的内容生成
-      console.log('Calling generateTextStream with configId:', selectedConfigId)
+      // 调用AI服务生成内容
       await generateTextStream(
         {
-          prompt: truncatedPrompt,
-          systemPrompt: typeSystemPrompt,
+          prompt: fullPrompt,
+          systemPrompt: systemPrompt || getSystemPromptByType(generationType),
           temperature: temperature,
           maxTokens: 128000  // 增加maxTokens到128000以支持更长的内容生成
         },
         selectedConfigId
-      )
+      );
     } catch (error) {
-      console.error('AI生成失败:', error)
-      message.error('AI生成失败，请重试')
-      setIsAIGenerating(false)
+      console.error('AI生成失败:', error);
+      message.error('AI生成失败，请重试');
+      setIsAIGenerating(false);
     }
   }
 
   // 停止AI生成
   const handleStopGenerate = () => {
-    stopStream()
-    setIsAIGenerating(false)
+    if (stopStream) stopStream();
+    if (setIsAIGenerating) setIsAIGenerating(false);
     // 清除可能的错误状态
-    clearLLMError()
+    if (clearLLMError) clearLLMError();
     // 清除响应状态，防止内容被重复插入
-    clearLLMResponse()
+    if (clearLLMResponse) clearLLMResponse();
     // 重置已处理的响应状态
-    setProcessedResponse(null)
+    if (setProcessedResponse) setProcessedResponse(null);
     // 重置内容状态，确保不会重复插入
-    setContent(prevContent => prevContent)
+    if (setContent) setContent(prevContent => prevContent);
   }
 
   // 保存内容
   const handleSave = () => {
     if (currentNovel) {
-      updateNovelContent(currentNovel.id, content)
-      message.success('内容已保存')
+      updateNovelContent(currentNovel.id, content);
+      message.success('内容已保存');
     }
   }
 
@@ -1926,21 +1371,21 @@ const AINovelWorkspace: React.FC = () => {
             <List
               dataSource={[
                 '角色动机与目标',
-                '内心冲突',
+                '性格特征与缺陷',
                 '成长弧线',
-                '对话个性化',
-                '细节刻画'
+                '人际关系网',
+                '背景故事'
               ]}
               renderItem={item => (
                 <List.Item>
-                  <Typography.Text mark>[角色]</Typography.Text> {item}
+                  <Typography.Text mark>[塑造]</Typography.Text> {item}
                 </List.Item>
               )}
             />
           </TabPane>
         </Tabs>
       </Drawer>
-    )
+    );
   }
 
   // 获取生成类型名称
@@ -1959,24 +1404,6 @@ const AINovelWorkspace: React.FC = () => {
     };
     return typeMap[type] || '未知类型';
   };
-
-  // 修改header部分的模型选择器以包含默认模型
-  const renderHeader = () => {
-    return (
-      <div className="header" style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Button 
-            type="text" 
-            icon={<ArrowLeftOutlined />} 
-            onClick={() => navigate(-1)}
-            style={{ fontSize: '16px' }}
-          />
-          <Typography.Title level={4} style={{ margin: 0 }}>AI小说创作工作台</Typography.Title>
-        </div>
-        {/* 移除重复的模型选择器，使用顶部工具栏中的模型选择器 */}
-      </div>
-    )
-  }
 
   return (
     <Layout className={styles.workspace}>
@@ -2004,7 +1431,7 @@ const AINovelWorkspace: React.FC = () => {
       {/* 灵感面板 */}
       {renderInspirationPanel()}
     </Layout>
-  )
+  );
 }
 
-export default AINovelWorkspace
+export default AINovelWorkspace;
