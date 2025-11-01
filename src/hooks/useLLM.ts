@@ -57,96 +57,91 @@ export function useLLM(): UseLLMReturn {
 
   // 获取AI提供者
   const getProvider = useCallback(async (configId?: string): Promise<BaseAIProvider | null> => {
-    // 如果有configId，首先尝试获取对应的配置
-    if (configId) {
-      // 1. 尝试在用户配置中查找
-      const userConfig = configs.find(c => c.id === configId)
-      if (userConfig) {
-        return createProviderFromUserConfig(userConfig, connections)
+    // 如果没有configId，使用默认配置
+    if (!configId) {
+      if (defaultConfig) {
+        return createProviderFromUserConfig(defaultConfig, connections)
       }
-      
-      // 2. 如果在用户配置中找不到，尝试获取默认模型
-      // 首先尝试通过connectionId查找
-      try {
-        const defaultModelByConnectionId = await databaseManager.aiModels.getAIModel(configId)
-        
-        if (defaultModelByConnectionId) {
-          return createProviderFromDefaultModel(defaultModelByConnectionId)
-        }
-      } catch (error) {
-        console.error('getProvider: Error getting default model by connectionId:', error)
-      }
-      
-      // 如果通过connectionId找不到，尝试通过数据库ID查找
-      try {
-        // 获取所有默认模型，然后查找匹配的ID
-        const allModels = await databaseManager.aiModels.getAllAIModels()
-        const defaultModelById = allModels.find(model => model.id === configId)
-        
-        if (defaultModelById) {
-          return createProviderFromDefaultModel(defaultModelById)
-        }
-      } catch (error) {
-        console.error('getProvider: Error getting default model by database ID:', error)
-      }
-      
-      // 添加额外的调试信息：检查是否为默认模型
-      try {
-        const defaultModels = await databaseManager.aiModels.getDefaultAIModels()
-        const isDefaultModel = defaultModels.some(model => model.id === configId)
-        
-        if (isDefaultModel) {
-          const defaultModel = defaultModels.find(model => model.id === configId)
-          return createProviderFromDefaultModel(defaultModel!)
-        }
-      } catch (error) {
-        console.error('getProvider: Error checking default models:', error)
-      }
-      
-      // 如果以上方法都失败了，尝试通过name字段查找
-      try {
-        const allModels = await databaseManager.aiModels.getAllAIModels();
-        const defaultModelByName = allModels.find(model => model.name === configId);
-        
-        if (defaultModelByName) {
-          return createProviderFromDefaultModel(defaultModelByName);
-        }
-      } catch (error) {
-        console.error('getProvider: Error getting default model by name:', error);
-      }
-      
-      // 尝试通过模糊匹配查找模型
-      try {
-        const allModels = await databaseManager.aiModels.getAllAIModels();
-        
-        // 尝试通过部分匹配查找
-        const fuzzyMatch = allModels.find(model => 
-          model.connectionId?.includes(configId) || 
-          model.id?.includes(configId) ||
-          model.name?.includes(configId)
-        );
-        
-        if (fuzzyMatch) {
-          return createProviderFromDefaultModel(fuzzyMatch);
-        }
-      } catch (error) {
-        console.error('getProvider: Error getting default model by fuzzy matching:', error);
-      }
-    }
-    
-    // 如果没有指定configId，使用默认配置
-    if (defaultConfig) {
-      return createProviderFromUserConfig(defaultConfig, connections)
+      return null
     }
 
-    // 最后的备用方案：尝试获取第一个可用的默认模型
+    // 1. 首先尝试在用户配置中查找
+    const userConfig = configs.find(c => c.id === configId)
+    if (userConfig) {
+      return createProviderFromUserConfig(userConfig, connections)
+    }
+    
+    // 2. 尝试通过数据库ID查找默认模型
     try {
-      const defaultModels = await databaseManager.aiModels.getDefaultAIModels();
-      if (defaultModels.length > 0) {
-        return createProviderFromDefaultModel(defaultModels[0]);
+      const defaultModelById = await databaseManager.aiModels.getAIModel(configId)
+      if (defaultModelById) {
+        return createProviderFromDefaultModel(defaultModelById)
       }
     } catch (error) {
-      console.error('getProvider: Error getting first default model:', error);
+      console.error('getProvider: Error getting default model by database ID:', error)
+    }
+    
+    // 3. 尝试通过connectionId查找默认模型
+    try {
+      const allModels = await databaseManager.aiModels.getAllAIModels()
+      const defaultModelByConnectionId = allModels.find(model => model.connectionId === configId)
+      if (defaultModelByConnectionId) {
+        return createProviderFromDefaultModel(defaultModelByConnectionId)
+      }
+    } catch (error) {
+      console.error('getProvider: Error getting default model by connectionId:', error)
+    }
+    
+    // 4. 尝试通过name字段查找默认模型
+    try {
+      const allModels = await databaseManager.aiModels.getAllAIModels();
+      const defaultModelByName = allModels.find(model => model.name === configId);
+      if (defaultModelByName) {
+        return createProviderFromDefaultModel(defaultModelByName);
+      }
+    } catch (error) {
+      console.error('getProvider: Error getting default model by name:', error);
+    }
+    
+    // 5. 添加额外的调试信息：检查是否为默认模型
+    try {
+      const defaultModels = await databaseManager.aiModels.getDefaultAIModels()
+      const isDefaultModel = defaultModels.some(model => 
+        model.id === configId || 
+        model.connectionId === configId || 
+        model.name === configId
+      )
+      
+      if (isDefaultModel) {
+        const defaultModel = defaultModels.find(model => 
+          model.id === configId || 
+          model.connectionId === configId || 
+          model.name === configId
+        )
+        if (defaultModel) {
+          return createProviderFromDefaultModel(defaultModel)
+        }
+      }
+    } catch (error) {
+      console.error('getProvider: Error checking default models:', error)
+    }
+    
+    // 6. 尝试通过模糊匹配查找模型
+    try {
+      const allModels = await databaseManager.aiModels.getAllAIModels();
+      
+      // 尝试通过部分匹配查找
+      const fuzzyMatch = allModels.find(model => 
+        model.connectionId?.includes(configId) || 
+        model.id?.includes(configId) ||
+        model.name?.includes(configId)
+      );
+      
+      if (fuzzyMatch) {
+        return createProviderFromDefaultModel(fuzzyMatch);
+      }
+    } catch (error) {
+      console.error('getProvider: Error getting default model by fuzzy matching:', error);
     }
 
     return null

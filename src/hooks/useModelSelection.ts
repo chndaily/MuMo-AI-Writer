@@ -30,8 +30,9 @@ export const useModelSelection = () => {
     
     // 转换默认模型为显示格式
     const defaultConfigs: DisplayModel[] = defaultModelList.map(model => ({
+      // 使用模型的ID，确保与数据库中的模型匹配
       id: model.id,
-      name: `${model.name} (默认)`,
+      name: `${model.name}`,
       provider: model.provider as LLMProvider,
       model: model.name,
       isDefault: true

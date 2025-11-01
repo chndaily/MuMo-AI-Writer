@@ -131,9 +131,16 @@ const BookSelector = forwardRef<BookSelectorRef, BookSelectorProps>(({
     );
   }
 
+  // 获取选中小说的标题
+  const getSelectedNovelTitle = () => {
+    if (!selectedNovelId) return placeholder;
+    const novel = novels.find(n => n.id === selectedNovelId);
+    return novel ? novel.title : selectedNovelId;
+  };
+
   return (
     <Select
-      value={selectedNovelId}
+      value={selectedNovelId || undefined}
       placeholder={placeholder}
       onChange={handleSelect}
       onClear={allowClear ? handleClear : undefined}
@@ -142,6 +149,7 @@ const BookSelector = forwardRef<BookSelectorRef, BookSelectorProps>(({
       style={{ width: '100%', ...style }}
       suffixIcon={<BookOutlined />}
       showSearch
+      optionLabelProp="label"
       filterOption={(input, option) => {
         // 直接使用option的value来查找小说并比较标题
         const novel = novels.find(n => n.id === option?.value);
@@ -149,7 +157,11 @@ const BookSelector = forwardRef<BookSelectorRef, BookSelectorProps>(({
       }}
     >
       {novels.map(novel => (
-        <Option key={novel.id} value={novel.id}>
+        <Option 
+          key={novel.id} 
+          value={novel.id}
+          label={novel.title}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{novel.title}</span>
             <span style={{ fontSize: '12px', color: '#999' }}>
