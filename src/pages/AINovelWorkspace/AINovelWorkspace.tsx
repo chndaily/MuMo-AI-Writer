@@ -645,9 +645,20 @@ ${existingOutlineText || '暂无'}
 
 请基于以上信息生成新的大纲内容：
 ${prompt}`;
+      } else if (targetNovel) {
+        // 对于其他类型的生成，添加小说信息和大纲上下文
+        try {
+          // 使用增强的特定指导功能，该功能会自动包含大纲信息
+          const enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id);
+          
+          // 构建包含上下文的完整提示词
+          fullPrompt = `${prompt}\n\n${enhancedGuidance}`;
+        } catch (error) {
+          console.error('获取增强指导失败:', error);
+          // 如果获取增强指导失败，使用基本的系统提示词
+          fullPrompt = prompt;
+        }
       }
-      
-      // 对于其他类型，可以添加类似的上下文处理逻辑
       
       console.log('开始AI生成，配置:', config, '提示词:', fullPrompt);
       

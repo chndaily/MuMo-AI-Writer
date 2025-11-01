@@ -32,6 +32,11 @@ export class TechnologySyncService {
       let syncedCount = 0;
       let updatedCount = 0;
       let createdCount = 0;
+      let modifiedTechnologies: any[] = []; // 记录真正有修改的科技设定
+      
+      // 获取现有的科技设定列表
+      const existingTechnologies = await hybridStorageService.getWorldElements('technology', novelId);
+      console.log('获取到的现有科技设定数量:', existingTechnologies.length);
       
       // 为每个科技设定创建世界观元素对象并保存
       for (const techData of technologies) {
@@ -56,15 +61,25 @@ export class TechnologySyncService {
           let shouldCreateNew = true; // 默认创建新条目
           
           try {
-            const existingElements = await hybridStorageService.getWorldElements('technology', novelId);
             // 首先尝试按名称匹配
             if (techData && techData.name) {
-              existingElement = existingElements.find((el: any) => el && el.name === techData.name);
+              existingElement = existingTechnologies.find((el: any) => el && el.name === techData.name);
             }
             
             if (existingElement) {
-              // 找到同名设定，更新它
+              // 找到同名设定，检查是否有实际变更
+              console.log('找到同名科技设定:', existingElement.name);
               shouldCreateNew = false;
+              
+              // 检查科技设定数据是否有实际变更
+              const hasChanges = this.hasTechnologyChanges(existingElement, techData, details);
+              if (!hasChanges) {
+                console.log(`科技设定 ${techData.name} 没有变化，跳过更新`);
+                continue;
+              }
+              
+              // 记录有修改的科技设定
+              modifiedTechnologies.push(techData.name);
             } else if (techData && techData.tags && techData.tags.length > 0) {
               // 如果没有找到同名设定，尝试按标签匹配
               const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(techData.tags, 'technology', novelId);
@@ -72,7 +87,18 @@ export class TechnologySyncService {
               if (elementsWithTags.length > 0) {
                 // 使用第一个匹配的元素进行更新
                 existingElement = elementsWithTags[0];
+                console.log('按标签匹配到科技设定:', existingElement.name);
                 shouldCreateNew = false;
+                
+                // 检查科技设定数据是否有实际变更
+                const hasChanges = this.hasTechnologyChanges(existingElement, techData, details);
+                if (!hasChanges) {
+                  console.log(`科技设定 ${techData.name} 没有变化，跳过更新`);
+                  continue;
+                }
+                
+                // 记录有修改的科技设定
+                modifiedTechnologies.push(techData.name);
               }
             }
           } catch (error) {
@@ -121,10 +147,10 @@ export class TechnologySyncService {
 
       console.log(`科技设定同步完成，共同步 ${syncedCount} 个设定（创建 ${createdCount} 个，更新 ${updatedCount} 个）`);
       
-      // 如果有更新操作，触发替换内容事件
-      if (updatedCount > 0) {
+      // 如果有更新操作且有实际修改的科技设定，触发替换内容事件
+      if (updatedCount > 0 && modifiedTechnologies.length > 0) {
         // 触发世界设定替换事件，用于通知相关组件显示替换警告
-        eventBus.emit('worldSettingReplaced', { novelId, type: 'technology', updatedCount });
+        eventBus.emit('worldSettingReplaced', { novelId, type: 'technology', updatedCount, modifiedTechnologies });
       }
       
       return {
@@ -140,6 +166,50 @@ export class TechnologySyncService {
         errors: [String(error)],
       }
     }
+  }
+  
+  /**
+   * 检查科技设定数据是否有实际变更
+   */
+  private hasTechnologyChanges(existing: any, newData: any, newDetails: any): boolean {
+    // 检查基本字段是否有变化
+    const basicFields = [
+      'name', 'description', 'level', 'applications', 'limitations', 'impact', 'details'
+    ];
+    
+    for (const field of basicFields) {
+      const existingValue = existing[field];
+      const newValue = newData[field] || newDetails[field] || '';
+      
+      if (existingValue !== newValue) {
+        console.log(`科技设定字段 ${field} 有变化: ${existingValue} -> ${newValue}`);
+        return true;
+      }
+    }
+    
+    // 检查标签是否有变化
+    const tagFields = ['tags'];
+    for (const field of tagFields) {
+      const existingTags = existing[field] || [];
+      const newTags = newData[field] || [];
+      
+      // 比较标签数组是否相等
+      if (existingTags.length !== newTags.length) {
+        console.log(`科技设定标签字段 ${field} 数量有变化: ${existingTags.length} -> ${newTags.length}`);
+        return true;
+      }
+      
+      // 检查标签内容是否完全相同
+      const existingSet = new Set(existingTags);
+      const newSet = new Set(newTags);
+      if (existingTags.some((tag: string) => !newSet.has(tag)) || newTags.some((tag: string) => !existingSet.has(tag))) {
+        console.log(`科技设定标签字段 ${field} 内容有变化`);
+        return true;
+      }
+    }
+    
+    // 如果所有字段都相同，则没有变化
+    return false;
   }
 
   /**

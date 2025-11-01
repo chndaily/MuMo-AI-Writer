@@ -232,7 +232,17 @@ export class CharacterParserService {
                 'complexsupporting': 'complexSupporting',
                 'complex supporting': 'complexSupporting'
               };
-              character.role = roleMap[roleValue] || 'supporting';
+              
+              // 首先尝试精确匹配
+              if (roleMap[roleValue]) {
+                character.role = roleMap[roleValue];
+              } else {
+                // 如果没有精确匹配，使用自定义类型
+                character.role = 'custom';
+                // 将原始角色类型存储在自定义字段中
+                character.customRole = roleValue;
+              }
+
             } else if (trimmedLine.includes('标签')) {
               // 统一使用 extractTagsFromAIContent 和 normalizeTags 处理标签
               const tagsStr = this.extractValue(trimmedLine);
@@ -556,6 +566,159 @@ export class CharacterParserService {
     
     console.log('解析到的单个角色数据:', character);
     return character;
+  }
+
+  /**
+   * 解析角色类型
+   * @param roleText 角色类型文本
+   * @returns 标准化的角色类型
+   */
+  private parseRole(roleText: string): string {
+    if (!roleText) return 'supporting';
+    
+    // 转换为小写并去除首尾空格
+    const normalizedRole = roleText.toLowerCase().trim();
+    
+    // 定义角色类型映射
+    const roleMap: Record<string, string> = {
+      // 主角相关
+      '主角': 'protagonist',
+      '主人公': 'protagonist',
+      '主要角色': 'protagonist',
+      'protagonist': 'protagonist',
+      'main character': 'protagonist',
+      '主角（核心推动者）': 'protagonist',
+      '主角（关键人物）': 'protagonist',
+      
+      // 反派相关
+      '反派': 'antagonist',
+      '反角': 'antagonist',
+      '敌对角色': 'antagonist',
+      'antagonist': 'antagonist',
+      'villain': 'antagonist',
+      '反派（主要对手）': 'antagonist',
+      '反派（核心敌对者）': 'antagonist',
+      
+      // 配角相关
+      '配角': 'supporting',
+      '重要配角': 'supporting',
+      'supporting': 'supporting',
+      'supporting character': 'supporting',
+      '配角（关键支持者）': 'supporting',
+      '配角（重要辅助者）': 'supporting',
+      '配角（医疗线核心成员）': 'supporting',
+      '配角（情报线关键人物）': 'supporting',
+      '配角（情感线推动者）': 'supporting',
+      
+      // 次要角色相关
+      '次要角色': 'minor',
+      'minor': 'minor',
+      'minor character': 'minor',
+      '次要': 'minor',
+      '次要角色（背景人物）': 'minor',
+      '次要角色（临时出现）': 'minor',
+      
+      // 侧面角色相关
+      '侧面角色': 'side',
+      'side': 'side',
+      'side character': 'side',
+      '侧面角色（辅助视角）': 'side',
+      
+      // 对照角色相关
+      '对照角色': 'foil',
+      'foil': 'foil',
+      'foil character': 'foil',
+      '对照角色（对比人物）': 'foil',
+      
+      // 导师角色相关
+      '导师角色': 'mentor',
+      '老师': 'mentor',
+      'mentor': 'mentor',
+      'teacher': 'mentor',
+      '导师': 'mentor',
+      '导师（指导者）': 'mentor',
+      
+      // 恋爱对象相关
+      '恋爱对象': 'loveInterest',
+      '恋人': 'loveInterest',
+      'loveinterest': 'loveInterest',
+      'love interest': 'loveInterest',
+      '恋爱对象（情感线核心）': 'loveInterest',
+      
+      // 竞争对手相关
+      '竞争对手': 'rival',
+      '对手': 'rival',
+      'rival': 'rival',
+      'competitor': 'rival',
+      '竞争对手（敌对关系）': 'rival',
+      
+      // 中立角色相关
+      '中立角色': 'neutral',
+      '中立': 'neutral',
+      'neutral': 'neutral',
+      'neutral character': 'neutral',
+      '中立角色（第三方）': 'neutral',
+      
+      // 重要配角相关
+      'keysupporting': 'keySupporting',
+      'key supporting': 'keySupporting',
+      '重要配角（核心辅助）': 'keySupporting',
+      
+      // 次要配角相关
+      'minorsupporting': 'minorSupporting',
+      'minor supporting': 'minorSupporting',
+      '次要配角（背景辅助）': 'minorSupporting',
+      
+      // 复杂配角相关
+      '复杂配角': 'complexSupporting',
+      'complexsupporting': 'complexSupporting',
+      'complex supporting': 'complexSupporting',
+      '复杂配角（多面性）': 'complexSupporting'
+    };
+    
+    // 首先尝试精确匹配
+    if (roleMap[normalizedRole]) {
+      return roleMap[normalizedRole];
+    }
+    
+    // 如果没有精确匹配，尝试模糊匹配
+    // 检查是否包含主角关键词
+    if (normalizedRole.includes('主角') || normalizedRole.includes('主人公') || normalizedRole.includes('主要')) {
+      return 'protagonist';
+    }
+    
+    // 检查是否包含反派关键词
+    if (normalizedRole.includes('反派') || normalizedRole.includes('反角') || normalizedRole.includes('敌对') || normalizedRole.includes(' villain') || normalizedRole.includes(' antagonist')) {
+      return 'antagonist';
+    }
+    
+    // 检查是否包含配角关键词
+    if (normalizedRole.includes('配角') || normalizedRole.includes('supporting')) {
+      return 'supporting';
+    }
+    
+    // 检查是否包含次要角色关键词
+    if (normalizedRole.includes('次要') || normalizedRole.includes('minor')) {
+      return 'minor';
+    }
+    
+    // 检查是否包含导师关键词
+    if (normalizedRole.includes('导师') || normalizedRole.includes('老师') || normalizedRole.includes('mentor') || normalizedRole.includes(' teacher')) {
+      return 'mentor';
+    }
+    
+    // 检查是否包含恋爱对象关键词
+    if (normalizedRole.includes('恋人') || normalizedRole.includes('恋爱') || normalizedRole.includes('love')) {
+      return 'loveInterest';
+    }
+    
+    // 检查是否包含竞争对手关键词
+    if (normalizedRole.includes('对手') || normalizedRole.includes('竞争') || normalizedRole.includes('rival') || normalizedRole.includes(' competitor')) {
+      return 'rival';
+    }
+    
+    // 默认返回配角
+    return 'supporting';
   }
 
   /**

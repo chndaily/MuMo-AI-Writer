@@ -178,10 +178,10 @@ class AIService {
       content += '5. 保持角色发展的一致性\n\n';
     }
     
-    // 对于超长大纲（30000字以上），添加特殊处理提示
-    if (maxLength > 30000) {
+    // 对于超长大纲（18000字以上），添加特殊处理提示
+    if (maxLength > 18000) {
       content += '## 超长大纲处理建议\n\n';
-      content += '对于超过30000字的超长大纲，请注意以下要点：\n';
+      content += '对于超过18000字的超长大纲，请注意以下要点：\n';
       content += '1. 采用分卷分章节的层级结构管理\n';
       content += '2. 每卷控制在5-8个章节以内\n';
       content += '3. 使用摘要方式管理各章节内容\n';
@@ -211,193 +211,55 @@ class AIService {
 
   // 分析内容
   async analyzeContent(content: string): Promise<AIAnalysisResult> {
-    try {
-      // 模拟分析过程
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      return {
-        emotion: {
-          current: '紧张',
-          trend: 'rising',
-          intensity: 0.8,
-        },
-        pacing: {
-          current: 'medium',
-          density: 0.6,
-          suggestions: [
-            '可以增加更多动作描写来提升节奏',
-            '建议在关键转折点增加悬念',
-          ],
-        },
-        consistency: {
-          score: 0.85,
-          issues: [
-            {
-              type: 'character',
-              description: '角色查理的行为与之前设定略有偏差',
-              severity: 'low',
-              suggestion: '建议调整对话风格以保持一致性',
-            },
-          ],
-        },
-        quality: {
-          score: 0.78,
-          aspects: {
-            creativity: 0.8,
-            coherence: 0.75,
-            engagement: 0.82,
-            originality: 0.7,
-          },
-        },
+    // 模拟内容分析（实际项目中这里会调用真实的AI分析API）
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 返回模拟的分析结果
+    return {
+      emotion: {
+        current: 'neutral',
+        trend: 'stable',
+        intensity: 0.5
+      },
+      pacing: {
+        current: 'medium',
+        density: 0.7,
+        suggestions: ['可以适当增加情节起伏', '注意段落间的过渡']
+      },
+      consistency: {
+        score: 85,
+        issues: [
+          {
+            type: 'character',
+            description: '角色行为在某些场景中略显不一致',
+            severity: 'medium',
+            suggestion: '建议回顾角色设定，确保行为符合角色性格'
+          }
+        ]
+      },
+      quality: {
+        score: 88,
+        aspects: {
+          creativity: 90,
+          coherence: 85,
+          engagement: 87,
+          originality: 82
+        }
       }
-    } catch (error) {
-      console.error('内容分析失败:', error)
-      throw new Error('分析服务暂时不可用')
-    }
-  }
-
-  // 生成平行宇宙版本
-  async generateParallelVersions(content: string, count: number = 3): Promise<string[]> {
-    try {
-      await this.simulateAIGeneration({ mode: AIGenerationMode.PLOT, content })
-      
-      return [
-        '喜剧版本：轻松幽默的情节发展，充满欢声笑语...',
-        '悲剧版本：深沉悲壮的情感走向，令人深思...',
-        '悬疑版本：紧张刺激的推理过程，扣人心弦...',
-      ]
-    } catch (error) {
-      console.error('平行宇宙生成失败:', error)
-      return []
-    }
-  }
-
-  // 智能纠偏
-  async detectInconsistencies(content: string): Promise<Array<{
-    type: string
-    description: string
-    suggestion: string
-    severity: 'low' | 'medium' | 'high'
-  }>> {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      return [
-        {
-          type: 'character',
-          description: '角色艾米的性格表现与设定不符',
-          suggestion: '建议调整对话内容以保持角色一致性',
-          severity: 'medium',
-        },
-        {
-          type: 'timeline',
-          description: '时间线存在逻辑矛盾',
-          suggestion: '请检查事件发生的先后顺序',
-          severity: 'high',
-        },
-      ]
-    } catch (error) {
-      console.error('纠偏检测失败:', error)
-      return []
-    }
-  }
-
-  // 生成角色对话
-  async generateDialogue(character: string, context: string, style: string): Promise<string> {
-    try {
-      await this.simulateAIGeneration({ 
-        mode: AIGenerationMode.DIALOGUE, 
-        content: context,
-        character,
-        style 
-      })
-      
-      return `"${character}说：${this.generateRandomDialogue(character, style)}"`
-    } catch (error) {
-      console.error('对话生成失败:', error)
-      return ''
-    }
-  }
-
-  // 语义联想
-  async getSemanticSuggestions(keyword: string): Promise<string[]> {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      const suggestions: Record<string, string[]> = {
-        '查理举枪': ['动作描写', '紧张氛围', '对峙场景'],
-        '晚宴矛盾': ['冲突场景', '人物冲突', '社会矛盾'],
-        '雨夜追凶': ['氛围营造', '悬疑元素', '环境描写'],
-        '实验室': ['科技感', '神秘氛围', '专业环境'],
-        '警局': ['权威感', '紧张氛围', '工作环境'],
-      }
-      
-      return suggestions[keyword] || ['智能联想', '创意建议', '写作提示']
-    } catch (error) {
-      console.error('语义联想失败:', error)
-      return []
-    }
+    };
   }
 
   // 模拟AI生成过程
   private async simulateAIGeneration(params: AIGenerationParams): Promise<void> {
-    // 根据内容长度调整延迟，更长的内容需要更多时间生成
-    let baseDelay = 1000;
-    if (params.content && params.content.length > 1000) {
-      baseDelay = 2000;
-    }
-    if (params.content && params.content.length > 3000) {
-      baseDelay = 3000;
-    }
+    // 模拟AI生成的延迟，根据内容长度调整延迟时间
+    const baseDelay = 1000; // 基础延迟1秒
+    const lengthFactor = Math.min(params.maxLength || 1000, 10000) / 1000; // 长度因子
+    const totalDelay = baseDelay * lengthFactor;
     
-    const delay = Math.random() * 1000 + baseDelay;
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-
-  // 生成随机对话
-  private generateRandomDialogue(character: string, style: string): string {
-    const dialogues: Record<string, string[]> = {
-      '查理': [
-        '冷静地分析着眼前的线索。',
-        '用沉稳的声音说道："我们需要更多证据。"',
-        '皱着眉头思考着案件的疑点。',
-      ],
-      '艾米': [
-        '兴奋地挥舞着手臂："我发现了！"',
-        '用充满活力的语调解释着实验结果。',
-        '好奇地凑近观察着新发现。',
-      ],
-    }
-    
-    const characterDialogues = dialogues[character] || ['说道："这很有趣。"']
-    return characterDialogues[Math.floor(Math.random() * characterDialogues.length)]
-  }
-
-  // 获取写作风格预设
-  getStylePresets() {
-    return [
-      { value: 'default', label: '默认风格', description: '平衡的叙述风格' },
-      { value: 'jin_yong', label: '金庸武侠体', description: '古典武侠风格' },
-      { value: 'cyberpunk', label: '赛博朋克风', description: '未来科技风格' },
-      { value: 'romance', label: '言情细腻', description: '情感细腻描写' },
-      { value: 'thriller', label: '悬疑紧张', description: '紧张刺激节奏' },
-      { value: 'comedy', label: '喜剧幽默', description: '轻松幽默风格' },
-      { value: 'tragedy', label: '悲剧深沉', description: '深沉悲壮风格' },
-      { value: 'poetic', label: '诗意优美', description: '优美诗意风格' },
-    ]
-  }
-
-  // 获取环境音效
-  getEnvironmentSounds() {
-    return [
-      { name: '雨声', file: 'rain.mp3', description: '营造忧郁氛围' },
-      { name: '酒馆嘈杂', file: 'tavern.mp3', description: '营造热闹氛围' },
-      { name: '森林鸟鸣', file: 'forest.mp3', description: '营造自然氛围' },
-      { name: '城市喧嚣', file: 'city.mp3', description: '营造都市氛围' },
-      { name: '海浪声', file: 'ocean.mp3', description: '营造宁静氛围' },
-    ]
+    return new Promise(resolve => setTimeout(resolve, totalDelay));
   }
 }
 
-export const aiService = new AIService()
+// 创建AI服务实例
+export const aiService = new AIService();
 export default aiService 

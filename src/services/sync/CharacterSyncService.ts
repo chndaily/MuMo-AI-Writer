@@ -43,11 +43,16 @@ export class CharacterSyncService {
       let syncedCount = 0;
       let updatedCount = 0;
       let createdCount = 0;
+      let modifiedCharacters: any[] = []; // 记录真正有修改的角色
       
       console.log('解析到的角色数组:', characters);
       
       // 确保characters是数组
       const charactersArray = Array.isArray(characters) ? characters : [characters].filter(Boolean);
+      
+      // 获取现有的角色列表
+      const existingCharacters = await hybridStorageService.getWorldElements('character', novelId);
+      console.log('获取到的现有角色数量:', existingCharacters.length);
       
       // 为每个角色创建或更新角色对象并保存
       for (const characterData of charactersArray) {
@@ -74,17 +79,25 @@ export class CharacterSyncService {
           let shouldCreateNew = true; // 默认创建新条目
           
           try {
-            const existingElements = await hybridStorageService.getWorldElements('character', novelId);
-            console.log('获取到的现有角色:', existingElements?.length || 0);
             // 首先尝试按名称匹配
             if (characterData && characterData.name) {
-              existingElement = existingElements.find((el: any) => el && el.name === characterData.name);
+              existingElement = existingCharacters.find((el: any) => el && el.name === characterData.name);
             }
             
             if (existingElement) {
-              // 找到同名角色，更新它
+              // 找到同名角色，检查是否有实际变更
               console.log('找到同名角色:', existingElement.name);
               shouldCreateNew = false;
+              
+              // 检查角色数据是否有实际变更
+              const hasChanges = this.hasCharacterChanges(existingElement, characterData);
+              if (!hasChanges) {
+                console.log(`角色 ${characterData.name} 没有变化，跳过更新`);
+                continue;
+              }
+              
+              // 记录有修改的角色
+              modifiedCharacters.push(characterData.name);
             } else if (characterData && characterData.tags && characterData.tags.length > 0) {
               // 如果没有找到同名角色，尝试按标签匹配
               const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(characterData.tags, 'character', novelId);
@@ -94,6 +107,16 @@ export class CharacterSyncService {
                 existingElement = elementsWithTags[0];
                 console.log('按标签匹配到角色:', existingElement.name);
                 shouldCreateNew = false;
+                
+                // 检查角色数据是否有实际变更
+                const hasChanges = this.hasCharacterChanges(existingElement, characterData);
+                if (!hasChanges) {
+                  console.log(`角色 ${characterData.name} 没有变化，跳过更新`);
+                  continue;
+                }
+                
+                // 记录有修改的角色
+                modifiedCharacters.push(characterData.name);
               }
             }
           } catch (error) {
@@ -170,10 +193,10 @@ export class CharacterSyncService {
       // 添加一个小延迟确保数据完全写入
       await new Promise(resolve => setTimeout(resolve, 200));
       
-      // 如果有更新操作，触发替换内容事件
-      if (updatedCount > 0) {
+      // 如果有更新操作且有实际修改的角色，触发替换内容事件
+      if (updatedCount > 0 && modifiedCharacters.length > 0) {
         // 触发世界设定替换事件，用于通知相关组件显示替换警告
-        eventBus.emit('worldSettingReplaced', { novelId, type: 'character', updatedCount });
+        eventBus.emit('worldSettingReplaced', { novelId, type: 'character', updatedCount, modifiedCharacters });
       }
       
       return {
@@ -189,6 +212,44 @@ export class CharacterSyncService {
         errors: [String(error)],
       }
     }
+  }
+  
+  /**
+   * 检查角色数据是否有实际变更
+   */
+  private hasCharacterChanges(existing: any, newData: any): boolean {
+    // 检查基本字段是否有变化
+    const basicFields = ['name', 'description', 'role', 'appearance', 'personality', 'background', 'abilities', 'relationships', 'characterArc', 'details'];
+    for (const field of basicFields) {
+      if (existing[field] !== newData[field]) {
+        console.log(`角色字段 ${field} 有变化: ${existing[field]} -> ${newData[field]}`);
+        return true;
+      }
+    }
+    
+    // 检查标签是否有变化
+    const tagFields = ['tags', 'professionTags', 'personalityTags', 'functionTags'];
+    for (const field of tagFields) {
+      const existingTags = existing[field] || [];
+      const newTags = newData[field] || [];
+      
+      // 比较标签数组是否相等
+      if (existingTags.length !== newTags.length) {
+        console.log(`角色标签字段 ${field} 数量有变化: ${existingTags.length} -> ${newTags.length}`);
+        return true;
+      }
+      
+      // 检查标签内容是否完全相同
+      const existingSet = new Set(existingTags);
+      const newSet = new Set(newTags);
+      if (existingTags.some((tag: string) => !newSet.has(tag)) || newTags.some((tag: string) => !existingSet.has(tag))) {
+        console.log(`角色标签字段 ${field} 内容有变化`);
+        return true;
+      }
+    }
+    
+    // 如果所有字段都相同，则没有变化
+    return false;
   }
 }
 

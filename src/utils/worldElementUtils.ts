@@ -1,5 +1,7 @@
 import { Novel, Character, Location } from '#/novel'
 import { hybridStorageService } from '@/services/hybridStorageService'
+import { isSuperLargeOutline } from '@/utils/superLargeOutlineHandler'
+import { getSuperLargeOutlineStructureSummary } from '@/utils/superLargeOutlineHandler'
 
 /**
  * 获取已有元素信息，用于增强AI生成内容的关联性
@@ -31,51 +33,71 @@ export async function getExistingElementsInfo(novelId: string): Promise<string> 
 
     // 添加大纲信息（作为主要上下文）- 优化处理长大纲
     if (outlines && outlines.length > 0) {
-      elementsInfo += '【小说大纲信息】\n'
-      // 按照层级结构组织大纲信息
-      const mainOutlines = outlines.filter(outline => outline.type === 'main')
-      const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
+      // 计算大纲总字数
+      const totalWordCount = outlines.reduce((sum, outline) => sum + (outline.content?.length || 0), 0);
       
-      // 限制主卷数量和内容长度，避免信息过载
-      const maxMainOutlines = Math.min(mainOutlines.length, 5); // 最多显示5个主卷
-      for (let i = 0; i < maxMainOutlines; i++) {
-        const mainOutline = mainOutlines[i];
-        elementsInfo += `卷：${mainOutline.title}\n`
-        // 只添加关键的大纲信息，避免过长
-        if (mainOutline.content) {
-          // 如果内容过长，只显示前200个字符并添加省略号
-          const displayContent = mainOutline.content.length <= 200 
-            ? mainOutline.content 
-            : mainOutline.content.substring(0, 197) + '...'
-          elementsInfo += `卷描述：${displayContent}\n`
+      // 检查是否为超长大纲
+      if (isSuperLargeOutline(totalWordCount)) {
+        // 对于超长大纲，使用结构摘要而不是详细内容
+        elementsInfo += '【小说大纲信息 - 超长大纲模式】\n'
+        elementsInfo += '注意：检测到大纲超长（超过18000字），以下为大纲结构摘要\n\n'
+        
+        // 获取超长大纲结构摘要
+        try {
+          const superLargeSummary = await getSuperLargeOutlineStructureSummary(novelId);
+          elementsInfo += superLargeSummary + '\n';
+        } catch (error) {
+          console.error('获取超长大纲摘要失败:', error);
+          elementsInfo += '获取超长大纲摘要失败\n\n';
+        }
+      } else {
+        // 对于普通大纲，使用原有处理方式
+        elementsInfo += '【小说大纲信息】\n'
+        // 按照层级结构组织大纲信息
+        const mainOutlines = outlines.filter(outline => outline.type === 'main')
+        const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
+        
+        // 限制主卷数量和内容长度，避免信息过载
+        const maxMainOutlines = Math.min(mainOutlines.length, 5); // 最多显示5个主卷
+        for (let i = 0; i < maxMainOutlines; i++) {
+          const mainOutline = mainOutlines[i];
+          elementsInfo += `卷：${mainOutline.title}\n`
+          // 只添加关键的大纲信息，避免过长
+          if (mainOutline.content) {
+            // 如果内容过长，只显示前200个字符并添加省略号
+            const displayContent = mainOutline.content.length <= 200 
+              ? mainOutline.content 
+              : mainOutline.content.substring(0, 197) + '...'
+            elementsInfo += `卷描述：${displayContent}\n`
+          }
+          
+          // 添加该卷下的章节信息（仅标题和关键摘要）
+          const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
+          // 限制每卷显示的章节数量
+          const maxChaptersToShow = Math.min(chaptersInThisAct.length, 10); // 每卷最多显示10个章节
+          if (maxChaptersToShow > 0) {
+            elementsInfo += '  章节：'
+            for (let j = 0; j < maxChaptersToShow; j++) {
+              const chapter = chaptersInThisAct[j];
+              elementsInfo += `${chapter.title}${j < maxChaptersToShow - 1 ? '、' : ''}`
+            }
+            elementsInfo += '\n'
+          }
         }
         
-        // 添加该卷下的章节信息（仅标题和关键摘要）
-        const chaptersInThisAct = chapterOutlines.filter(chapter => chapter.parentId === mainOutline.id)
-        // 限制每卷显示的章节数量
-        const maxChaptersToShow = Math.min(chaptersInThisAct.length, 10); // 每卷最多显示10个章节
-        if (maxChaptersToShow > 0) {
-          elementsInfo += '  章节：'
-          for (let j = 0; j < maxChaptersToShow; j++) {
-            const chapter = chaptersInThisAct[j];
-            elementsInfo += `${chapter.title}${j < maxChaptersToShow - 1 ? '、' : ''}`
+        // 如果有未归属于任何卷的章节，单独列出（限制数量）
+        const unassignedChapters = chapterOutlines.filter(chapter => !chapter.parentId || !mainOutlines.some(act => act.id === chapter.parentId))
+        const maxUnassignedToShow = Math.min(unassignedChapters.length, 15); // 最多显示15个未分配章节
+        if (maxUnassignedToShow > 0) {
+          elementsInfo += '未归属于卷的章节：'
+          for (let i = 0; i < maxUnassignedToShow; i++) {
+            const chapter = unassignedChapters[i];
+            elementsInfo += `${chapter.title}${i < maxUnassignedToShow - 1 ? '、' : ''}`
           }
           elementsInfo += '\n'
         }
-      }
-      
-      // 如果有未归属于任何卷的章节，单独列出（限制数量）
-      const unassignedChapters = chapterOutlines.filter(chapter => !chapter.parentId || !mainOutlines.some(act => act.id === chapter.parentId))
-      const maxUnassignedToShow = Math.min(unassignedChapters.length, 15); // 最多显示15个未分配章节
-      if (maxUnassignedToShow > 0) {
-        elementsInfo += '未归属于卷的章节：'
-        for (let i = 0; i < maxUnassignedToShow; i++) {
-          const chapter = unassignedChapters[i];
-          elementsInfo += `${chapter.title}${i < maxUnassignedToShow - 1 ? '、' : ''}`
-        }
         elementsInfo += '\n'
       }
-      elementsInfo += '\n'
     }
 
     // 添加角色信息（仅名称和标签）- 增强格式以提高AI识别度
@@ -161,6 +183,12 @@ export async function getExistingElementsInfo(novelId: string): Promise<string> 
     return ''
   }
 }
+
+/**
+ * 获取已有元素信息，用于防止重复生成
+ * @param novelId 小说ID
+ * @returns 已有元素信息字符串
+ */
 
 /**
  * 获取大纲摘要信息，用于处理长大纲的情况
@@ -613,19 +641,22 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '【施法规则】\n' +
                 '施法条件：\n' +
                 '限制因素：\n' +
-                '施法代价：\n' +
-                '风险设定：\n' +
+                '消耗机制：\n' +
                 '【法术示例】\n' +
                 '基础法术：\n' +
+                '中级法术：\n' +
                 '高级法术：\n' +
+                '禁忌法术：\n' +
                 '【魔法物品】\n' +
-                '代表性物品：\n' +
+                '法器类型：\n' +
                 '制作方法：\n' +
+                '使用方式：\n' +
                 '【世界观关联】\n' +
                 '与科技的关系：\n' +
-                '与文化的关联：\n' +
+                '与文化的关系：\n' +
+                '与历史的关系：\n' +
+                '与其他元素的关系：\n' +
                 '【细节补充】\n' +
-                '---\n' +
                 '【魔法设定2：名称】\n' +
                 '---\n' +
                 '【基本信息】\n' +
@@ -642,17 +673,21 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '【施法规则】\n' +
                 '施法条件：\n' +
                 '限制因素：\n' +
-                '施法代价：\n' +
-                '风险设定：\n' +
+                '消耗机制：\n' +
                 '【法术示例】\n' +
                 '基础法术：\n' +
+                '中级法术：\n' +
                 '高级法术：\n' +
+                '禁忌法术：\n' +
                 '【魔法物品】\n' +
-                '代表性物品：\n' +
+                '法器类型：\n' +
                 '制作方法：\n' +
+                '使用方式：\n' +
                 '【世界观关联】\n' +
                 '与科技的关系：\n' +
-                '与文化的关联：\n' +
+                '与文化的关系：\n' +
+                '与历史的关系：\n' +
+                '与其他元素的关系：\n' +
                 '【细节补充】\n' +
                 '---\n' +
                 '生成的魔法设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
@@ -660,28 +695,31 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
     case 'history':
       guidance = '\n【生成要求】\n' +
                 '- 结合小说的世界观创建历史设定\n' +
-                '- 描述重要事件、历史时期、政治变迁\n' +
-                '- 包括战争冲突、文化交融、重要人物\n' +
-                '- 考虑历史对现在的影响和遗留\n' +
-                '- 体现历史的复杂性和深度\n' +
-                '- 与现有情节和角色相关联\n' +
-                '- 需详细描述各时期的特点和转变\n' +
+                '- 描述历史时期、重要事件、关键人物\n' +
+                '- 包括时间线、因果关系、影响后果\n' +
+                '- 考虑与其他历史事件的关联\n' +
+                '- 体现历史的独特性和深度\n' +
+                '- 与故事情节发展相关联\n' +
+                '- 增加时代背景、文化影响、关键人物、贡献、对后世的影响等内容\n' +
                 '- 请不要生成与【已有历史信息】中列出的历史重复的历史\n\n' +
+                '请按照以下结构生成历史设定：\n' +
                 '【历史设定1：名称】\n' +
                 '---\n' +
                 '【基本信息】\n' +
                 '【名称】：\n' +
-                '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝等\n' +
+                '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝、革命等\n' +
                 '【描述】：\n' +
                 '【时间线】\n' +
-                '重要时期：\n' +
-                '时间节点：\n' +
+                '起始时间：\n' +
+                '结束时间：\n' +
+                '重要时间节点：\n' +
                 '【重要事件】\n' +
-                '重大事件：\n' +
-                '影响：\n' +
-                '【历史人物】\n' +
-                '关键人物：\n' +
-                '贡献：\n' +
+                '事件1：\n' +
+                '事件2：\n' +
+                '事件3：\n' +
+                '【关键人物】\n' +
+                '人物1：\n' +
+                '人物2：\n' +
                 '【历史后果】\n' +
                 '对后世的影响：\n' +
                 '【细节补充】\n' +
@@ -690,17 +728,19 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '---\n' +
                 '【基本信息】\n' +
                 '【名称】：\n' +
-                '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝等\n' +
+                '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝、革命等\n' +
                 '【描述】：\n' +
                 '【时间线】\n' +
-                '重要时期：\n' +
-                '时间节点：\n' +
+                '起始时间：\n' +
+                '结束时间：\n' +
+                '重要时间节点：\n' +
                 '【重要事件】\n' +
-                '重大事件：\n' +
-                '影响：\n' +
-                '【历史人物】\n' +
-                '关键人物：\n' +
-                '贡献：\n' +
+                '事件1：\n' +
+                '事件2：\n' +
+                '事件3：\n' +
+                '【关键人物】\n' +
+                '人物1：\n' +
+                '人物2：\n' +
                 '【历史后果】\n' +
                 '对后世的影响：\n' +
                 '【细节补充】\n' +

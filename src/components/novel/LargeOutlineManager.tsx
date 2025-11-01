@@ -166,7 +166,7 @@ const LargeOutlineManager: React.FC<OutlineManagerProps> = ({ novelId }) => {
       {isLarge ? (
         <div>
           <Alert
-            message={isSuperLarge ? "检测到您的大纲超长（超过30000字）" : "检测到您的大纲较长"}
+            message={isSuperLarge ? "检测到您的大纲超长（超过18000字）" : "检测到您的大纲较长"}
             description={isSuperLarge ? 
               "为了提高系统性能和使用体验，我们已启用超长大纲管理模式，采用分层管理和摘要显示。" :
               "为了提高系统性能和使用体验，我们已启用长大纲管理模式。"}

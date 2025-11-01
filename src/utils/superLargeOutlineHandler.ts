@@ -1,6 +1,6 @@
 /**
  * 超长大纲处理工具
- * 专门用于处理超过一定长度的超长大纲信息（30000字以上），避免信息过载
+ * 专门用于处理超过一定长度的超长大纲信息（18000字以上），避免信息过载
  */
 
 import { hybridStorageService } from '@/services/hybridStorageService';
@@ -11,7 +11,7 @@ import { hybridStorageService } from '@/services/hybridStorageService';
  * @returns 是否为超长大纲
  */
 export function isSuperLargeOutline(wordCount: number): boolean {
-  return wordCount > 30000; // 超过30000字认为是超长大纲
+  return wordCount > 18000; // 超过18000字认为是超长大纲
 }
 
 /**

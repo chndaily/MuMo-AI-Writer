@@ -17,6 +17,7 @@ import { AIGenerationType, SyncOption, WorldSettingType, SyncResult } from '@/ty
 import { contentSyncService } from '@/services/contentSyncService'; // 导入新的内容同步服务
 import { optimizedDataSyncService } from '@/services/optimizedDataSyncService'; // 导入优化的数据同步服务
 import { outlineSyncService } from '@/services/outlineSyncService'; // 导入大纲同步服务
+import { worldSettingSyncService } from '@/services/worldSettingSyncService'; // 导入世界观设定同步服务
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -41,6 +42,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
   const [syncing, setSyncing] = useState(false);
   const [syncModalVisible, setSyncModalVisible] = useState(false);
   const [syncModeModalVisible, setSyncModeModalVisible] = useState(false); // 添加同步模式模态框状态
+  const [worldViewSyncModeModalVisible, setWorldViewSyncModeModalVisible] = useState(false); // 添加世界观设定同步模式模态框状态
   const [selectedSyncOption, setSelectedSyncOption] = useState<string>('');
   const [syncOptions, setSyncOptions] = useState<{
     overwrite?: boolean;
@@ -48,6 +50,12 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     settingType?: WorldSettingType;
   }>({});
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false); // 添加确认状态
+  const [replaceWarningInfo, setReplaceWarningInfo] = useState<{ // 添加替换警告信息状态
+    type: string;
+    typeName: string;
+    count: number;
+    names: string[];
+  } | null>(null);
 
   // 添加状态来存储解析后的内容和摘要
   const [parsedContent, setParsedContent] = useState<{ content: string; summary: string } | null>(null);
@@ -65,6 +73,25 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     }
   }, [content]);
 
+  // 添加事件监听器来处理替换警告
+  useEffect(() => {
+    const handleReplaceWarning = (event: CustomEvent) => {
+      const info = event.detail;
+      if (info.novelId === novel.id) {
+        setReplaceWarningInfo(info);
+        setShowReplaceConfirm(true);
+      }
+    };
+
+    // 添加事件监听器
+    window.addEventListener('worldSettingReplaceWarning', handleReplaceWarning as EventListener);
+
+    // 清理事件监听器
+    return () => {
+      window.removeEventListener('worldSettingReplaceWarning', handleReplaceWarning as EventListener);
+    };
+  }, [novel.id]);
+
   // 执行同步操作
   const performSync = useCallback(async (optionKey: string) => {
     if (!content || !novel.id) {
@@ -79,34 +106,13 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       
       switch (optionKey) {
         case 'character':
-          // 导入并使用角色同步服务
-          const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
-          result = await characterSyncService.syncCharacters(content, novel.id);
-          break;
         case 'location':
-          // 导入并使用地点同步服务
-          const { locationSyncService } = await import('@/services/sync/LocationSyncService');
-          result = await locationSyncService.syncLocations(content, novel.id);
-          break;
         case 'culture':
-          // 导入并使用文化同步服务
-          const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
-          result = await cultureSyncService.syncCultures(content, novel.id);
-          break;
         case 'technology':
-          // 导入并使用科技同步服务
-          const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
-          result = await technologySyncService.syncTechnologies(content, novel.id);
-          break;
         case 'magic':
-          // 导入并使用魔法同步服务
-          const { magicSyncService } = await import('@/services/sync/MagicSyncService');
-          result = await magicSyncService.syncMagics(content, novel.id);
-          break;
         case 'history':
-          // 导入并使用历史同步服务
-          const { historySyncService } = await import('@/services/sync/HistorySyncService');
-          result = await historySyncService.syncHistories(content, novel.id);
+          // 使用新的世界观设定同步服务，默认使用合并模式
+          result = await worldSettingSyncService.syncWorldSettings(content, novel.id, optionKey as WorldSettingType, { syncMode: 'merge' });
           break;
         case 'outline':
         case 'plot':
@@ -138,6 +144,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     } finally {
       setSyncing(false);
       setSyncModalVisible(false);
+      setWorldViewSyncModeModalVisible(false); // 关闭世界观设定同步模式对话框
     }
   }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
 
@@ -146,6 +153,9 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     if (optionKey === 'outline' || optionKey === 'plot') {
       // 显示智能同步选项模态框
       setSyncModeModalVisible(true);
+    } else if (['character', 'location', 'culture', 'technology', 'magic', 'history'].includes(optionKey)) {
+      // 对于世界观设定，显示同步模式选择对话框
+      setWorldViewSyncModeModalVisible(true);
     } else {
       // 对于其他类型，直接执行同步
       performSync(optionKey);
@@ -166,34 +176,13 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       
       switch (optionKey) {
         case 'character':
-          // 导入并使用角色同步服务
-          const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
-          result = await characterSyncService.syncCharacters(content, novel.id);
-          break;
         case 'location':
-          // 导入并使用地点同步服务
-          const { locationSyncService } = await import('@/services/sync/LocationSyncService');
-          result = await locationSyncService.syncLocations(content, novel.id);
-          break;
         case 'culture':
-          // 导入并使用文化同步服务
-          const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
-          result = await cultureSyncService.syncCultures(content, novel.id);
-          break;
         case 'technology':
-          // 导入并使用科技同步服务
-          const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
-          result = await technologySyncService.syncTechnologies(content, novel.id);
-          break;
         case 'magic':
-          // 导入并使用魔法同步服务
-          const { magicSyncService } = await import('@/services/sync/MagicSyncService');
-          result = await magicSyncService.syncMagics(content, novel.id);
-          break;
         case 'history':
-          // 导入并使用历史同步服务
-          const { historySyncService } = await import('@/services/sync/HistorySyncService');
-          result = await historySyncService.syncHistories(content, novel.id);
+          // 使用新的世界观设定同步服务
+          result = await worldSettingSyncService.syncWorldSettings(content, novel.id, optionKey as WorldSettingType, { syncMode });
           break;
         case 'outline':
         case 'plot':
@@ -225,16 +214,19 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     } finally {
       setSyncing(false);
       setSyncModeModalVisible(false);
+      setWorldViewSyncModeModalVisible(false); // 关闭世界观设定同步模式对话框
     }
   }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
 
   const handleConfirmReplace = () => {
     setShowReplaceConfirm(false);
-    performSync('optimize');
+    setReplaceWarningInfo(null);
+    performSync(selectedSyncOption);
   };
 
   const handleCancelReplace = () => {
     setShowReplaceConfirm(false);
+    setReplaceWarningInfo(null);
     setSelectedSyncOption('');
   };
 
@@ -440,9 +432,15 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
         cancelText="取消"
         okButtonProps={{ danger: true }}
       >
-        {['character', 'location', 'culture', 'technology', 'magic', 'history'].includes(generationType) ? (
+        {replaceWarningInfo ? (
           <>
-            <p>此操作将用新内容替换现有的{generationType === 'character' ? '角色' : generationType === 'location' ? '地点' : generationType === 'culture' ? '文化' : generationType === 'technology' ? '科技' : generationType === 'magic' ? '魔法' : '历史'}设定，原有内容将无法恢复。</p>
+            <p>此操作将用新内容替换现有的{replaceWarningInfo.typeName}设定，原有内容将无法恢复。</p>
+            <p>即将被替换的{replaceWarningInfo.typeName}包括：</p>
+            <ul>
+              {replaceWarningInfo.names.map((name, index) => (
+                <li key={index}>{name}</li>
+              ))}
+            </ul>
             <p>建议在替换前先备份当前设定。</p>
             <p>是否确认替换？</p>
           </>
@@ -475,6 +473,31 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
         <p>请选择大纲同步模式：</p>
         <ul>
           <li><strong>完全替换</strong>：删除现有大纲，用新内容完全替换</li>
+          <li><strong>智能合并</strong>：保留现有结构，只更新或添加新内容</li>
+        </ul>
+        <p>推荐使用<strong>智能合并</strong>模式，以保护您已有的创作内容。</p>
+      </Modal>
+      
+      {/* 世界观设定同步模式选择对话框 */}
+      <Modal
+        title="选择世界观设定同步模式"
+        open={worldViewSyncModeModalVisible}
+        onCancel={() => setWorldViewSyncModeModalVisible(false)}
+        footer={[
+          <Button key="replace" onClick={() => performSyncWithMode(selectedSyncOption, 'replace')}>
+            完全替换
+          </Button>,
+          <Button key="merge" type="primary" onClick={() => performSyncWithMode(selectedSyncOption, 'merge')}>
+            智能合并
+          </Button>,
+          <Button key="cancel" onClick={() => setWorldViewSyncModeModalVisible(false)}>
+            取消
+          </Button>
+        ]}
+      >
+        <p>请选择世界观设定同步模式：</p>
+        <ul>
+          <li><strong>完全替换</strong>：删除现有设定，用新内容完全替换</li>
           <li><strong>智能合并</strong>：保留现有结构，只更新或添加新内容</li>
         </ul>
         <p>推荐使用<strong>智能合并</strong>模式，以保护您已有的创作内容。</p>

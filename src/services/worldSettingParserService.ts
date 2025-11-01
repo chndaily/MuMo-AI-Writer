@@ -1346,56 +1346,142 @@ export class WorldSettingParserService {
               const roleValue = this.extractValue(trimmedLine).toLowerCase().trim();
               // 映射角色类型，增加更多匹配规则
               const roleMap: Record<string, any> = {
+                // 主角相关
                 '主角': 'protagonist',
                 '主人公': 'protagonist',
                 '主要角色': 'protagonist',
                 'protagonist': 'protagonist',
                 'main character': 'protagonist',
+                '主角（核心推动者）': 'protagonist',
+                '主角（关键人物）': 'protagonist',
+                
+                // 反派相关
                 '反派': 'antagonist',
                 '反角': 'antagonist',
                 '敌对角色': 'antagonist',
                 'antagonist': 'antagonist',
                 'villain': 'antagonist',
+                '反派（主要对手）': 'antagonist',
+                '反派（核心敌对者）': 'antagonist',
+                
+                // 配角相关
                 '配角': 'supporting',
                 '重要配角': 'supporting',
                 'supporting': 'supporting',
                 'supporting character': 'supporting',
+                '配角（关键支持者）': 'supporting',
+                '配角（重要辅助者）': 'supporting',
+                '配角（医疗线核心成员）': 'supporting',
+                '配角（情报线关键人物）': 'supporting',
+                '配角（情感线推动者）': 'supporting',
+                
+                // 次要角色相关
                 '次要角色': 'minor',
                 'minor': 'minor',
                 'minor character': 'minor',
                 '次要': 'minor',
+                '次要角色（背景人物）': 'minor',
+                '次要角色（临时出现）': 'minor',
+                
+                // 侧面角色相关
                 '侧面角色': 'side',
                 'side': 'side',
                 'side character': 'side',
+                '侧面角色（辅助视角）': 'side',
+                
+                // 对照角色相关
                 '对照角色': 'foil',
                 'foil': 'foil',
                 'foil character': 'foil',
+                '对照角色（对比人物）': 'foil',
+                
+                // 导师角色相关
                 '导师角色': 'mentor',
                 '老师': 'mentor',
                 'mentor': 'mentor',
                 'teacher': 'mentor',
                 '导师': 'mentor',
+                '导师（指导者）': 'mentor',
+                
+                // 恋爱对象相关
                 '恋爱对象': 'loveInterest',
                 '恋人': 'loveInterest',
                 'loveinterest': 'loveInterest',
                 'love interest': 'loveInterest',
+                '恋爱对象（情感线核心）': 'loveInterest',
+                
+                // 竞争对手相关
                 '竞争对手': 'rival',
                 '对手': 'rival',
                 'rival': 'rival',
                 'competitor': 'rival',
+                '竞争对手（敌对关系）': 'rival',
+                
+                // 中立角色相关
                 '中立角色': 'neutral',
                 '中立': 'neutral',
                 'neutral': 'neutral',
                 'neutral character': 'neutral',
+                '中立角色（第三方）': 'neutral',
+                
+                // 重要配角相关
                 'keysupporting': 'keySupporting',
                 'key supporting': 'keySupporting',
+                '重要配角（核心辅助）': 'keySupporting',
+                
+                // 次要配角相关
                 'minorsupporting': 'minorSupporting',
                 'minor supporting': 'minorSupporting',
+                '次要配角（背景辅助）': 'minorSupporting',
+                
+                // 复杂配角相关
                 '复杂配角': 'complexSupporting',
                 'complexsupporting': 'complexSupporting',
-                'complex supporting': 'complexSupporting'
+                'complex supporting': 'complexSupporting',
+                '复杂配角（多面性）': 'complexSupporting'
               };
-              character.role = roleMap[roleValue] || 'supporting';
+              
+              // 首先尝试精确匹配
+              if (roleMap[roleValue]) {
+                character.role = roleMap[roleValue];
+              } else {
+                // 如果没有精确匹配，尝试模糊匹配
+                // 检查是否包含主角关键词
+                if (roleValue.includes('主角') || roleValue.includes('主人公') || roleValue.includes('主要')) {
+                  character.role = 'protagonist';
+                }
+                // 检查是否包含反派关键词
+                else if (roleValue.includes('反派') || roleValue.includes('反角') || roleValue.includes('敌对') || roleValue.includes('villain') || roleValue.includes('antagonist')) {
+                  character.role = 'antagonist';
+                }
+                // 检查是否包含配角关键词
+                else if (roleValue.includes('配角') || roleValue.includes('supporting')) {
+                  character.role = 'supporting';
+                }
+                // 检查是否包含次要角色关键词
+                else if (roleValue.includes('次要') || roleValue.includes('minor')) {
+                  character.role = 'minor';
+                }
+                // 检查是否包含导师关键词
+                else if (roleValue.includes('导师') || roleValue.includes('老师') || roleValue.includes('mentor') || roleValue.includes('teacher')) {
+                  character.role = 'mentor';
+                }
+                // 检查是否包含恋爱对象关键词
+                else if (roleValue.includes('恋人') || roleValue.includes('恋爱') || roleValue.includes('love')) {
+                  character.role = 'loveInterest';
+                }
+                // 检查是否包含竞争对手关键词
+                else if (roleValue.includes('对手') || roleValue.includes('竞争') || roleValue.includes('rival') || roleValue.includes('competitor')) {
+                  character.role = 'rival';
+                }
+                // 默认使用自定义类型
+                else {
+                  character.role = 'custom';
+                  // 将原始角色类型存储在自定义字段中
+                  character.customRole = roleValue;
+                }
+              }
+
             } else if (trimmedLine.includes('标签')) {
               // 统一使用 extractTagsFromAIContent 和 normalizeTags 处理标签
               const tagsStr = this.extractValue(trimmedLine);

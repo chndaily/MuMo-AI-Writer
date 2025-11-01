@@ -44,8 +44,15 @@ export const characterConfig: Omit<WorldElementPanelProps, 'novelId' | 'aiSyncDa
         { value: 'neutral', label: '中立角色 (neutral)' },
         { value: 'keySupporting', label: '重要配角 (keySupporting)' },
         { value: 'minorSupporting', label: '次要配角 (minorSupporting)' },
-        { value: 'complexSupporting', label: '复杂配角 (complexSupporting)' }
+        { value: 'complexSupporting', label: '复杂配角 (complexSupporting)' },
+        { value: 'custom', label: '自定义类型' }
       ]
+    },
+    {
+      name: 'customRole',
+      label: '自定义角色类型',
+      type: 'input',
+      placeholder: '当选择"自定义类型"时，请在此输入具体的角色类型描述，如：配角（医疗线核心成员）'
     },
     {
       name: 'appearance',

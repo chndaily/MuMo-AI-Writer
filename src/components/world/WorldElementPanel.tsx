@@ -10,22 +10,62 @@ import {
   Popconfirm, 
   Tag,
   Typography,
-  Select
+  Select,
+  InputNumber,
+  Switch,
+  Divider,
+  List,
+  Avatar
 } from 'antd';
 import { 
   PlusOutlined, 
   EditOutlined, 
-  DeleteOutlined, 
-  ThunderboltOutlined
+  DeleteOutlined,
+  ThunderboltOutlined,
+  GlobalOutlined,
+  TeamOutlined,
+  EnvironmentOutlined,
+  SoundOutlined,
+  ApiOutlined,
+  BookOutlined,
+  ExperimentOutlined,
+  HistoryOutlined,
+  UserOutlined,
+  HomeOutlined,
+  ReadOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+  CloseOutlined,
+  CheckOutlined
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { hybridStorageService } from '@/services/hybridStorageService';
-import { generateUUID } from '@/utils/uuidUtils';
-import type { WorldSettingType } from '@/types/ai-generation';
+import { WorldSettingType } from '@/types/ai-generation';
+import { characterConfig } from './configs/characterConfig';
+import { locationConfig } from './configs/locationConfig';
+import { cultureConfig } from './configs/cultureConfig';
+import { technologyConfig } from './configs/technologyConfig';
+import { magicConfig } from './configs/magicConfig';
+import { historyConfig } from './configs/historyConfig';
+import CustomRoleManager from './CustomRoleManager';
+import { enhanceTypeSpecificGuidance } from '@/utils/worldElementUtils';
+import { useNavigate, useLocation } from 'react-router-dom';
 import worldSettingParserService from '@/services/worldSettingParserService';
 
-const { TextArea } = Input;
 const { Title, Text } = Typography;
+const { TextArea } = Input;
+
+// 生成UUID的函数
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 interface WorldElementBase {
   createdAt?: string;
@@ -44,7 +84,8 @@ interface WorldElement extends WorldElementBase {
   lastModified?: string;
   
   // 角色特有字段
-  role?: 'protagonist' | 'antagonist' | 'supporting' | 'minor' | 'side' | 'foil' | 'mentor' | 'loveInterest' | 'rival' | 'neutral';
+  role?: 'protagonist' | 'antagonist' | 'supporting' | 'minor' | 'side' | 'foil' | 'mentor' | 'loveInterest' | 'rival' | 'neutral' | 'keySupporting' | 'minorSupporting' | 'complexSupporting' | 'custom';
+  customRole?: string;  // 自定义角色类型
   appearance?: string;      // 外貌特征
   personality?: string;     // 性格特质
   background?: string;      // 背景故事
@@ -54,91 +95,48 @@ interface WorldElement extends WorldElementBase {
   details?: string;         // 细节补充
   
   // 地点特有字段
-  locationType?: string;   // 地点类型（旧字段，保留以兼容旧数据）
-  importance?: string;     // 重要性（旧字段，保留以兼容旧数据）
-  geography?: string;      // 地理位置
-  climate?: string;        // 气候特征
-  terrain?: string;        // 地形特征
-  naturalResources?: string; // 自然资源
-  ecosystem?: string;       // 生态环境
-  architecture?: string;    // 建筑风格
-  socialStructure?: string; // 社会结构
-  culture?: string;         // 文化特色
-  historyBackground?: string; // 历史背景
+  locationType?: string;    // 地点类型
+  importance?: string;      // 重要性
+  geography?: string;       // 地理环境
+  culture?: string;         // 文化背景
   politics?: string;        // 政治环境
-  governance?: string;      // 统治体系
-  laws?: string;            // 法律法规
   economy?: string;         // 经济状况
-  mainIndustries?: string;  // 主要产业
-  trade?: string;           // 贸易情况
-  wealth?: string;          // 财富水平
+  architecture?: string;    // 建筑特色
+  socialStructure?: string; // 社会结构
+  governance?: string;      // 治理体系
+  laws?: string;            // 法律法规
+  terrain?: string;         // 地形特征
+  naturalResources?: string; // 自然资源
+  ecosystem?: string;        // 生态系统
+  historyBackground?: string; // 历史背景
   
-  // 文化特有字段
-  customs?: string;         // 传统习俗
-  values?: string;          // 价值观念
-  art?: string;             // 艺术表现
-  religion?: string;        // 宗教信仰
-  language?: string;        // 语言文字
-  cultureInteraction?: string; // 文化互动
-  cultureConflicts?: string;   // 文化冲突
-  cultureFusions?: string;     // 文化融合
-  // 添加子项字段
-  festivals?: string;       // 主要节日（传统习俗的子项）
-  etiquette?: string;       // 礼仪规范（传统习俗的子项）
-  coreValues?: string;      // 核心价值（价值观念的子项）
-  moralStandards?: string;  // 道德标准（价值观念的子项）
-  literature?: string;      // 文学形式（艺术表现的子项）
-  musicDance?: string;      // 音乐舞蹈（艺术表现的子项）
-  visualArts?: string;      // 视觉艺术（艺术表现的子项）
-  mainBeliefs?: string;     // 主要信仰（宗教信仰的子项）
-  religiousRituals?: string; // 宗教仪式（宗教信仰的子项）
-  languageFeatures?: string; // 语言特点（语言文字的子项）
-  writingSystem?: string;   // 文字系统（语言文字的子项）
-  
-  // 科技特有字段
-  level?: string;           // 科技水平
-  applications?: string;    // 应用场景
-  limitations?: string;     // 使用限制
-  impact?: string;          // 社会影响
-  // 添加子项字段
-  developmentStage?: string; // 发展阶段（科技水平的子项）
-  coreTechnologies?: string; // 核心技术（科技水平的子项）
-  mainUses?: string;        // 主要用途（应用场景的子项）
-  applicationFields?: string; // 应用领域（应用场景的子项）
-  energyRequirements?: string; // 能源需求（使用限制的子项）
-  sideEffects?: string;     // 副作用（使用限制的子项）
-  
-  // 魔法特有字段
-  system?: string;          // 魔法系统
-  sources?: string;         // 能量源泉
-  rules?: string;           // 施法规则
-  spells?: string;          // 法术示例
-  artifacts?: string;       // 魔法物品
-  // 添加子项字段
-  systemFeatures?: string;  // 体系特点（魔法系统的子项）
-  practiceMethods?: string; // 修行方式（魔法系统的子项）
-  energySources?: string;   // 来源（能量源泉的子项）
-  acquisitionMethods?: string; // 获取方式（能量源泉的子项）
-  castingConditions?: string; // 施法条件（施法规则的子项）
-  limitingFactors?: string; // 限制因素（施法规则的子项）
-  basicSpells?: string;     // 基础法术（法术示例的子项）
-  advancedSpells?: string;  // 高级法术（法术示例的子项）
-  representativeItems?: string; // 代表性物品（魔法物品的子项）
-  craftingMethods?: string; // 制作方法（魔法物品的子项）
-  
-  // 历史特有字段
+  // 历史设定特有字段
   timeline?: string;        // 时间线
   events?: string;          // 重要事件
   figures?: string;         // 历史人物
   consequences?: string;    // 历史后果
-  // 添加子项字段
-  importantPeriods?: string; // 重要时期（时间线的子项）
-  timeNodes?: string;       // 时间节点（时间线的子项）
-  majorEvents?: string;     // 重大事件（重要事件的子项）
-  eventImpacts?: string;    // 影响（重要事件的子项）
-  keyFigures?: string;      // 关键人物（历史人物的子项）
-  contributions?: string;   // 贡献（历史人物的子项）
-  impactsOnLaterGenerations?: string; // 对后世的影响（历史后果的子项）
+  
+  // 科技设定特有字段
+  level?: string;           // 技术水平
+  applications?: string;    // 应用领域
+  limitations?: string;     // 使用限制
+  impact?: string;          // 社会影响
+  
+  // 文化设定特有字段
+  customs?: string;         // 风俗习惯
+  values?: string;          // 核心价值观
+  art?: string;             // 艺术形式
+  religion?: string;        // 宗教信仰
+  language?: string;        // 语言文字
+  cultureInteraction?: string; // 与其他文化的互动
+  
+  // 地点经济特有字段
+  mainIndustries?: string;  // 主要产业
+  
+  // 扩展标签系统支持
+  professionTags?: string[];  // 职业标签
+  personalityTags?: string[];  // 性格标签
+  functionTags?: string[];  // 功能标签
 }
 
 interface WorldElementPanelProps {
@@ -296,12 +294,13 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
 
   const handleAdd = () => {
     setEditingElement(null);
-    // 延迟重置表单字段，确保表单组件已挂载
-    setTimeout(() => {
-      form.resetFields();
-    }, 0);
+    form.resetFields();
     setModalVisible(true);
   };
+
+  // 用于强制更新组件的hook
+  const [, updateState] = React.useState<object>();
+  const forceUpdate = React.useCallback(() => updateState({}), []);
 
   const handleEdit = (element: WorldElement) => {
     setEditingElement(element);
@@ -326,7 +325,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
     if (type === 'location' && 
         description.includes('【地理环境】') && 
         description.includes('【文化背景】') &&
-        description.includes('【政治环境】') && 
+        description.includes('【政治环境】') &&
         description.includes('【经济状况】')) {
       // 这种情况下，描述包含了完整的地点设定内容，我们需要提取真正的描述部分
       // 查找【描述】字段的内容
@@ -641,6 +640,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
       } else if (type === 'character') {
         Object.assign(formData, {
           role: parsedData.role || 'supporting',
+          customRole: parsedData.customRole || '', // 添加自定义角色类型
           appearance: parsedData.appearance || '',
           personality: parsedData.personality || '',
           background: parsedData.background || '',
@@ -717,89 +717,8 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
           details: details
         });
       } else if (type === 'magic') {
-        Object.assign(formData, {
-          system: parsedData.system || '',
-          sources: parsedData.sources || '',
-          rules: parsedData.rules || '',
-          spells: parsedData.spells || '',
-          artifacts: parsedData.artifacts || '',
-          details: parsedData.details || ''
-        });
-      } else if (type === 'history') {
-        // 对于历史设定类型，清理时间线、重要事件、历史人物、历史后果和细节补充字段中的标签内容
-        let timeline = parsedData.timeline || '';
-        let events = parsedData.events || '';
-        let figures = parsedData.figures || '';
-        let consequences = parsedData.consequences || '';
+        // 对于魔法设定类型，清理细节补充字段中的标签内容
         let details = parsedData.details || '';
-        
-        // 清理时间线字段中的标签内容
-        if (timeline.includes('时间线：')) {
-          // 提取"时间线："之后的实际内容
-          const timelineLines = timeline.split('\n');
-          const cleanedTimelineLines = timelineLines.map(line => {
-            if (line.includes('时间线：')) {
-              const colonIndex = Math.max(line.indexOf('：'), line.indexOf(':'));
-              if (colonIndex > -1) {
-                return line.substring(colonIndex + 1).trim();
-              }
-            }
-            return line;
-          }).filter(line => line.trim() !== ''); // 过滤掉空行
-          
-          timeline = cleanedTimelineLines.join('\n');
-        }
-        
-        // 清理重要事件字段中的标签内容
-        if (events.includes('重要事件：')) {
-          // 提取"重要事件："之后的实际内容
-          const eventsLines = events.split('\n');
-          const cleanedEventsLines = eventsLines.map(line => {
-            if (line.includes('重要事件：')) {
-              const colonIndex = Math.max(line.indexOf('：'), line.indexOf(':'));
-              if (colonIndex > -1) {
-                return line.substring(colonIndex + 1).trim();
-              }
-            }
-            return line;
-          }).filter(line => line.trim() !== ''); // 过滤掉空行
-          
-          events = cleanedEventsLines.join('\n');
-        }
-        
-        // 清理历史人物字段中的标签内容
-        if (figures.includes('历史人物：')) {
-          // 提取"历史人物："之后的实际内容
-          const figuresLines = figures.split('\n');
-          const cleanedFiguresLines = figuresLines.map(line => {
-            if (line.includes('历史人物：')) {
-              const colonIndex = Math.max(line.indexOf('：'), line.indexOf(':'));
-              if (colonIndex > -1) {
-                return line.substring(colonIndex + 1).trim();
-              }
-            }
-            return line;
-          }).filter(line => line.trim() !== ''); // 过滤掉空行
-          
-          figures = cleanedFiguresLines.join('\n');
-        }
-        
-        // 清理历史后果字段中的标签内容
-        if (consequences.includes('历史后果：')) {
-          // 提取"历史后果："之后的实际内容
-          const consequencesLines = consequences.split('\n');
-          const cleanedConsequencesLines = consequencesLines.map(line => {
-            if (line.includes('历史后果：')) {
-              const colonIndex = Math.max(line.indexOf('：'), line.indexOf(':'));
-              if (colonIndex > -1) {
-                return line.substring(colonIndex + 1).trim();
-              }
-            }
-            return line;
-          }).filter(line => line.trim() !== ''); // 过滤掉空行
-          
-          consequences = cleanedConsequencesLines.join('\n');
-        }
         
         // 清理细节补充字段中的标签内容
         if (details.includes('细节补充：')) {
@@ -819,24 +738,50 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         }
         
         Object.assign(formData, {
-          timeline: timeline,
-          events: events,
-          figures: figures,
-          consequences: consequences,
+          level: parsedData.level || '',
+          applications: parsedData.applications || '',
+          limitations: parsedData.limitations || '',
+          impact: parsedData.impact || '',
+          details: details
+        });
+      } else if (type === 'history') {
+        // 对于历史设定类型，清理细节补充字段中的标签内容
+        let details = parsedData.details || '';
+        
+        // 清理细节补充字段中的标签内容
+        if (details.includes('细节补充：')) {
+          // 提取"细节补充："之后的实际内容
+          const detailsLines = details.split('\n');
+          const cleanedDetailsLines = detailsLines.map(line => {
+            if (line.includes('细节补充：')) {
+              const colonIndex = Math.max(line.indexOf('：'), line.indexOf(':'));
+              if (colonIndex > -1) {
+                return line.substring(colonIndex + 1).trim();
+              }
+            }
+            return line;
+          }).filter(line => line.trim() !== ''); // 过滤掉空行
+          
+          details = cleanedDetailsLines.join('\n');
+        }
+        
+        Object.assign(formData, {
+          timeline: parsedData.timeline || '',
+          events: parsedData.events || '',
+          figures: parsedData.figures || '',
+          consequences: parsedData.consequences || '',
           details: details
         });
       }
       
+      // 填充表单
+      form.setFieldsValue(formData);
       setModalVisible(true);
-      // 延迟设置表单字段值，确保表单组件已挂载
-      setTimeout(() => {
-        // 填充表单
-        form.setFieldsValue(formData);
-        message.success('AI内容已同步，请检查并保存');
-      }, 0);
+      
+      message.success('AI生成内容已同步到表单，请检查并保存');
     } catch (error) {
       console.error('处理AI同步数据失败:', error);
-      message.error('处理AI同步数据失败');
+      message.error('同步AI数据失败');
     }
   };
   
@@ -858,121 +803,103 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
 
   const handleSubmit = async (values: any) => {
     try {
-      // 为新元素生成ID（如果是编辑现有元素，则保留原有ID）
-      // 注意：对于新元素，我们不生成ID，让后端统一生成统一格式的ID
-      const elementId = editingElement?.id || undefined;
+      console.log(`开始保存${typeName}设定:`, values);
       
-      // 处理标签数据，确保正确解析标签
-      let tags: string[] = [];
-      if (values.tags) {
-        // 支持多种分隔符：逗号、顿号、中文顿号
-        tags = values.tags.split(/[,，、]/).map((tag: string) => tag.trim()).filter((tag: string) => tag);
-      }
+      // 处理标签数据
+      const tags = values.tags ? values.tags.split('、').map((tag: string) => tag.trim()).filter((tag: string) => tag) : [];
       
-      // 对于地点类型，使用AI生成的具体类型值而不是硬编码的'location'
-      let elementType = type;
-      let locationTypeValue = undefined;
-      if (type === 'location') {
-        // 对于地点类型，使用AI生成的具体类型值作为type字段的值
-        elementType = values.locationType || 'location';
-        locationTypeValue = values.locationType || '';
-      }
-      
-      const elementData: WorldElement = {
-        id: elementId,
-        novelId: novelId || '',
+      // 准备保存的数据
+      const elementData: any = {
+        id: editingElement?.id || generateUUID(),
+        novelId: novelId,
         name: values.name,
         description: values.description,
-        // 使用处理后的elementType而不是硬编码的type
-        type: elementType,
-        tags: tags, // 使用处理后的标签数组
+        type: type,
+        tags: tags,
         createdAt: editingElement?.createdAt || new Date().toISOString(),
         lastModified: new Date().toISOString(),
-        ...(type === 'character' && {
-          role: values.role,
-          appearance: values.appearance,
-          personality: values.personality,
-          background: values.background,
-          abilities: values.abilities,
-          relationships: values.relationships,
-          characterArc: values.characterArc,
-          details: values.details
-        }),
-        ...(type === 'location' && {
-          // 使用locationType字段存储具体地点类型
-          locationType: locationTypeValue,  // 使用locationType字段存储地点的具体类型
-          importance: values.importance,
-          geography: values.geography,
-          culture: values.culture,
-          politics: values.politics,
-          economy: values.economy,
-          details: values.details,
-          // 添加缺失的字段
-          architecture: values.architecture,
-          socialStructure: values.socialStructure,
-          governance: values.governance,
-          laws: values.laws,
-          terrain: values.terrain,
-          naturalResources: values.naturalResources,
-          ecosystem: values.ecosystem,
-          historyBackground: values.historyBackground,
-          climate: values.climate,
-          mainIndustries: values.mainIndustries,
-          trade: values.trade,
-          wealth: values.wealth
-        }),
-        ...(type === 'culture' && {
-          customs: values.customs,
-          values: values.values,
-          art: values.art,
-          religion: values.religion,
-          language: values.language,
-          cultureInteraction: values.cultureInteraction,
-          details: values.details
-        }),
-        ...(type === 'technology' && {
-          level: values.level,
-          applications: values.applications,
-          limitations: values.limitations,
-          impact: values.impact,
-          details: values.details
-        }),
-        ...(type === 'magic' && {
-          system: values.system,
-          sources: values.sources,
-          rules: values.rules,
-          spells: values.spells,
-          artifacts: values.artifacts,
-          details: values.details
-        }),
-        ...(type === 'history' && {
-          timeline: values.timeline,
-          events: values.events,
-          figures: values.figures,
-          consequences: values.consequences,
-          details: values.details
-        })
       };
-
-      await hybridStorageService.saveWorldElement(elementData, type as WorldSettingType);
       
-      // 强制重新加载数据，确保状态更新
+      // 根据不同类型添加特定字段
+      switch (type) {
+        case 'character':
+          elementData.role = values.role;
+          elementData.customRole = values.customRole; // 添加自定义角色类型
+          elementData.appearance = values.appearance;
+          elementData.personality = values.personality;
+          elementData.background = values.background;
+          elementData.abilities = values.abilities;
+          elementData.relationships = values.relationships;
+          elementData.characterArc = values.characterArc;
+          elementData.details = values.details;
+          break;
+        case 'location':
+          elementData.locationType = values.locationType;
+          elementData.importance = values.importance;
+          elementData.geography = values.geography;
+          elementData.culture = values.culture;
+          elementData.politics = values.politics;
+          elementData.economy = values.economy;
+          elementData.details = values.details;
+          elementData.architecture = values.architecture;
+          elementData.socialStructure = values.socialStructure;
+          elementData.governance = values.governance;
+          elementData.laws = values.laws;
+          elementData.terrain = values.terrain;
+          elementData.naturalResources = values.naturalResources;
+          elementData.ecosystem = values.ecosystem;
+          elementData.historyBackground = values.historyBackground;
+          break;
+        case 'culture':
+          elementData.customs = values.customs;
+          elementData.values = values.values;
+          elementData.art = values.art;
+          elementData.religion = values.religion;
+          elementData.language = values.language;
+          elementData.cultureInteraction = values.cultureInteraction;
+          elementData.details = values.details;
+          break;
+        case 'technology':
+          elementData.level = values.level;
+          elementData.applications = values.applications;
+          elementData.limitations = values.limitations;
+          elementData.impact = values.impact;
+          elementData.details = values.details;
+          break;
+        case 'magic':
+          elementData.level = values.level;
+          elementData.applications = values.applications;
+          elementData.limitations = values.limitations;
+          elementData.impact = values.impact;
+          elementData.details = values.details;
+          break;
+        case 'history':
+          elementData.timeline = values.timeline;
+          elementData.events = values.events;
+          elementData.figures = values.figures;
+          elementData.consequences = values.consequences;
+          elementData.details = values.details;
+          break;
+      }
+      
+      console.log('准备保存的数据:', elementData);
+      
+      // 保存到混合存储服务
+      await hybridStorageService.saveWorldElement(elementData, type);
+      console.log('保存成功');
+      
+      // 添加额外的延迟和强制更新以确保UI正确刷新
+      await new Promise(resolve => setTimeout(resolve, 300));
       await loadWorldElements();
-      
-      // 添加一个微任务延迟，确保状态更新完成后再检查
-      await new Promise(resolve => setTimeout(resolve, 100));
       
       if (editingElement) {
         message.success('修改成功');
       } else {
         message.success('添加成功');
       }
-
+      
       setModalVisible(false);
-      // 延迟重置表单字段，确保表单组件已卸载
-      setTimeout(() => {
-        form.resetFields();
-      }, 0);
+      form.resetFields();
     } catch (error) {
       console.error(`保存${typeName}设定失败:`, error);
       message.error('操作失败');
@@ -980,288 +907,300 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
   };
 
   // AI生成设定
-  const generateWithAI = () => {
-    // 根据不同类型生成不同的提示词
-    let prompt = '';
-    
-    switch (type) {
-      case 'character':
-        prompt = '为我的小说生成详细的角色设定，要求如下：\n\n' +
-                '【角色基本信息】\n' +
-                '1. 姓名：角色的全名\n' +
-                '2. 角色类型：主角、反派、配角、次要角色等\n' +
-                '3. 标签：用逗号分隔的关键词（如：战士、法师、商人等）\n' +
-                '4. 描述：角色的简要概述\n\n' +
-                '【外貌特征】\n' +
-                '1. 年龄和性别\n' +
-                '2. 身高、体型、肤色\n' +
-                '3. 面部特征、发型、眼睛颜色\n' +
-                '4. 穿着风格和标志性饰品\n\n' +
-                '【性格特质】\n' +
-                '1. 核心性格特点（3-5个关键词）\n' +
-                '2. 优点和缺点\n' +
-                '3. 习惯动作和口头禅\n' +
-                '4. 恐惧和弱点\n\n' +
-                '【背景故事】\n' +
-                '1. 出生背景和家庭环境\n' +
-                '2. 成长经历和关键事件\n' +
-                '3. 教育背景和技能学习\n' +
-                '4. 重要的人际关系\n\n' +
-                '【能力设定】\n' +
-                '1. 天赋能力：与生俱来的能力\n' +
-                '2. 学习技能：通过学习获得的技能\n' +
-                '3. 战斗技能：战斗相关的能力\n' +
-                '4. 特殊能力：独特的超自然能力\n\n' +
-                '【人际关系】\n' +
-                '1. 家庭关系：父母、兄弟姐妹等\n' +
-                '2. 友情关系：朋友和同伴\n' +
-                '3. 爱情关系：恋人或配偶\n' +
-                '4. 敌对关系：敌人和对手\n\n' +
-                '【角色发展弧光】\n' +
-                '1. 初始状态：故事开始时的角色状态\n' +
-                '2. 成长过程：角色经历的关键转变\n' +
-                '3. 最终状态：故事结束时的角色状态\n' +
-                '4. 转变原因：促使角色改变的关键因素\n\n' +
-                '【细节补充】\n' +
-                '1. 兴趣爱好：角色的兴趣和爱好\n' +
-                '2. 价值观念：角色的核心价值观\n' +
-                '3. 其他相关信息';
-        break;
-        
-      case 'location':
-        prompt = '为我的小说生成详细的地点设定，要求如下：\n\n' +
-                '【名称】：\n' +
-                '【标签】：使用中文顿号"、"分隔，如：城市、繁华、港口\n' +
-                '【描述】：\n' +
-                '【类型】：由AI生成具体的类型描述，而非从预设选项中选择\n' +
-                '【重要性】：由AI生成具体的重要性描述，而非从预设选项中选择\n' +
-                '【地理环境】\n' +
-                '地理位置：\n' +
-                '气候特征：\n' +
-                '地形特征：\n' +
-                '自然资源：\n' +
-                '生态环境：\n' +
-                '【文化背景】\n' +
-                '历史背景：\n' +
-                '文化特色：\n' +
-                '建筑风格：\n' +
-                '社会结构：\n' +
-                '【政治环境】\n' +
-                '统治体系：\n' +
-                '法律法规：\n' +
-                '【经济状况】\n' +
-                '主要产业：\n' +
-                '贸易情况：\n' +
-                '财富水平：\n' +
-                '【细节补充】\n' +
-                '请按照以上结构生成地点信息，每个字段一行，使用中文冒号分隔字段名和内容。';
-        break;
-        
-      case 'culture':
-        prompt = '为我的小说生成详细的文化设定，要求如下：\n\n' +
-                '【基本信息】\n' +
-                '1. 名称：文化的完整名称\n' +
-                '2. 标签：用逗号分隔的关键词\n' +
-                '3. 描述：文化的简要概述\n\n' +
-                '【传统习俗】\n' +
-                '1. 节日庆典：重要的节日和庆典活动\n' +
-                '2. 礼仪规范：日常的礼仪和行为规范\n' +
-                '3. 婚丧嫁娶：婚丧嫁娶的习俗\n' +
-                '4. 饮食习惯：饮食文化和特色食物\n\n' +
-                '【价值观念】\n' +
-                '1. 核心价值：文化的核心价值观念\n' +
-                '2. 道德标准：道德评判标准\n' +
-                '3. 社会观念：对社会、家庭、个人的看法\n\n' +
-                '【艺术表现】\n' +
-                '1. 文学形式：主要的文学体裁和作品\n' +
-                '2. 音乐舞蹈：音乐和舞蹈特色\n' +
-                '3. 视觉艺术：绘画、雕塑等艺术形式\n' +
-                '4. 表演艺术：戏剧、曲艺等表演形式\n\n' +
-                '【宗教信仰】\n' +
-                '1. 主要信仰：主要的宗教信仰\n' +
-                '2. 宗教仪式：重要的宗教仪式\n' +
-                '3. 神话传说：重要的神话和传说\n\n' +
-                '【语言文字】\n' +
-                '1. 语言特点：语言的特色和语法结构\n' +
-                '2. 文字系统：文字的书写系统\n' +
-                '3. 文学传统：文学创作传统\n\n' +
-                '【文化互动】\n' +
-                '1. 文化冲突：与其他文化之间的冲突和矛盾\n' +
-                '2. 文化融合：与其他文化的交流和融合\n\n' +
-                '【细节补充】\n' +
-                '1. 教育体系：教育制度和学习方式\n' +
-                '2. 科技水平：科技发展水平\n' +
-                '3. 其他相关信息';
-        break;
-        
-      case 'technology':
-        prompt = '为我的小说生成详细的技术设定，要求如下：\n\n' +
-                '【基本信息】\n' +
-                '1. 名称：技术的完整名称\n' +
-                '2. 标签：用逗号分隔的关键词\n' +
-                '3. 描述：技术的简要概述\n\n' +
-                '【科技水平】\n' +
-                '1. 发展阶段：技术的发展阶段\n' +
-                '2. 核心技术：核心技术原理\n' +
-                '3. 技术特点：技术的主要特点\n\n' +
-                '【应用场景】\n' +
-                '1. 主要用途：技术的主要用途\n' +
-                '2. 应用领域：技术应用的领域\n' +
-                '3. 使用方式：技术的具体使用方式\n\n' +
-                '【使用限制】\n' +
-                '1. 能源需求：技术运行所需的能源\n' +
-                '2. 资源消耗：技术运行所需的资源\n' +
-                '3. 副作用：技术使用可能产生的副作用\n' +
-                '4. 使用门槛：技术使用的难度和条件\n\n' +
-                '【社会影响】\n' +
-                '1. 对社会的影响：技术对社会结构的影响\n' +
-                '2. 对经济的影响：技术对经济发展的推动\n' +
-                '3. 对文化的影响：技术对文化发展的影响\n\n' +
-                '【细节补充】\n' +
-                '1. 发展历史：技术的发展历史\n' +
-                '2. 未来趋势：技术的未来发展方向\n' +
-                '3. 其他相关信息';
-        break;
-        
-      case 'magic':
-        prompt = '为我的小说生成详细的魔法设定，要求如下：\n\n' +
-                '【基本信息】\n' +
-                '1. 名称：魔法体系的完整名称\n' +
-                '2. 标签：用逗号分隔的关键词\n' +
-                '3. 描述：魔法体系的简要概述\n\n' +
-                '【魔法系统】\n' +
-                '1. 体系特点：魔法体系的主要特点\n' +
-                '2. 修行方式：学习和掌握魔法的方式\n' +
-                '3. 等级体系：魔法师的等级划分\n\n' +
-                '【能量源泉】\n' +
-                '1. 来源：魔法力量的来源\n' +
-                '2. 获取方式：获取魔法力量的方式\n' +
-                '3. 储存方式：魔法力量的储存方式\n\n' +
-                '【施法规则】\n' +
-                '1. 施法条件：施法所需的条件\n' +
-                '2. 限制因素：施法的限制和约束\n' +
-                '3. 消耗机制：施法的能量消耗\n\n' +
-                '【法术示例】\n' +
-                '1. 基础法术：初学者可以掌握的法术\n' +
-                '2. 中级法术：中级魔法师可以掌握的法术\n' +
-                '3. 高级法术：高级魔法师可以掌握的法术\n' +
-                '4. 禁忌法术：被禁止使用的法术\n\n' +
-                '【魔法物品】\n' +
-                '1. 法器类型：主要的魔法物品类型\n' +
-                '2. 制作方法：魔法物品的制作方法\n' +
-                '3. 使用方式：魔法物品的使用方式\n\n' +
-                '【世界观关联】\n' +
-                '1. 与科技的关系：魔法与科技的相互影响\n' +
-                '2. 与文化的关系：魔法在文化中的地位和作用\n' +
-                '3. 与历史的关系：魔法在历史事件中的作用\n' +
-                '4. 与其他元素的关系：魔法与世界观中其他元素的关联\n\n' +
-                '【细节补充】\n' +
-                '1. 魔法师职业：不同的魔法师职业\n' +
-                '2. 魔法组织：魔法师和相关组织\n' +
-                '3. 其他相关信息';
-        break;
-        
-      case 'history':
-        prompt = '为我的小说生成详细的历史设定，要求如下：\n\n' +
-                '【基本信息】\n' +
-                '1. 名称：历史时期的完整名称\n' +
-                '2. 标签：用逗号分隔的关键词\n' +
-                '3. 描述：历史时期的简要概述\n\n' +
-                '【时间线】\n' +
-                '1. 重要时期：历史的重要分期\n' +
-                '2. 时间节点：重要的时间节点\n' +
-                '3. 年代跨度：历史时期的年代跨度\n\n' +
-                '【重要事件】\n' +
-                '1. 重大事件：影响历史进程的重大事件\n' +
-                '2. 战争冲突：重要的战争和冲突\n' +
-                '3. 政治变迁：政治制度的变化\n' +
-                '4. 文化交融：不同文化的交流融合\n\n' +
-                '【历史人物】\n' +
-                '1. 关键人物：影响历史的关键人物\n' +
-                '2. 英雄豪杰：著名的英雄人物\n' +
-                '3. 奸臣恶徒：著名的反面人物\n' +
-                '4. 普通民众：普通民众的生活状况\n\n' +
-                '【历史后果】\n' +
-                '1. 对后世的影响：对后世产生的影响\n' +
-                '2. 遗产传承：历史留下的遗产\n' +
-                '3. 未解之谜：历史中的未解之谜\n\n' +
-                '【细节补充】\n' +
-                '1. 社会状况：当时的社会状况\n' +
-                '2. 经济发展：当时的经济发展水平\n' +
-                '3. 科技水平：当时的科技发展水平\n' +
-                '4. 其他相关信息';
-        break;
+  const generateWithAI = async () => {
+    // 检查是否已选择小说
+    if (!novelId) {
+      message.warning('请先选择目标小说');
+      return;
     }
 
-    navigate('/ai-workspace', {
-      state: {
-        mode: 'world-setting',
-        type: type,
-        prompt: prompt
+    try {
+      // 根据不同类型生成不同的提示词
+      let basePrompt = '';
+      
+      switch (type) {
+        case 'character':
+          basePrompt = '为我的小说生成详细的角色设定，要求如下：\n\n' +
+                  '【角色基本信息】\n' +
+                  '1. 姓名：角色的全名\n' +
+                  '2. 角色类型：主角、反派、配角、次要角色等\n' +
+                  '3. 标签：用中文顿号"、"分隔的关键词（如：战士、法师、商人等）\n' +
+                  '4. 描述：角色的简要概述\n\n' +
+                  '【外貌特征】\n' +
+                  '1. 年龄和性别\n' +
+                  '2. 身高、体型、肤色\n' +
+                  '3. 面部特征、发型、眼睛颜色\n' +
+                  '4. 穿着风格和标志性饰品\n\n' +
+                  '【性格特质】\n' +
+                  '1. 核心性格特点（3-5个关键词）\n' +
+                  '2. 优点和缺点\n' +
+                  '3. 习惯动作和口头禅\n' +
+                  '4. 恐惧和弱点\n\n' +
+                  '【背景故事】\n' +
+                  '1. 出生背景和家庭环境\n' +
+                  '2. 成长经历和关键事件\n' +
+                  '3. 教育背景和技能学习\n' +
+                  '4. 重要的人际关系\n\n' +
+                  '【能力设定】\n' +
+                  '1. 天赋能力：与生俱来的能力\n' +
+                  '2. 学习技能：通过学习获得的技能\n' +
+                  '3. 战斗技能：战斗相关的能力\n' +
+                  '4. 特殊能力：独特的超自然能力\n\n' +
+                  '【人际关系】\n' +
+                  '1. 家庭关系：父母、兄弟姐妹等\n' +
+                  '2. 友情关系：朋友和同伴\n' +
+                  '3. 爱情关系：恋人或配偶\n' +
+                  '4. 敌对关系：敌人和对手\n\n' +
+                  '【角色发展弧光】\n' +
+                  '1. 初始状态：故事开始时的角色状态\n' +
+                  '2. 成长过程：角色经历的关键转变\n' +
+                  '3. 最终状态：故事结束时的角色状态\n' +
+                  '4. 转变原因：促使角色改变的关键因素\n\n' +
+                  '【细节补充】\n' +
+                  '1. 兴趣爱好：角色的兴趣和爱好\n' +
+                  '2. 价值观念：角色的核心价值观\n' +
+                  '3. 其他相关信息';
+          break;
+          
+        case 'location':
+          basePrompt = '为我的小说生成详细的地点设定，要求如下：\n\n' +
+                  '【名称】：\n' +
+                  '【标签】：使用中文顿号"、"分隔，如：城市、繁华、港口\n' +
+                  '【描述】：\n' +
+                  '【类型】：由AI生成具体的类型描述，而非从预设选项中选择\n' +
+                  '【重要性】：由AI生成具体的重要性描述，而非从预设选项中选择\n' +
+                  '【地理环境】\n' +
+                  '地理位置：\n' +
+                  '气候特征：\n' +
+                  '地形特征：\n' +
+                  '自然资源：\n' +
+                  '生态环境：\n' +
+                  '【文化背景】\n' +
+                  '历史背景：\n' +
+                  '文化特色：\n' +
+                  '建筑风格：\n' +
+                  '社会结构：\n' +
+                  '【政治环境】\n' +
+                  '统治体系：\n' +
+                  '法律法规：\n' +
+                  '【经济状况】\n' +
+                  '主要产业：\n' +
+                  '贸易情况：\n' +
+                  '财富水平：\n' +
+                  '【细节补充】\n' +
+                  '请按照以上结构生成地点信息，每个字段一行，使用中文冒号分隔字段名和内容。';
+          break;
+          
+        case 'culture':
+          basePrompt = '为我的小说生成详细的文化设定，要求如下：\n\n' +
+                  '【基本信息】\n' +
+                  '1. 名称：文化的完整名称\n' +
+                  '2. 标签：使用中文顿号"、"分隔，如：东方、西方、古代、现代等\n' +
+                  '3. 描述：文化的简要概述\n\n' +
+                  '【传统习俗】\n' +
+                  '1. 节日庆典：重要的节日和庆典活动\n' +
+                  '2. 礼仪规范：日常的礼仪和行为规范\n' +
+                  '3. 婚丧嫁娶：婚丧嫁娶的习俗\n' +
+                  '4. 饮食习惯：饮食文化和特色食物\n\n' +
+                  '【价值观念】\n' +
+                  '1. 核心价值：文化的核心价值观念\n' +
+                  '2. 道德标准：道德评判标准\n' +
+                  '3. 社会观念：对社会、家庭、个人的看法\n\n' +
+                  '【艺术表现】\n' +
+                  '1. 文学形式：主要的文学体裁和作品\n' +
+                  '2. 音乐舞蹈：音乐和舞蹈特色\n' +
+                  '3. 视觉艺术：绘画、雕塑等艺术形式\n' +
+                  '4. 表演艺术：戏剧、曲艺等表演形式\n\n' +
+                  '【宗教信仰】\n' +
+                  '1. 主要信仰：主要的宗教信仰\n' +
+                  '2. 宗教仪式：重要的宗教仪式\n' +
+                  '3. 神话传说：重要的神话和传说\n\n' +
+                  '【语言文字】\n' +
+                  '1. 语言特点：语言的特色和语法结构\n' +
+                  '2. 文字系统：文字的书写系统\n' +
+                  '3. 文学传统：文学创作传统\n\n' +
+                  '【文化互动】\n' +
+                  '1. 文化冲突：与其他文化之间的冲突和矛盾\n' +
+                  '2. 文化融合：与其他文化的交流和融合\n\n' +
+                  '【细节补充】\n' +
+                  '1. 教育体系：教育制度和学习方式\n' +
+                  '2. 科技水平：科技发展水平\n' +
+                  '3. 其他相关信息';
+          break;
+          
+        case 'technology':
+          basePrompt = '为我的小说生成详细的技术设定，要求如下：\n\n' +
+                  '【基本信息】\n' +
+                  '1. 名称：技术的完整名称\n' +
+                  '2. 标签：使用中文顿号"、"分隔，如：能源、交通、医疗、通讯等\n' +
+                  '3. 描述：技术的简要概述\n\n' +
+                  '【科技水平】\n' +
+                  '1. 发展阶段：技术的发展阶段\n' +
+                  '2. 核心技术：核心技术原理\n' +
+                  '3. 技术特点：技术的主要特点\n\n' +
+                  '【应用场景】\n' +
+                  '1. 主要用途：技术的主要用途\n' +
+                  '2. 应用领域：技术应用的领域\n' +
+                  '3. 使用方式：技术的具体使用方式\n\n' +
+                  '【使用限制】\n' +
+                  '1. 能源需求：技术运行所需的能源\n' +
+                  '2. 资源消耗：技术运行所需的资源\n' +
+                  '3. 副作用：技术使用可能产生的副作用\n' +
+                  '4. 使用门槛：技术使用的难度和条件\n\n' +
+                  '【社会影响】\n' +
+                  '1. 对社会的影响：技术对社会结构的影响\n' +
+                  '2. 对经济的影响：技术对经济发展的推动\n' +
+                  '3. 对文化的影响：技术对文化发展的影响\n\n' +
+                  '【细节补充】\n' +
+                  '1. 发展历史：技术的发展历史\n' +
+                  '2. 未来趋势：技术的未来发展方向\n' +
+                  '3. 其他相关信息';
+          break;
+          
+        case 'magic':
+          basePrompt = '为我的小说生成详细的魔法设定，要求如下：\n\n' +
+                  '【基本信息】\n' +
+                  '1. 名称：魔法体系的完整名称\n' +
+                  '2. 标签：使用中文顿号"、"分隔，如：元素、召唤、治愈、诅咒等\n' +
+                  '3. 描述：魔法体系的简要概述\n\n' +
+                  '【魔法系统】\n' +
+                  '1. 体系特点：魔法体系的主要特点\n' +
+                  '2. 修行方式：学习和掌握魔法的方式\n' +
+                  '3. 等级体系：魔法师的等级划分\n\n' +
+                  '【能量源泉】\n' +
+                  '1. 来源：魔法力量的来源\n' +
+                  '2. 获取方式：获取魔法力量的方式\n' +
+                  '3. 储存方式：魔法力量的储存方式\n\n' +
+                  '【施法规则】\n' +
+                  '1. 施法条件：施法所需的条件\n' +
+                  '2. 限制因素：施法的限制和约束\n' +
+                  '3. 消耗机制：施法的能量消耗\n\n' +
+                  '【法术示例】\n' +
+                  '1. 基础法术：初学者可以掌握的法术\n' +
+                  '2. 中级法术：中级魔法师可以掌握的法术\n' +
+                  '3. 高级法术：高级魔法师可以掌握的法术\n' +
+                  '4. 禁忌法术：被禁止使用的法术\n\n' +
+                  '【魔法物品】\n' +
+                  '1. 法器类型：主要的魔法物品类型\n' +
+                  '2. 制作方法：魔法物品的制作方法\n' +
+                  '3. 使用方式：魔法物品的使用方式\n\n' +
+                  '【世界观关联】\n' +
+                  '1. 与科技的关系：魔法与科技的相互影响\n' +
+                  '2. 与文化的关系：魔法在文化中的地位和作用\n' +
+                  '3. 与历史的关系：魔法在历史事件中的作用\n' +
+                  '4. 与其他元素的关系：魔法与世界观中其他元素的关联\n\n' +
+                  '【细节补充】\n' +
+                  '1. 魔法师职业：不同的魔法师职业\n' +
+                  '2. 魔法组织：魔法师和相关组织\n' +
+                  '3. 其他相关信息';
+          break;
+          
+        case 'history':
+          basePrompt = '为我的小说生成详细的历史设定，要求如下：\n\n' +
+                  '【基本信息】\n' +
+                  '1. 名称：历史时期的完整名称\n' +
+                  '2. 标签：使用中文顿号"、"分隔，如：古代、战争、王朝、革命等\n' +
+                  '3. 描述：历史时期的简要概述\n\n' +
+                  '【时间线】\n' +
+                  '1. 重要时期：历史的重要分期\n' +
+                  '2. 时间节点：重要的时间节点\n' +
+                  '3. 年代跨度：历史时期的年代跨度\n\n' +
+                  '【重要事件】\n' +
+                  '1. 重大事件：影响历史进程的重大事件\n' +
+                  '2. 战争冲突：重要的战争和冲突\n' +
+                  '3. 政治变迁：政治制度的变化\n' +
+                  '4. 文化交融：不同文化的交流融合\n\n' +
+                  '【历史人物】\n' +
+                  '1. 关键人物：影响历史的关键人物\n' +
+                  '2. 英雄豪杰：著名的英雄人物\n' +
+                  '3. 奸臣恶徒：著名的反面人物\n' +
+                  '4. 普通民众：普通民众的生活状况\n\n' +
+                  '【历史后果】\n' +
+                  '1. 对后世的影响：对后世产生的影响\n' +
+                  '2. 遗产传承：历史留下的遗产\n' +
+                  '3. 未解之谜：历史中的未解之谜\n\n' +
+                  '【细节补充】\n' +
+                  '1. 社会状况：当时的社会状况\n' +
+                  '2. 经济发展：当时的经济发展水平\n' +
+                  '3. 科技水平：当时的科技发展水平\n' +
+                  '4. 其他相关信息';
+          break;
       }
-    });
+
+      // 使用增强的特定指导功能，该功能会自动包含大纲信息和已有元素信息
+      const enhancedGuidance = await enhanceTypeSpecificGuidance(type, novelId);
+      
+      // 构建包含上下文的完整提示词
+      const fullPrompt = `${basePrompt}\n\n${enhancedGuidance}`;
+
+      navigate('/ai-workspace', {
+        state: {
+          mode: 'world-setting',
+          type: type,
+          prompt: fullPrompt
+        }
+      });
+    } catch (error) {
+      console.error('AI生成提示词失败:', error);
+      message.error('AI生成提示词失败，请重试');
+    }
   };
 
   const renderElementCard = (element: WorldElement) => {
     // 处理描述内容显示，避免显示完整的地点设定内容
     let displayDescription = element.description || '';
     
-    // 对于地点类型，如果描述包含完整的设定内容，则只显示真正的描述部分
-    if (element.type === 'location' && 
-        displayDescription.includes('【地理环境】') && 
-        displayDescription.includes('【文化背景】') &&
-        displayDescription.includes('【政治环境】') && 
-        displayDescription.includes('【经济状况】')) {
-      // 查找【描述】字段的内容
-      const descMatch = displayDescription.match(/【描述】[:：]\s*([^\n【]+)/);
-      if (descMatch && descMatch[1]) {
-        displayDescription = descMatch[1].trim();
-      } else {
-        // 如果找不到明确的描述字段，尝试查找描述内容
-        const lines = displayDescription.split('\n');
-        let descLines = [];
-        let inDescSection = false;
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (trimmedLine.includes('【描述】') || trimmedLine.includes('【简介】')) {
-            inDescSection = true;
-            // 提取冒号后的内容
-            const colonIndex = Math.max(trimmedLine.indexOf('：'), trimmedLine.indexOf(':'));
-            if (colonIndex > -1) {
-              const content = trimmedLine.substring(colonIndex + 1).trim();
-              if (content) {
-                descLines.push(content);
-              }
-            }
-            continue;
-          } else if (trimmedLine.includes('【') && trimmedLine.includes('】') && 
-                    !trimmedLine.includes('【描述】') && !trimmedLine.includes('【简介】')) {
-            // 遇到其他字段标题，结束描述部分
-            inDescSection = false;
-            continue;
+    // 对于角色类型，清理描述中的其他字段内容
+    if (element.type === 'character') {
+      // 如果描述包含其他字段的内容，只显示真正的描述部分
+      if (displayDescription.includes('外貌：') && displayDescription.includes('性格：') && displayDescription.includes('背景：')) {
+        // 提取描述的第一部分作为真正的描述
+        const descLines = displayDescription.split('\n');
+        const actualDescLines = [];
+        for (const line of descLines) {
+          // 如果遇到字段标题，停止提取
+          if (line.includes('外貌：') || line.includes('性格：') || line.includes('背景：') || 
+              line.includes('能力：') || line.includes('关系：') || line.includes('发展：') ||
+              line.includes('【外貌特征】') || line.includes('【性格特质】') || line.includes('【背景故事】') ||
+              line.includes('【能力设定】') || line.includes('【人际关系】') || line.includes('【角色发展弧光】')) {
+            break;
           }
-          
-          if (inDescSection && trimmedLine) {
-            descLines.push(trimmedLine);
-          }
+          actualDescLines.push(line);
         }
-        
-        if (descLines.length > 0) {
-          displayDescription = descLines.join('\n');
-        } else {
-          // 如果仍然找不到描述内容，显示前100个字符并添加省略号
-          displayDescription = displayDescription.substring(0, 100) + (displayDescription.length > 100 ? '...' : '');
-        }
+        displayDescription = actualDescLines.join('\n');
       }
     }
     
+    // 对于地点类型，清理描述中的其他字段内容
+    if (element.type === 'location') {
+      // 如果描述包含其他字段的内容，只显示真正的描述部分
+      if (displayDescription.includes('地理环境：') && displayDescription.includes('文化背景：') && displayDescription.includes('政治环境：')) {
+        // 提取描述的第一部分作为真正的描述
+        const descLines = displayDescription.split('\n');
+        const actualDescLines = [];
+        for (const line of descLines) {
+          // 如果遇到字段标题，停止提取
+          if (line.includes('地理环境：') || line.includes('文化背景：') || line.includes('政治环境：') || 
+              line.includes('经济状况：') || line.includes('【地理环境】') || line.includes('【文化背景】') ||
+              line.includes('【政治环境】') || line.includes('【经济状况】')) {
+            break;
+          }
+          actualDescLines.push(line);
+        }
+        displayDescription = actualDescLines.join('\n');
+      }
+    }
+
     return (
       <Card
         key={element.id}
-        size="small"
-        className="world-element-card "
-        actions={[ 
+        className="world-element-card"
+        style={{ 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+        actions={[
           <Button 
             type="text" 
             icon={<EditOutlined />} 
@@ -1311,6 +1250,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
                element.role === 'keySupporting' ? '重要配角' : 
                element.role === 'minorSupporting' ? '次要配角' : 
                element.role === 'complexSupporting' ? '复杂配角' : 
+               element.role === 'custom' ? (element.customRole || '自定义类型') : 
                element.role}
             </Tag>
           </div>
@@ -1383,6 +1323,13 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         </Space>
       </div>
 
+      {/* 如果是角色类型，显示自定义角色类型管理器 */}
+      {type === 'character' && (
+        <div style={{ marginBottom: '24px' }}>
+          <CustomRoleManager />
+        </div>
+      )}
+
       <div 
         className="world-elements-grid" 
         style={{ 
@@ -1438,6 +1385,19 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         >
           {/* 动态渲染字段，避免重复渲染name和description字段 */}
           {fields.map(field => {
+            // 特殊处理：只有当角色类型为自定义时才显示自定义角色类型输入框
+            if (field.name === 'customRole') {
+              return form.getFieldValue('role') === 'custom' ? (
+                <Form.Item 
+                  key={field.name} 
+                  name={field.name} 
+                  label={field.label}
+                >
+                  <Input placeholder={field.placeholder} />
+                </Form.Item>
+              ) : null;
+            }
+            
             if (field.type === 'textarea') {
               return (
                 <Form.Item 
@@ -1458,7 +1418,15 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
                   name={field.name} 
                   label={field.label}
                 >
-                  <Select placeholder={field.placeholder}>
+                  <Select 
+                    placeholder={field.placeholder}
+                    onChange={(value) => {
+                      // 当角色类型改变时，强制更新组件以重新渲染条件字段
+                      if (field.name === 'role') {
+                        setTimeout(() => forceUpdate(), 0);
+                      }
+                    }}
+                  >
                     {field.options?.map(option => (
                       <Select.Option key={option.value} value={option.value}>
                         {option.label}

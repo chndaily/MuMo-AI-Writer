@@ -32,6 +32,11 @@ export class HistorySyncService {
       let syncedCount = 0;
       let updatedCount = 0;
       let createdCount = 0;
+      let modifiedHistories: any[] = []; // 记录真正有修改的历史设定
+      
+      // 获取现有的历史设定列表
+      const existingHistories = await hybridStorageService.getWorldElements('history', novelId);
+      console.log('获取到的现有历史设定数量:', existingHistories.length);
       
       // 为每个历史设定创建世界观元素对象并保存
       for (const historyData of histories) {
@@ -56,15 +61,25 @@ export class HistorySyncService {
           let shouldCreateNew = true; // 默认创建新条目
           
           try {
-            const existingElements = await hybridStorageService.getWorldElements('history', novelId);
             // 首先尝试按名称匹配
             if (historyData && historyData.name) {
-              existingElement = existingElements.find((el: any) => el && el.name === historyData.name);
+              existingElement = existingHistories.find((el: any) => el && el.name === historyData.name);
             }
             
             if (existingElement) {
-              // 找到同名设定，更新它
+              // 找到同名设定，检查是否有实际变更
+              console.log('找到同名历史设定:', existingElement.name);
               shouldCreateNew = false;
+              
+              // 检查历史设定数据是否有实际变更
+              const hasChanges = this.hasHistoryChanges(existingElement, historyData, details);
+              if (!hasChanges) {
+                console.log(`历史设定 ${historyData.name} 没有变化，跳过更新`);
+                continue;
+              }
+              
+              // 记录有修改的历史设定
+              modifiedHistories.push(historyData.name);
             } else if (historyData && historyData.tags && historyData.tags.length > 0) {
               // 如果没有找到同名设定，尝试按标签匹配
               const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(historyData.tags, 'history', novelId);
@@ -72,7 +87,18 @@ export class HistorySyncService {
               if (elementsWithTags.length > 0) {
                 // 使用第一个匹配的元素进行更新
                 existingElement = elementsWithTags[0];
+                console.log('按标签匹配到历史设定:', existingElement.name);
                 shouldCreateNew = false;
+                
+                // 检查历史设定数据是否有实际变更
+                const hasChanges = this.hasHistoryChanges(existingElement, historyData, details);
+                if (!hasChanges) {
+                  console.log(`历史设定 ${historyData.name} 没有变化，跳过更新`);
+                  continue;
+                }
+                
+                // 记录有修改的历史设定
+                modifiedHistories.push(historyData.name);
               }
             }
           } catch (error) {
@@ -121,10 +147,10 @@ export class HistorySyncService {
 
       console.log(`历史设定同步完成，共同步 ${syncedCount} 个设定（创建 ${createdCount} 个，更新 ${updatedCount} 个）`);
       
-      // 如果有更新操作，触发替换内容事件
-      if (updatedCount > 0) {
+      // 如果有更新操作且有实际修改的历史设定，触发替换内容事件
+      if (updatedCount > 0 && modifiedHistories.length > 0) {
         // 触发世界设定替换事件，用于通知相关组件显示替换警告
-        eventBus.emit('worldSettingReplaced', { novelId, type: 'history', updatedCount });
+        eventBus.emit('worldSettingReplaced', { novelId, type: 'history', updatedCount, modifiedHistories });
       }
       
       return {
@@ -140,6 +166,50 @@ export class HistorySyncService {
         errors: [String(error)],
       }
     }
+  }
+  
+  /**
+   * 检查历史设定数据是否有实际变更
+   */
+  private hasHistoryChanges(existing: any, newData: any, newDetails: any): boolean {
+    // 检查基本字段是否有变化
+    const basicFields = [
+      'name', 'description', 'timeline', 'events', 'figures', 'consequences', 'details'
+    ];
+    
+    for (const field of basicFields) {
+      const existingValue = existing[field];
+      const newValue = newData[field] || newDetails[field] || '';
+      
+      if (existingValue !== newValue) {
+        console.log(`历史设定字段 ${field} 有变化: ${existingValue} -> ${newValue}`);
+        return true;
+      }
+    }
+    
+    // 检查标签是否有变化
+    const tagFields = ['tags'];
+    for (const field of tagFields) {
+      const existingTags = existing[field] || [];
+      const newTags = newData[field] || [];
+      
+      // 比较标签数组是否相等
+      if (existingTags.length !== newTags.length) {
+        console.log(`历史设定标签字段 ${field} 数量有变化: ${existingTags.length} -> ${newTags.length}`);
+        return true;
+      }
+      
+      // 检查标签内容是否完全相同
+      const existingSet = new Set(existingTags);
+      const newSet = new Set(newTags);
+      if (existingTags.some((tag: string) => !newSet.has(tag)) || newTags.some((tag: string) => !existingSet.has(tag))) {
+        console.log(`历史设定标签字段 ${field} 内容有变化`);
+        return true;
+      }
+    }
+    
+    // 如果所有字段都相同，则没有变化
+    return false;
   }
 
   /**

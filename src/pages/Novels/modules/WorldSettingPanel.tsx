@@ -30,6 +30,7 @@ import { generateUUID } from '@/utils/uuidUtils';
 import type { WorldSettingType } from '@/types/ai-generation';
 // 导入事件总线
 import { eventBus } from '@/utils/eventBus';
+import worldSettingParserService from '@/services/worldSettingParserService';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -41,7 +42,8 @@ interface WorldElement {
   description: string
   type: 'character' | 'location' | 'culture' | 'technology' | 'magic' | 'history'
   tags: string[]
-  role?: 'protagonist' | 'antagonist' | 'supporting' | 'minor' | 'side' | 'foil' | 'mentor' | 'loveInterest' | 'rival' | 'neutral'
+  role?: 'protagonist' | 'antagonist' | 'supporting' | 'minor' | 'side' | 'foil' | 'mentor' | 'loveInterest' | 'rival' | 'neutral' | 'keySupporting' | 'minorSupporting' | 'complexSupporting' | 'custom'
+  customRole?: string  // 自定义角色类型
   // 角色扩展标签字段
   professionTags?: string[]
   personalityTags?: string[]
@@ -69,6 +71,28 @@ interface WorldElement {
   naturalResources?: string
   ecosystem?: string
   historyBackground?: string
+  // 历史设定字段
+  timeline?: string
+  events?: string
+  figures?: string
+  consequences?: string
+  // 科技设定字段
+  level?: string
+  applications?: string
+  limitations?: string
+  impact?: string
+  // 文化设定字段
+  customs?: string
+  values?: string
+  art?: string
+  religion?: string
+  language?: string
+  cultureInteraction?: string
+  // 地点经济字段
+  mainIndustries?: string
+  // 时间戳字段
+  createdAt?: string
+  lastModified?: string
 }
 
 interface WorldSettingPanelProps {
@@ -213,6 +237,28 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
     setModalVisible(true);
   };
 
+  // 监听表单角色类型字段的变化
+  useEffect(() => {
+    const handleRoleChange = () => {
+      // 强制更新表单以确保自定义角色类型字段的显示状态正确
+      form.setFieldsValue({
+        ...form.getFieldsValue(),
+      });
+    };
+
+    // 监听角色类型字段的变化
+    const roleField = form.getFieldInstance('role');
+    if (roleField) {
+      roleField.on('change', handleRoleChange);
+    }
+
+    return () => {
+      if (roleField) {
+        roleField.off('change', handleRoleChange);
+      }
+    };
+  }, [form]);
+
   const handleEdit = (element: WorldElement) => {
     setEditingElement(element);
     // 在编辑时，我们需要确保描述字段不包含其他字段的内容
@@ -287,6 +333,7 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
         tags: tags, // 使用处理后的标签数组
         // 角色相关字段
         role: values.role,
+        customRole: values.customRole, // 添加自定义角色类型
         appearance: values.appearance,
         personality: values.personality,
         background: values.background,
@@ -336,6 +383,103 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
     }
   };
 
+  const handleAISync = async (content: string) => {
+    try {
+      // 解析AI生成的内容
+      let parsedElements: any[] = [];
+      
+      switch (activeTab) {
+        case 'location':
+          parsedElements = await worldSettingParserService.parseLocationContent(content);
+          break;
+        case 'character':
+          parsedElements = await worldSettingParserService.parseCharacterContent(content);
+          break;
+        case 'culture':
+        case 'technology':
+        case 'magic':
+        case 'history':
+        default:
+          // 对于其他类型，使用通用解析方法
+          parsedElements = [worldSettingParserService.parseSettingDetails(content, activeTab as any)];
+          break;
+      }
+      
+      if (parsedElements && parsedElements.length > 0) {
+        // 只取第一个元素进行同步
+        const element = parsedElements[0];
+        
+        // 准备表单数据
+        const formData: any = {
+          name: element.name || 'AI生成内容',
+          description: element.description || '',
+          tags: element.tags ? element.tags.join('、') : '',
+          type: activeTab
+        };
+        
+        // 根据不同类型添加特定字段
+        if (activeTab === 'location') {
+          Object.assign(formData, {
+            locationType: element.locationType || '',
+            importance: element.importance || '',
+            geography: element.geography || '',
+            culture: element.culture || '',
+            politics: element.politics || '',
+            economy: element.economy || '',
+            details: element.details || ''
+          });
+        } else if (activeTab === 'character') {
+          Object.assign(formData, {
+            role: element.role || 'supporting',
+            customRole: element.customRole || '', // 添加自定义角色类型
+            appearance: element.appearance || '',
+            personality: element.personality || '',
+            background: element.background || '',
+            abilities: element.abilities || '',
+            relationships: element.relationships || '',
+            characterArc: element.characterArc || '',
+            details: element.details || ''
+          });
+        } else if (activeTab === 'culture') {
+          Object.assign(formData, {
+            customs: element.customs || '',
+            values: element.values || '',
+            art: element.art || '',
+            religion: element.religion || '',
+            language: element.language || '',
+            cultureInteraction: element.cultureInteraction || '',
+            details: element.details || ''
+          });
+        } else if (activeTab === 'technology' || activeTab === 'magic') {
+          Object.assign(formData, {
+            level: element.level || '',
+            applications: element.applications || '',
+            limitations: element.limitations || '',
+            impact: element.impact || '',
+            details: element.details || ''
+          });
+        } else if (activeTab === 'history') {
+          Object.assign(formData, {
+            timeline: element.timeline || '',
+            events: element.events || '',
+            figures: element.figures || '',
+            consequences: element.consequences || '',
+            details: element.details || ''
+          });
+        }
+        
+        // 填充表单
+        form.setFieldsValue(formData);
+        setModalVisible(true);
+        
+        message.success('AI生成内容已同步到表单，请检查并保存');
+      }
+    } catch (error) {
+      console.error('处理AI同步数据失败:', error);
+      message.error('同步AI数据失败');
+    }
+  };
+
   const generateWithAI = (type: string) => {
     navigate('/ai-workspace', {
       state: {
@@ -361,69 +505,59 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
   const renderElementCard = (element: WorldElement) => {
     const typeInfo = elementTypes.find(t => t.key === element.type);
     
-    // 处理描述内容显示，避免显示完整的地点设定内容
+    // 处理描述内容，确保不会显示其他字段的内容
     let displayDescription = element.description || '';
     
-    // 对于地点类型，如果描述包含完整的设定内容，则只显示真正的描述部分
-    if (element.type === 'location' && 
-        displayDescription.includes('【地理环境】') && 
-        displayDescription.includes('【文化背景】') &&
-        displayDescription.includes('【政治环境】') && 
-        displayDescription.includes('【经济状况】')) {
-      // 查找【描述】字段的内容
-      const descMatch = displayDescription.match(/【描述】[:：]\s*([^\n【]+)/);
-      if (descMatch && descMatch[1]) {
-        displayDescription = descMatch[1].trim();
-      } else {
-        // 如果找不到明确的描述字段，尝试查找描述内容
-        const lines = displayDescription.split('\n');
-        let descLines = [];
-        let inDescSection = false;
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (trimmedLine.includes('【描述】') || trimmedLine.includes('【简介】')) {
-            inDescSection = true;
-            // 提取冒号后的内容
-            const colonIndex = Math.max(trimmedLine.indexOf('：'), trimmedLine.indexOf(':'));
-            if (colonIndex > -1) {
-              const content = trimmedLine.substring(colonIndex + 1).trim();
-              if (content) {
-                descLines.push(content);
-              }
-            }
-            continue;
-          } else if (trimmedLine.includes('【') && trimmedLine.includes('】') && 
-                    !trimmedLine.includes('【描述】') && !trimmedLine.includes('【简介】')) {
-            // 遇到其他字段标题，结束描述部分
-            inDescSection = false;
-            continue;
+    // 对于角色类型，清理描述中的其他字段内容
+    if (element.type === 'character') {
+      // 如果描述包含其他字段的内容，只显示真正的描述部分
+      if (displayDescription.includes('外貌：') && displayDescription.includes('性格：') && displayDescription.includes('背景：')) {
+        // 提取描述的第一部分作为真正的描述
+        const descLines = displayDescription.split('\n');
+        const actualDescLines = [];
+        for (const line of descLines) {
+          // 如果遇到字段标题，停止提取
+          if (line.includes('外貌：') || line.includes('性格：') || line.includes('背景：') || 
+              line.includes('能力：') || line.includes('关系：') || line.includes('发展：') ||
+              line.includes('【外貌特征】') || line.includes('【性格特质】') || line.includes('【背景故事】') ||
+              line.includes('【能力设定】') || line.includes('【人际关系】') || line.includes('【角色发展弧光】')) {
+            break;
           }
-          
-          if (inDescSection && trimmedLine) {
-            descLines.push(trimmedLine);
-          }
+          actualDescLines.push(line);
         }
-        
-        if (descLines.length > 0) {
-          displayDescription = descLines.join('\n');
-        } else {
-          // 如果仍然找不到描述内容，显示前100个字符并添加省略号
-          displayDescription = displayDescription.substring(0, 100) + (displayDescription.length > 100 ? '...' : '');
-        }
+        displayDescription = actualDescLines.join('\n');
       }
     }
     
-    // 对于所有类型，如果描述太长，截断并添加省略号
-    if (displayDescription.length > 200) {
-      displayDescription = displayDescription.substring(0, 200) + '...';
+    // 对于地点类型，清理描述中的其他字段内容
+    if (element.type === 'location') {
+      // 如果描述包含其他字段的内容，只显示真正的描述部分
+      if (displayDescription.includes('地理环境：') && displayDescription.includes('文化背景：') && displayDescription.includes('政治环境：')) {
+        // 提取描述的第一部分作为真正的描述
+        const descLines = displayDescription.split('\n');
+        const actualDescLines = [];
+        for (const line of descLines) {
+          // 如果遇到字段标题，停止提取
+          if (line.includes('地理环境：') || line.includes('文化背景：') || line.includes('政治环境：') || 
+              line.includes('经济状况：') || line.includes('【地理环境】') || line.includes('【文化背景】') ||
+              line.includes('【政治环境】') || line.includes('【经济状况】')) {
+            break;
+          }
+          actualDescLines.push(line);
+        }
+        displayDescription = actualDescLines.join('\n');
+      }
     }
-    
+
     return (
       <Card
         key={element.id}
-        size="small"
         className="world-element-card"
+        style={{ 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
         actions={[
           <Button 
             type="text" 
@@ -434,7 +568,7 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
             编辑
           </Button>,
           <Popconfirm
-            title="确认删除这个设定吗？"
+            title={`确认删除这个${typeInfo?.label || '设定'}吗？`}
             onConfirm={() => handleDelete(element.id)}
             okText="确认"
             cancelText="取消"
@@ -450,15 +584,35 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
           </Popconfirm>
         ]}
       >
-        <div className="card-header">
-          <h4>
+        <div className="card-header" style={{ marginBottom: '12px' }}>
+          <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>
             {typeInfo?.icon} {element.name}
           </h4>
-          {/* 显示元素类型，特别是对于地点类型显示具体的locationType */}
-          {element.type === 'location' && element.locationType && (
-            <Tag color={typeInfo?.color}>{element.locationType}</Tag>
-          )}
         </div>
+        {element.type === 'character' && element.role && (
+          <div className="element-role" style={{ marginBottom: '8px' }}>
+            <Tag 
+              color={element.role === 'protagonist' ? 'red' : element.role === 'antagonist' ? 'volcano' : 'blue'}
+              style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}
+            >
+              {element.role === 'protagonist' ? '主角' : 
+               element.role === 'antagonist' ? '反角' : 
+               element.role === 'supporting' ? '配角' : 
+               element.role === 'minor' ? '次要角色' : 
+               element.role === 'side' ? '侧面角色' : 
+               element.role === 'foil' ? '对照角色' : 
+               element.role === 'mentor' ? '导师角色' : 
+               element.role === 'loveInterest' ? '恋爱对象' : 
+               element.role === 'rival' ? '竞争对手' : 
+               element.role === 'neutral' ? '中立角色' : 
+               element.role === 'keySupporting' ? '重要配角' : 
+               element.role === 'minorSupporting' ? '次要配角' : 
+               element.role === 'complexSupporting' ? '复杂配角' : 
+               element.role === 'custom' ? (element.customRole || '自定义类型') : 
+               element.role}
+            </Tag>
+          </div>
+        )}
         <div 
           className="element-content" 
           style={{ 
@@ -471,9 +625,13 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
         >
           {displayDescription}
         </div>
-        <div className="element-tags" style={{ marginBottom: '12px',minHeight: '50px' }}>
-          {element.tags.map(tag => (
-            <Tag key={tag} color={typeInfo?.color} style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}>
+        <div className="element-tags" style={{ marginBottom: '12px' }}>
+          {element.tags && element.tags.map(tag => (
+            <Tag 
+              key={tag} 
+              color="blue"
+              style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}
+            >
               {tag}
             </Tag>
           ))}
@@ -598,7 +756,29 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
           {form.getFieldValue('type') === 'character' && (
             <>
               <Form.Item name="role" label="角色类型">
-                <Input placeholder="请输入角色类型，如：主角、反派、配角等" />
+                <Select placeholder="请选择角色类型">
+                  <Select.Option value="protagonist">主角</Select.Option>
+                  <Select.Option value="antagonist">反角</Select.Option>
+                  <Select.Option value="supporting">配角</Select.Option>
+                  <Select.Option value="minor">次要角色</Select.Option>
+                  <Select.Option value="side">侧面角色</Select.Option>
+                  <Select.Option value="foil">对照角色</Select.Option>
+                  <Select.Option value="mentor">导师角色</Select.Option>
+                  <Select.Option value="loveInterest">恋爱对象</Select.Option>
+                  <Select.Option value="rival">竞争对手</Select.Option>
+                  <Select.Option value="neutral">中立角色</Select.Option>
+                  <Select.Option value="keySupporting">重要配角</Select.Option>
+                  <Select.Option value="minorSupporting">次要配角</Select.Option>
+                  <Select.Option value="complexSupporting">复杂配角</Select.Option>
+                  <Select.Option value="custom">自定义类型</Select.Option>
+                </Select>
+              </Form.Item>
+              <Form.Item 
+                name="customRole" 
+                label="自定义角色类型"
+                hidden={form.getFieldValue('role') !== 'custom'}
+              >
+                <Input placeholder="请输入具体的角色类型描述，如：配角（医疗线核心成员）" />
               </Form.Item>
               <Form.Item name="tags" label="标签">
                 <Input placeholder="请输入标签，多个标签请用中文顿号“、”分隔，如：剑士、勇敢、推动者" />
