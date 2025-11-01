@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { message, notification } from 'antd'
 import { aiService, AIGenerationMode, AIGenerationParams } from '../services/aiService'
 import { useNovelStore } from '../stores/novelStore'
+import type { ParallelVersion, InconsistencyIssue, SemanticSuggestion, StylePreset, EnvironmentSound } from '../services/aiService'
 
 export interface WorkspaceState {
   content: string
@@ -13,11 +14,11 @@ export interface WorkspaceState {
   isImmersiveMode: boolean
   showStoryMap: boolean
   showInspirationPanel: boolean
-  parallelVersions: string[]
+  parallelVersions: ParallelVersion[]
   versionHistory: string[]
   currentCharacter: string | null
   analysisResult: any
-  inconsistencies: any[]
+  inconsistencies: InconsistencyIssue[]
 }
 
 export const useAIWorkspace = () => {
@@ -190,7 +191,7 @@ export const useAIWorkspace = () => {
   }, [])
 
   // 语义联想
-  const getSemanticSuggestions = useCallback(async (keyword: string) => {
+  const getSemanticSuggestions = useCallback(async (keyword: string): Promise<SemanticSuggestion[]> => {
     try {
       return await aiService.getSemanticSuggestions(keyword)
     } catch (error) {
@@ -211,12 +212,12 @@ export const useAIWorkspace = () => {
   }, [state.writingStyle])
 
   // 获取写作风格预设
-  const getStylePresets = useCallback(() => {
+  const getStylePresets = useCallback((): StylePreset[] => {
     return aiService.getStylePresets()
   }, [])
 
   // 获取环境音效
-  const getEnvironmentSounds = useCallback(() => {
+  const getEnvironmentSounds = useCallback((): EnvironmentSound[] => {
     return aiService.getEnvironmentSounds()
   }, [])
 
@@ -276,4 +277,4 @@ export const useAIWorkspace = () => {
     paragraphCount: state.content.split('\n\n').length,
     hasUnsavedChanges: state.versionHistory.length > 0,
   }
-} 
+}

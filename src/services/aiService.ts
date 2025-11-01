@@ -76,6 +76,52 @@ export interface AIAnalysisResult {
   }
 }
 
+// 平行版本生成结果
+export interface ParallelVersion {
+  id: string;
+  content: string;
+  title: string;
+  description: string;
+}
+
+// 不一致性检测结果
+export interface InconsistencyIssue {
+  type: 'character' | 'plot' | 'setting' | 'timeline';
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  position: number;
+  suggestion: string;
+}
+
+// 语义建议结果
+export interface SemanticSuggestion {
+  word: string;
+  similarity: number;
+  category: string;
+}
+
+// 对话生成结果
+export interface DialogueResult {
+  content: string;
+  speaker: string;
+}
+
+// 风格预设
+export interface StylePreset {
+  id: string;
+  name: string;
+  description: string;
+  example: string;
+}
+
+// 环境音效
+export interface EnvironmentSound {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
 class AIService {
   private client = axios.create(AI_CONFIG)
 
@@ -109,6 +155,157 @@ class AIService {
     }
   }
 
+  // 生成平行宇宙版本
+  async generateParallelVersions(content: string): Promise<ParallelVersion[]> {
+    // 模拟平行版本生成
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // 返回模拟的平行版本
+    return [
+      {
+        id: '1',
+        content: `${content}\n\n这是第一个平行版本的内容，在这个版本中，故事走向了不同的方向。`,
+        title: '平行版本一：不同的选择',
+        description: '在这个版本中，主角做出了完全不同的决定'
+      },
+      {
+        id: '2',
+        content: `${content}\n\n这是第二个平行版本的内容，展现了另一种可能性。`,
+        title: '平行版本二：意外的转折',
+        description: '在这个版本中，一个意外事件改变了整个故事的走向'
+      },
+      {
+        id: '3',
+        content: `${content}\n\n这是第三个平行版本的内容，探索了另一种结局。`,
+        title: '平行版本三：隐藏的真相',
+        description: '在这个版本中，揭露了一个之前未被发现的秘密'
+      }
+    ];
+  }
+
+  // 检测内容不一致性
+  async detectInconsistencies(content: string): Promise<InconsistencyIssue[]> {
+    // 模拟不一致性检测
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 返回模拟的不一致性问题
+    return [
+      {
+        type: 'character',
+        description: '角色行为前后不一致',
+        severity: 'medium',
+        position: 120,
+        suggestion: '建议回顾角色设定，确保行为符合角色性格'
+      },
+      {
+        type: 'timeline',
+        description: '时间线存在矛盾',
+        severity: 'high',
+        position: 450,
+        suggestion: '请检查事件发生的顺序是否合理'
+      }
+    ];
+  }
+
+  // 获取语义建议
+  async getSemanticSuggestions(keyword: string): Promise<SemanticSuggestion[]> {
+    // 模拟语义建议获取
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // 返回模拟的语义建议
+    return [
+      {
+        word: `${keyword}相关概念1`,
+        similarity: 0.9,
+        category: '相关词汇'
+      },
+      {
+        word: `${keyword}相关概念2`,
+        similarity: 0.8,
+        category: '同义词'
+      },
+      {
+        word: `${keyword}相关概念3`,
+        similarity: 0.7,
+        category: '扩展词汇'
+      }
+    ];
+  }
+
+  // 生成角色对话
+  async generateDialogue(character: string, context: string, style: string): Promise<DialogueResult> {
+    // 模拟对话生成
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // 返回模拟的对话
+    return {
+      content: `(${character}) "这是根据上下文"${context}"和风格"${style}"生成的角色对话内容。"`,
+      speaker: character
+    };
+  }
+
+  // 获取写作风格预设
+  getStylePresets(): StylePreset[] {
+    // 返回预设的写作风格
+    return [
+      {
+        id: 'realistic',
+        name: '现实主义',
+        description: '贴近现实生活，语言朴实自然',
+        example: '他推开咖啡厅的门，熟悉的铃声响起...'
+      },
+      {
+        id: 'fantasy',
+        name: '奇幻风格',
+        description: '充满魔法与幻想元素',
+        example: '古老的魔法师挥舞法杖，天空中出现了绚烂的极光...'
+      },
+      {
+        id: 'sci-fi',
+        name: '科幻风格',
+        description: '未来科技感，逻辑严密',
+        example: '飞船穿过虫洞，时间流速开始发生变化...'
+      },
+      {
+        id: 'literary',
+        name: '文学风格',
+        description: '注重修辞和意境营造',
+        example: '月光如水银般倾泻在静谧的湖面上...'
+      }
+    ];
+  }
+
+  // 获取环境音效
+  getEnvironmentSounds(): EnvironmentSound[] {
+    // 返回预设的环境音效
+    return [
+      {
+        id: 'rain',
+        name: '雨声',
+        description: '轻柔的雨声，营造宁静氛围',
+        category: '天气'
+      },
+      {
+        id: 'forest',
+        name: '森林',
+        description: '鸟鸣和风吹树叶的声音',
+        category: '自然'
+      },
+      {
+        id: 'cafe',
+        name: '咖啡厅',
+        description: '人群低语和咖啡机工作的声音',
+        category: '城市'
+      },
+      {
+        id: 'waves',
+        name: '海浪',
+        description: '海浪拍打礁石的声音',
+        category: '自然'
+      }
+    ];
+  }
+
   // 生成大纲内容
   private generateOutlineContent(params: AIGenerationParams): string {
     // 根据maxLength参数决定生成内容的长度
@@ -131,7 +328,7 @@ class AIService {
     content += '- 高潮：主角离开家乡，正式踏上冒险之路\n';
     content += '- 影响：主角开始接触更广阔的世界\n\n';
     
-    // 根据maxLength添加更多内容，但对于长大纲生成，我们需要更智能的处理
+    // 根据maxLength添加更多内容，但是对于长大纲生成，我们需要更智能的处理
     if (maxLength > 3000) {
       content += '## 第二卷：深入的挑战\n\n';
       content += '### 第三章：初遇敌人\n';
@@ -262,4 +459,4 @@ class AIService {
 
 // 创建AI服务实例
 export const aiService = new AIService();
-export default aiService 
+export default aiService
