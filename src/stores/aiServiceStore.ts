@@ -314,10 +314,12 @@ export const useAIServiceStore = create<AIServiceState>()(
       },
 
       refreshModel: async (connection) => {
+        console.log('refreshModel: Starting with connection:', connection);
         // 检查是否已经在加载此连接的模型
         const { loadingModels } = get();
         if (loadingModels.includes(connection.id)) {
           // 如果已经在加载，直接返回避免重复请求
+          console.log('refreshModel: Already loading this connection, skipping');
           return;
         }
 
@@ -332,6 +334,7 @@ export const useAIServiceStore = create<AIServiceState>()(
           const existingConnection = connections.find(c => c.id === connection.id);
           if (!existingConnection) {
             // 如果连接不存在，添加到store中
+            console.log('refreshModel: Adding new connection to store');
             addConnection(connection);
           } else if (
             existingConnection.name !== connection.name ||
@@ -341,10 +344,18 @@ export const useAIServiceStore = create<AIServiceState>()(
             existingConnection.organizationId !== connection.organizationId
           ) {
             // 如果连接存在但信息有变化，更新连接
+            console.log('refreshModel: Updating existing connection in store');
             updateConnection(connection);
           }
 
           // 创建AI提供者实例
+          console.log('refreshModel: Creating provider with config:', {
+            aiServiceType: connection.provider,
+            apiKey: connection.apiKey ? '***' : 'undefined', // 隐藏API密钥
+            baseUrl: connection.baseUrl,
+            accountId: connection.organizationId,
+          });
+          
           const provider = aiProviderFactory.createProvider({
             aiServiceType: connection.provider,
             apiKey: connection.apiKey,
@@ -353,10 +364,11 @@ export const useAIServiceStore = create<AIServiceState>()(
           });
 
           // 获取模型列表
+          console.log('refreshModel: Getting available models from provider');
           const models = await provider.getAvailableModels();
           
           // 添加调试日志
-          // console.log(`获取到 ${connection.provider} 的模型列表:`, models);
+          console.log(`获取到 ${connection.provider} 的模型列表:`, models);
 
           // 更新模型列表
           set((state) => {
@@ -372,11 +384,13 @@ export const useAIServiceStore = create<AIServiceState>()(
             
             if (!modelsChanged) {
               // 如果模型没有变化，不更新状态以避免不必要的重新渲染
+              console.log('refreshModel: Models unchanged, skipping update');
               return {
                 loadingModels: state.loadingModels.filter(id => id !== connection.id)
               };
             }
             
+            console.log('refreshModel: Models changed, updating store');
             return {
               connectionModels: {
                 ...state.connectionModels,
@@ -432,6 +446,9 @@ export const useAIServiceStore = create<AIServiceState>()(
           }
         } catch (error) {
           console.error('刷新模型列表失败:', error);
+          // 显示错误消息给用户
+          const errorMessage = error instanceof Error ? error.message : '未知错误';
+          console.error(`连接 ${connection.name} (${connection.provider}) 的模型刷新失败: ${errorMessage}`);
           // 清除加载状态
           set((state) => ({
             loadingModels: state.loadingModels.filter(id => id !== connection.id)

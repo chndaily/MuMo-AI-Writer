@@ -588,39 +588,46 @@ const AINovelWorkspace: React.FC = () => {
       console.error('记录AI使用历史失败:', error);
     }
 
-    console.log('handleAIGenerate: selectedConfigId=', selectedConfigId)
+    console.log('handleAIGenerate: selectedConfigId=', selectedConfigId);
+    console.log('handleAIGenerate: defaultConfigId=', defaultConfigId);
+    console.log('handleAIGenerate: configs=', configs);
+    
     if (!selectedConfigId) {
       // 如果没有选择配置，尝试使用默认配置
       if (defaultConfigId) {
+        console.log('handleAIGenerate: Using default config ID', defaultConfigId);
         setSelectedConfigId(defaultConfigId);
       } else if (configs.length > 0) {
         // 如果没有默认配置，使用第一个可用配置
+        console.log('handleAIGenerate: Using first available config', configs[0].id);
         setSelectedConfigId(configs[0].id);
       } else {
-        message.warning('请先选择AI模型配置')
-        return
+        message.warning('请先选择AI模型配置');
+        return;
       }
     }
 
     // 对于特定类型的生成，需要选择目标小说
     if (['outline', 'plot', 'character', 'location', 'culture', 'technology', 'magic', 'history'].includes(generationType) && !targetNovel) {
-      message.warning('请先选择目标小说')
-      return
+      message.warning('请先选择目标小说');
+      return;
     }
 
     // 对于内容生成、内容优化和情节发展，需要选择目标章节
     if (['content', 'optimize', 'plot'].includes(generationType) && !selectedChapterId) {
-      message.warning('请先选择目标章节')
-      return
+      message.warning('请先选择目标章节');
+      return;
     }
 
-    setIsAIGenerating(true)
+    setIsAIGenerating(true);
     
     try {
       // 获取选中的AI配置
-      const config = configs.find(c => c.id === selectedConfigId);
-      if (!config) {
-        throw new Error('未找到AI配置');
+      const configId = selectedConfigId || defaultConfigId || (configs.length > 0 ? configs[0].id : null);
+      console.log('handleAIGenerate: Using configId', configId);
+      
+      if (!configId) {
+        throw new Error('未找到任何AI配置');
       }
 
       // 构建完整的提示词上下文
@@ -660,7 +667,7 @@ ${prompt}`;
         }
       }
       
-      console.log('开始AI生成，配置:', config, '提示词:', fullPrompt);
+      console.log('开始AI生成，配置ID:', configId, '提示词:', fullPrompt);
       
       // 调用AI服务生成内容
       await generateTextStream(
@@ -670,11 +677,13 @@ ${prompt}`;
           temperature: temperature,
           maxTokens: 128000  // 增加maxTokens到128000以支持更长的内容生成
         },
-        selectedConfigId
+        configId  // 使用确定的configId而不是selectedConfigId
       );
     } catch (error) {
       console.error('AI生成失败:', error);
-      message.error('AI生成失败，请重试');
+      // 提供更详细的错误信息
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      message.error(`AI生成失败: ${errorMessage}，请重试`);
       setIsAIGenerating(false);
     }
   }

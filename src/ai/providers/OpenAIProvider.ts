@@ -324,7 +324,10 @@ export class OpenAIProvider extends BaseAIProvider {
       if (error instanceof Error) {
         this.recordRequestError(requestId, error)
       }
-      throw error
+      // 提供更详细的错误信息
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      console.error('OpenAIProvider.sendStreamingRequest: Error:', errorMessage);
+      throw new Error(`AI请求失败: ${errorMessage}`);
     }
   }
 }

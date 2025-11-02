@@ -42,24 +42,30 @@ class DefaultModelService {
   // 获取管理员配置的默认模型
   // 这些模型是管理员专门设置的，供所有用户使用的默认模型
   async getAdminConfiguredDefaultModels(): Promise<LLMConnectionModel[]> {
+    console.log('getAdminConfiguredDefaultModels: Starting...');
     // 检查缓存
     if (this.isCacheValid()) {
+      console.log('getAdminConfiguredDefaultModels: Using cached models');
       return this.cachedAdminModels!
     }
 
     // 防止并发请求
     if (this.isLoading) {
       // 如果正在加载，返回空数组而不是等待
+      console.log('getAdminConfiguredDefaultModels: Already loading, returning empty array');
       return []
     }
 
     this.isLoading = true
     try {
       // 从数据库获取管理员配置的模型
+      console.log('getAdminConfiguredDefaultModels: Getting models from database');
       const adminModels = await databaseManager.aiModels.getAllAIModels()
+      console.log('getAdminConfiguredDefaultModels: Got models from database:', adminModels);
       
       // 过滤出默认模型
       const defaultModels = adminModels.filter(model => model.isDefault)
+      console.log('getAdminConfiguredDefaultModels: Filtered default models:', defaultModels);
       
       // 转换为LLMConnectionModel格式
       const result = defaultModels.map(model => ({
@@ -67,15 +73,27 @@ class DefaultModelService {
         connectionId: model.connectionId,
         raw: model.raw
       }))
+      console.log('getAdminConfiguredDefaultModels: Converted to LLMConnectionModel format:', result);
 
       // 更新缓存
       this.cachedAdminModels = result
       this.cacheTimestamp = Date.now()
+      console.log('getAdminConfiguredDefaultModels: Updated cache');
 
       return result
     } catch (error) {
       console.warn('从数据库获取管理员配置的默认模型失败，使用本地存储的模型:', error)
       const { adminDefaultModels } = useAIServiceStore.getState()
+      console.log('getAdminConfiguredDefaultModels: Using local store models:', adminDefaultModels);
+      // 如果本地存储也没有模型，尝试从连接中获取
+      if (adminDefaultModels.length === 0) {
+        console.log('本地存储也没有默认模型，尝试从连接中获取')
+        // 尝试从连接模型中获取默认模型
+        const allModels = useAIServiceStore.getState().getAllModels()
+        console.log('从连接中获取的所有模型:', allModels)
+        // 返回所有模型作为默认模型（临时解决方案）
+        return allModels
+      }
       return adminDefaultModels
     } finally {
       this.isLoading = false

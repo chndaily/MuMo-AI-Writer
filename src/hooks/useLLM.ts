@@ -57,46 +57,62 @@ export function useLLM(): UseLLMReturn {
 
   // 获取AI提供者
   const getProvider = useCallback(async (configId?: string): Promise<BaseAIProvider | null> => {
+    console.log('getProvider: Starting with configId:', configId);
+    console.log('getProvider: Available configs:', configs);
+    console.log('getProvider: Default config:', defaultConfig);
+    console.log('getProvider: Available connections:', connections);
+
     // 如果没有configId，使用默认配置
     if (!configId) {
       if (defaultConfig) {
-        return createProviderFromUserConfig(defaultConfig, connections)
+        console.log('getProvider: Using default config');
+        return createProviderFromUserConfig(defaultConfig, connections);
       }
-      return null
+      console.log('getProvider: No configId and no default config');
+      return null;
     }
 
     // 1. 首先尝试在用户配置中查找
-    const userConfig = configs.find(c => c.id === configId)
+    const userConfig = configs.find(c => c.id === configId);
     if (userConfig) {
-      return createProviderFromUserConfig(userConfig, connections)
+      console.log('getProvider: Found user config', userConfig);
+      return createProviderFromUserConfig(userConfig, connections);
     }
     
     // 2. 尝试通过数据库ID查找默认模型
     try {
-      const defaultModelById = await databaseManager.aiModels.getAIModel(configId)
+      console.log('getProvider: Trying to get model by database ID:', configId);
+      const defaultModelById = await databaseManager.aiModels.getAIModel(configId);
       if (defaultModelById) {
-        return createProviderFromDefaultModel(defaultModelById)
+        console.log('getProvider: Found model by database ID', defaultModelById);
+        return createProviderFromDefaultModel(defaultModelById);
       }
     } catch (error) {
-      console.error('getProvider: Error getting default model by database ID:', error)
+      console.error('getProvider: Error getting default model by database ID:', error);
     }
     
     // 3. 尝试通过connectionId查找默认模型
     try {
-      const allModels = await databaseManager.aiModels.getAllAIModels()
-      const defaultModelByConnectionId = allModels.find(model => model.connectionId === configId)
+      console.log('getProvider: Trying to get all models from database');
+      const allModels = await databaseManager.aiModels.getAllAIModels();
+      console.log('getProvider: All models from database:', allModels);
+      const defaultModelByConnectionId = allModels.find(model => model.connectionId === configId);
       if (defaultModelByConnectionId) {
-        return createProviderFromDefaultModel(defaultModelByConnectionId)
+        console.log('getProvider: Found model by connectionId', defaultModelByConnectionId);
+        return createProviderFromDefaultModel(defaultModelByConnectionId);
       }
     } catch (error) {
-      console.error('getProvider: Error getting default model by connectionId:', error)
+      console.error('getProvider: Error getting default model by connectionId:', error);
     }
     
     // 4. 尝试通过name字段查找默认模型
     try {
       const allModels = await databaseManager.aiModels.getAllAIModels();
+      console.log('getProvider: Trying to find model by name:', configId);
+      console.log('getProvider: All models:', allModels);
       const defaultModelByName = allModels.find(model => model.name === configId);
       if (defaultModelByName) {
+        console.log('getProvider: Found model by name', defaultModelByName);
         return createProviderFromDefaultModel(defaultModelByName);
       }
     } catch (error) {
@@ -105,25 +121,27 @@ export function useLLM(): UseLLMReturn {
     
     // 5. 添加额外的调试信息：检查是否为默认模型
     try {
-      const defaultModels = await databaseManager.aiModels.getDefaultAIModels()
+      const defaultModels = await databaseManager.aiModels.getDefaultAIModels();
+      console.log('getProvider: Default models from database:', defaultModels);
       const isDefaultModel = defaultModels.some(model => 
         model.id === configId || 
         model.connectionId === configId || 
         model.name === configId
-      )
+      );
       
       if (isDefaultModel) {
         const defaultModel = defaultModels.find(model => 
           model.id === configId || 
           model.connectionId === configId || 
           model.name === configId
-        )
+        );
         if (defaultModel) {
-          return createProviderFromDefaultModel(defaultModel)
+          console.log('getProvider: Found default model', defaultModel);
+          return createProviderFromDefaultModel(defaultModel);
         }
       }
     } catch (error) {
-      console.error('getProvider: Error checking default models:', error)
+      console.error('getProvider: Error checking default models:', error);
     }
     
     // 6. 尝试通过模糊匹配查找模型
@@ -138,13 +156,25 @@ export function useLLM(): UseLLMReturn {
       );
       
       if (fuzzyMatch) {
+        console.log('getProvider: Found model by fuzzy matching', fuzzyMatch);
         return createProviderFromDefaultModel(fuzzyMatch);
       }
     } catch (error) {
       console.error('getProvider: Error getting default model by fuzzy matching:', error);
     }
 
-    return null
+    // 7. 如果所有方法都失败了，记录详细错误信息
+    console.error('getProvider: Failed to find provider for configId:', configId);
+    console.error('getProvider: Available configs:', configs);
+    console.error('getProvider: Available connections:', connections);
+    try {
+      const allModels = await databaseManager.aiModels.getAllAIModels();
+      console.error('getProvider: Available models in database:', allModels);
+    } catch (error) {
+      console.error('getProvider: Error getting all models from database:', error);
+    }
+
+    return null;
   }, [configs, defaultConfig, connections])
 
   // 从用户配置创建提供者
@@ -349,6 +379,10 @@ export function useLLM(): UseLLMReturn {
 
   // 生成文本（流式）
   const generateTextStream = useCallback(async (request: GenerateRequest, configId?: string): Promise<void> => {
+    console.log('generateTextStream: Starting with configId:', configId);
+    console.log('generateTextStream: Available configs:', configs);
+    console.log('generateTextStream: Default config:', defaultConfig);
+    
     setStreaming(true);
     setError(null);
     setResponse('');
@@ -371,24 +405,49 @@ export function useLLM(): UseLLMReturn {
     };
 
     try {
-      const provider = await getProvider(configId)
+      const provider = await getProvider(configId);
       if (!provider) {
-        throw new Error('无法获取AI提供者')
+        throw new Error(`无法获取AI提供者，配置ID: ${configId}`);
       }
 
       // 获取配置信息（用于获取模型名称）
-      let config: LLMConfig | AIModelRecord | undefined = configId ? configs.find(c => c.id === configId) : defaultConfig
+      let config: LLMConfig | AIModelRecord | undefined = configId ? configs.find(c => c.id === configId) : defaultConfig;
+      console.log('generateTextStream: Found config in user configs:', config);
+      
       if (!config && configId) {
         // 如果在用户配置中找不到，尝试从数据库获取默认模型
         try {
-          config = await databaseManager.aiModels.getAIModel(configId)
+          console.log('generateTextStream: Trying to get model from database with ID:', configId);
+          config = await databaseManager.aiModels.getAIModel(configId);
+          console.log('generateTextStream: Found config in database:', config);
         } catch (error) {
-          console.error('generateTextStream: Error getting default model:', error)
+          console.error('generateTextStream: Error getting default model:', error);
+        }
+      }
+      
+      // 如果仍然找不到配置，尝试通过其他方式查找
+      if (!config && configId) {
+        try {
+          console.log('generateTextStream: Trying to get all models from database');
+          const allModels = await databaseManager.aiModels.getAllAIModels();
+          console.log('generateTextStream: All models from database:', allModels);
+          
+          // 尝试通过connectionId查找
+          config = allModels.find(model => model.connectionId === configId);
+          console.log('generateTextStream: Found config by connectionId:', config);
+          
+          // 如果还是找不到，尝试通过name查找
+          if (!config) {
+            config = allModels.find(model => model.name === configId);
+            console.log('generateTextStream: Found config by name:', config);
+          }
+        } catch (error) {
+          console.error('generateTextStream: Error getting all models:', error);
         }
       }
       
       if (!config) {
-        throw new Error('未找到配置')
+        throw new Error(`未找到配置，配置ID: ${configId}`);
       }
 
       // 处理LLMConfig和AIModelRecord的不同字段名
@@ -408,6 +467,8 @@ export function useLLM(): UseLLMReturn {
       if (!modelName) {
         throw new Error('模型名称不能为空');
       }
+      
+      console.log('generateTextStream: Using model name:', modelName);
       
       const payload: AIRequestPayload = {
         model: modelName,
@@ -469,6 +530,7 @@ export function useLLM(): UseLLMReturn {
       }, requestId);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
+      console.error('generateTextStream: Error:', errorMessage);
       if (errorMessage.includes('aborted') || errorMessage.includes('AbortError')) {
         setStreaming(false) // 流被中止时只需设置状态
       } else {
