@@ -17,6 +17,12 @@ app.use(cors({
   credentials: true
 }));
 
+// 添加Content Security Policy头部
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.openai.com https://api.deepseek.com https://api.anthropic.com https://generativelanguage.googleapis.com https://api-inference.modelscope.cn; frame-src 'self' https://accounts.google.com;");
+  next();
+});
+
 // MongoDB连接配置
 let db;
 
@@ -1161,8 +1167,9 @@ app.post('/api/characters', authenticateToken, async (req, res) => {
     delete character.id;
     
     // 确保时间戳字段存在
-    character.createdAt = character.createdAt || new Date().toISOString();
-    character.lastModified = character.lastModified || new Date().toISOString();
+    const now = new Date().toISOString();
+    character.createdAt = character.createdAt || now;
+    character.lastModified = character.lastModified || now;
     
     // 设置作者信息
     character.authorId = req.user.userId;
@@ -1172,7 +1179,7 @@ app.post('/api/characters', authenticateToken, async (req, res) => {
     // 同时返回id和_id字段以确保前端兼容性
     const finalId = result.insertedId || character._id;
     const responseCharacter = { ...character, id: finalId, _id: finalId };
-    res.json(responseCharacter);
+    res.status(201).json(responseCharacter);
   } catch (error) {
     console.error('Failed to create character:', error);
     res.status(500).json({ error: error.message });
@@ -1248,12 +1255,31 @@ app.post('/api/locations', authenticateToken, async (req, res) => {
     }
     delete location.id;
     
+    // 确保novelId字段存在
+    if (!location.novelId) {
+      return res.status(400).json({ error: '缺少novelId字段' });
+    }
+    
     // 设置作者信息
     location.authorId = req.user.userId;
     
+    // 确保时间字段存在
+    const now = new Date().toISOString();
+    if (!location.createdAt) {
+      location.createdAt = now;
+    }
+    if (!location.lastModified) {
+      location.lastModified = now;
+    }
+    
     await db.collection('locations').insertOne(location);
     // 确保返回完整的地点对象，包括所有字段
-    res.json({ ...location, _id: location._id });
+    res.status(201).json({ 
+      ...location, 
+      _id: location._id,
+      createdAt: location.createdAt,
+      lastModified: location.lastModified
+    });
   } catch (error) {
     console.error('Failed to create location:', error);
     res.status(500).json({ error: error.message });
@@ -1265,12 +1291,20 @@ app.put('/api/locations/:id', authenticateToken, async (req, res) => {
   try {
     const location = req.body;
     delete location.id;
+    
+    // 确保lastModified字段更新
+    location.lastModified = new Date().toISOString();
+    
     // 确保所有字段都被正确更新
     await db.collection('locations').updateOne(
       { _id: req.params.id },
       { $set: location }
     );
-    res.json({ ...location, _id: req.params.id });
+    res.json({ 
+      ...location, 
+      _id: req.params.id,
+      lastModified: location.lastModified
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -2118,25 +2152,48 @@ app.get('/api/world-settings', authenticateToken, async (req, res) => {
     const novelId = req.query.novelId;
     const type = req.query.type;
     
-    let query = {};
-    // 如果有novelId参数，按小说ID过滤
-    if (novelId) {
-      query.novelId = novelId;
+    // 特殊处理：如果type为'character'，需要从两个集合中获取数据
+    if (type === 'character') {
+      // 查询worldSettings集合中的角色数据
+      let query1 = {};
+      if (novelId) {
+        query1.novelId = novelId;
+      }
+      query1.type = 'character';
+      const worldSettingsCharacters = await db.collection('worldSettings').find(query1).toArray();
+      
+      // 查询characters集合中的角色数据
+      let query2 = {};
+      if (novelId) {
+        query2.novelId = novelId;
+      }
+      const characters = await db.collection('characters').find(query2).toArray();
+      
+      // 合并两种来源的角色数据
+      const allCharacters = [...worldSettingsCharacters, ...characters];
+      res.json(allCharacters);
+    } else {
+      // 其他类型的处理保持不变
+      let query = {};
+      // 如果有novelId参数，按小说ID过滤
+      if (novelId) {
+        query.novelId = novelId;
+      }
+      // 如果有type参数，按类型过滤
+      if (type) {
+        query.type = type;
+      }
+      
+      const worldSettings = await db.collection('worldSettings').find(query).toArray();
+      res.json(worldSettings);
     }
-    // 如果有type参数，按类型过滤
-    if (type) {
-      query.type = type;
-    }
-    
-    const worldSettings = await db.collection('worldSettings').find(query).toArray();
-    res.json(worldSettings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // 获取世界观设定详情
-app.get('/api/world-settings/:id', async (req, res) => {
+app.get('/api/world-settings/:id', authenticateToken, async (req, res) => {
   try {
     const worldSetting = await db.collection('worldSettings').findOne({ _id: req.params.id });
     res.json(worldSetting);
@@ -2149,19 +2206,25 @@ app.get('/api/world-settings/:id', async (req, res) => {
 app.post('/api/world-settings', authenticateToken, async (req, res) => {
   try {
     const worldSetting = req.body;
-    // 如果没有提供id，则生成一个唯一的id
-    if (!worldSetting.id) {
-      worldSetting._id = 'world-setting-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    } else {
-      worldSetting._id = worldSetting.id;
+    
+    // 确保有novelId字段
+    if (!worldSetting.novelId) {
+      return res.status(400).json({ error: 'Missing novelId field' });
     }
-    delete worldSetting.id;
+    
+    // 生成唯一的_id
+    worldSetting._id = 'world-setting-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     
     // 设置作者信息
     worldSetting.authorId = req.user.userId;
     
+    // 设置创建和修改时间
+    const now = new Date().toISOString();
+    worldSetting.createdAt = now;
+    worldSetting.lastModified = now;
+    
     const result = await db.collection('worldSettings').insertOne(worldSetting);
-    res.json({ ...req.body, _id: result.insertedId || worldSetting._id });
+    res.status(201).json({ ...worldSetting, id: worldSetting._id });
   } catch (error) {
     console.error('Failed to create world setting:', error);
     res.status(500).json({ error: error.message });
@@ -2172,13 +2235,27 @@ app.post('/api/world-settings', authenticateToken, async (req, res) => {
 app.put('/api/world-settings/:id', authenticateToken, async (req, res) => {
   try {
     const worldSetting = req.body;
+    
+    // 更新修改时间
+    worldSetting.lastModified = new Date().toISOString();
+    
+    // 删除可能存在的id字段，避免更新_id字段时出现问题
     delete worldSetting.id;
-    await db.collection('worldSettings').updateOne(
+    
+    const result = await db.collection('worldSettings').updateOne(
       { _id: req.params.id },
       { $set: worldSetting }
     );
-    res.json({ ...worldSetting, _id: req.params.id });
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'World setting not found' });
+    }
+    
+    // 获取更新后的数据
+    const updatedSetting = await db.collection('worldSettings').findOne({ _id: req.params.id });
+    res.json(updatedSetting);
   } catch (error) {
+    console.error('Failed to update world setting:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2297,6 +2374,51 @@ app.get('/api/chapter-versions/:id', async (req, res) => {
   }
 });
 
+// 获取章节详情
+app.get('/api/chapters/:id', async (req, res) => {
+  try {
+    const chapter = await db.collection('chapters').findOne({ _id: req.params.id });
+    res.json(chapter);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 创建章节
+app.post('/api/chapters', async (req, res) => {
+  try {
+    const chapter = req.body;
+    const result = await db.collection('chapters').insertOne(chapter);
+    res.status(201).json(result.ops[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 更新章节
+app.put('/api/chapters/:id', async (req, res) => {
+  try {
+    const chapter = req.body;
+    const result = await db.collection('chapters').updateOne(
+      { _id: req.params.id },
+      { $set: chapter }
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除章节
+app.delete('/api/chapters/:id', async (req, res) => {
+  try {
+    const result = await db.collection('chapters').deleteOne({ _id: req.params.id });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 创建章节版本
 app.post('/api/chapter-versions', async (req, res) => {
   try {
@@ -2389,6 +2511,117 @@ app.delete('/api/chat-history/:novelId', async (req, res) => {
     res.json({ success: true, message: 'Chat history cleared' });
   } catch (error) {
     console.error('Failed to clear chat history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 地点API路由
+// 获取所有地点
+app.get('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    // 检查是否有novelId查询参数
+    const novelId = req.query.novelId;
+    
+    let query = {};
+    // 如果有novelId参数，按小说ID过滤
+    if (novelId) {
+      query.novelId = novelId;
+    }
+    
+    const locations = await db.collection('locations').find(query).toArray();
+    res.json(locations);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 根据ID获取地点
+app.get('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    const location = await db.collection('locations').findOne({ _id: req.params.id });
+    if (location) {
+      res.json(location);
+    } else {
+      res.status(404).json({ error: 'Location not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 创建地点
+app.post('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    const location = req.body;
+    // 如果没有提供id，则生成一个唯一的id
+    if (!location.id) {
+      location._id = 'location-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    } else {
+      location._id = location.id;
+    }
+    delete location.id;
+    
+    // 确保novelId字段存在
+    if (!location.novelId) {
+      return res.status(400).json({ error: '缺少novelId字段' });
+    }
+    
+    // 设置作者信息
+    location.authorId = req.user.userId;
+    
+    // 确保时间字段存在
+    const now = new Date().toISOString();
+    if (!location.createdAt) {
+      location.createdAt = now;
+    }
+    if (!location.lastModified) {
+      location.lastModified = now;
+    }
+    
+    await db.collection('locations').insertOne(location);
+    // 确保返回完整的地点对象，包括所有字段
+    res.status(201).json({ 
+      ...location, 
+      _id: location._id,
+      createdAt: location.createdAt,
+      lastModified: location.lastModified
+    });
+  } catch (error) {
+    console.error('Failed to create location:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 更新地点
+app.put('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    const location = req.body;
+    delete location.id;
+    
+    // 确保lastModified字段更新
+    location.lastModified = new Date().toISOString();
+    
+    // 确保所有字段都被正确更新
+    await db.collection('locations').updateOne(
+      { _id: req.params.id },
+      { $set: location }
+    );
+    res.json({ 
+      ...location, 
+      _id: req.params.id,
+      lastModified: location.lastModified
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除地点
+app.delete('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    await db.collection('locations').deleteOne({ _id: req.params.id });
+    res.json({ message: 'Location deleted' });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });

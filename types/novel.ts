@@ -87,6 +87,7 @@ export interface Character {
   name: string
   description: string
   role: 'protagonist' | 'antagonist' | 'supporting' | 'minor' | 'side' | 'foil' | 'mentor' | 'loveInterest' | 'rival' | 'neutral' | 'keySupporting' | 'minorSupporting' | 'complexSupporting'
+  customRole?: string  // 添加自定义角色类型字段
   appearance?: string
   personality?: string
   background?: string

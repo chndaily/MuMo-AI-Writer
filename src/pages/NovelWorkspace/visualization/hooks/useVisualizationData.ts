@@ -220,6 +220,23 @@ export const useVisualizationData = (novelId: string | undefined) => {
     }
   }, [novelId]);
 
+  // 监听数据刷新事件
+  useEffect(() => {
+    const handleDataRefresh = () => {
+      if (novelId) {
+        refreshAllData();
+      }
+    };
+    
+    // 添加事件监听器
+    window.addEventListener('dataRefreshNeeded', handleDataRefresh);
+    
+    // 清理函数
+    return () => {
+      window.removeEventListener('dataRefreshNeeded', handleDataRefresh);
+    };
+  }, [novelId, refreshAllData]);
+
   return {
     chartData,
     loading,

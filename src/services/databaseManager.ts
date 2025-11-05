@@ -155,11 +155,11 @@ export class DatabaseManager {
       getWorldSetting: async (id: string, type: 'culture' | 'technology' | 'magic' | 'history'): Promise<WorldSetting | undefined> => {
         return await this.mongodbStorageService.getWorldSetting(type, id)
       },
-      getWorldSettingsByNovelId: async (novelId: string, type: 'culture' | 'technology' | 'magic' | 'history'): Promise<WorldSetting[]> => {
-        return await this.mongodbStorageService.getWorldSettingsByNovelId(type, novelId)
+      getWorldSettingsByNovelId: async (novelId: string, type: 'culture' | 'technology' | 'magic' | 'history' | 'character'): Promise<WorldSetting[]> => {
+        return await this.mongodbStorageService.getWorldSettingsByNovelId(type as any, novelId)
       },
-      getAllData: async (type: 'culture' | 'technology' | 'magic' | 'history'): Promise<WorldSetting[]> => {
-        return await this.mongodbStorageService.getAllWorldSettings(type)
+      getAllData: async (type: 'culture' | 'technology' | 'magic' | 'history' | 'character'): Promise<WorldSetting[]> => {
+        return await this.mongodbStorageService.getAllWorldSettings(type as any)
       }
     }
   }

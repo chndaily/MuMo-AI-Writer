@@ -79,19 +79,7 @@ export function useLLM(): UseLLMReturn {
       return createProviderFromUserConfig(userConfig, connections);
     }
     
-    // 2. 尝试通过数据库ID查找默认模型
-    try {
-      console.log('getProvider: Trying to get model by database ID:', configId);
-      const defaultModelById = await databaseManager.aiModels.getAIModel(configId);
-      if (defaultModelById) {
-        console.log('getProvider: Found model by database ID', defaultModelById);
-        return createProviderFromDefaultModel(defaultModelById);
-      }
-    } catch (error) {
-      console.error('getProvider: Error getting default model by database ID:', error);
-    }
-    
-    // 3. 尝试通过connectionId查找默认模型
+    // 2. 尝试通过connectionId查找默认模型
     try {
       console.log('getProvider: Trying to get all models from database');
       const allModels = await databaseManager.aiModels.getAllAIModels();
@@ -103,6 +91,18 @@ export function useLLM(): UseLLMReturn {
       }
     } catch (error) {
       console.error('getProvider: Error getting default model by connectionId:', error);
+    }
+    
+    // 3. 尝试通过数据库ID查找默认模型
+    try {
+      console.log('getProvider: Trying to get model by database ID:', configId);
+      const defaultModelById = await databaseManager.aiModels.getAIModel(configId);
+      if (defaultModelById) {
+        console.log('getProvider: Found model by database ID', defaultModelById);
+        return createProviderFromDefaultModel(defaultModelById);
+      }
+    } catch (error) {
+      console.error('getProvider: Error getting default model by database ID:', error);
     }
     
     // 4. 尝试通过name字段查找默认模型
@@ -299,6 +299,7 @@ export function useLLM(): UseLLMReturn {
         console.warn('createProviderFromDefaultModel: WARNING - API key might be invalid (too short)');
       }
       
+      console.log('createProviderFromDefaultModel: Creating provider with config:', providerConfig);
       return aiProviderFactory.createProvider(providerConfig) as BaseAIProvider
     }
     
@@ -440,6 +441,12 @@ export function useLLM(): UseLLMReturn {
           if (!config) {
             config = allModels.find(model => model.name === configId);
             console.log('generateTextStream: Found config by name:', config);
+          }
+          
+          // 如果还是找不到，尝试通过ID查找
+          if (!config) {
+            config = allModels.find(model => model.id === configId);
+            console.log('generateTextStream: Found config by database ID:', config);
           }
         } catch (error) {
           console.error('generateTextStream: Error getting all models:', error);

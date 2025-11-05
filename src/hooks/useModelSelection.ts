@@ -23,26 +23,31 @@ export const useModelSelection = () => {
   // 获取所有可用模型（根据会员等级过滤）
   const getAllAvailableModels = useCallback(async (): Promise<DisplayModel[]> => {
     console.log('getAllAvailableModels: Starting...');
+    setLoading(true);
     
-    // 获取默认模型列表（仅管理员配置的默认模型）
-    const defaultModelList = await defaultModelService.getDefaultModelList()
-    console.log('getAllAvailableModels: defaultModelList=', defaultModelList);
-    
-    // 转换默认模型为显示格式
-    const defaultConfigs: DisplayModel[] = defaultModelList.map(model => ({
-      // 使用模型的ID，确保与数据库中的模型匹配
-      id: model.id,
-      name: `${model.name}`,
-      provider: model.provider as LLMProvider,
-      model: model.name,
-      isDefault: true
-    }))
-    
-    console.log('getAllAvailableModels: defaultConfigs=', defaultConfigs);
-    
-    // 所有会员（包括专业会员）只能使用默认模型
-    console.log('getAllAvailableModels: all users, default models only=', defaultConfigs);
-    return defaultConfigs;
+    try {
+      // 获取默认模型列表（仅管理员配置的默认模型）
+      const defaultModelList = await defaultModelService.getDefaultModelList()
+      console.log('getAllAvailableModels: defaultModelList=', defaultModelList);
+      
+      // 转换默认模型为显示格式
+      const defaultConfigs: DisplayModel[] = defaultModelList.map(model => ({
+        // 使用模型的ID，确保与数据库中的模型匹配
+        id: model.id,
+        name: `${model.name}`,
+        provider: model.provider as LLMProvider,
+        model: model.name,
+        isDefault: true
+      }))
+      
+      console.log('getAllAvailableModels: defaultConfigs=', defaultConfigs);
+      
+      // 所有会员（包括专业会员）只能使用默认模型
+      console.log('getAllAvailableModels: all users, default models only=', defaultConfigs);
+      return defaultConfigs;
+    } finally {
+      setLoading(false);
+    }
   }, [configs, membershipInfo.level])
   
   // 检查模型是否为默认模型
@@ -64,7 +69,18 @@ export const useModelSelection = () => {
       }
     }
     
-    // 再检查是否为默认模型
+    // 再检查是否为默认模型（通过数据库ID）
+    try {
+      const modelDetails = await defaultModelService.getModelDetailsById(modelId);
+      if (modelDetails) {
+        console.log('getModelDetails: Found default model by ID', modelDetails);
+        return modelDetails;
+      }
+    } catch (error) {
+      console.warn('getModelDetails: Error getting default model by ID:', error);
+    }
+    
+    // 再检查是否为默认模型（通过connectionId）
     const defaultModels = await defaultModelService.getDefaultModelList()
     console.log('getModelDetails: defaultModels=', defaultModels);
     const defaultModel = defaultModels.find(model => model.id === modelId)

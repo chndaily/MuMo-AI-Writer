@@ -43,9 +43,14 @@ import {
   ThunderboltOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  ApiOutlined,
+  ExperimentOutlined,
+  HistoryOutlined
 } from '@ant-design/icons';
 import useStyles from './useStyles';
+import CharacterGenerationHelper from '@/components/ai/CharacterGenerationHelper';
+import WorldSettingGenerationHelper from '@/components/ai/WorldSettingGenerationHelper';
 import { useNovelStore } from '../../stores/novelStore';
 import { useLLMConfigStore } from '@/stores/llmConfigStore';
 import { useAIServiceStore } from '@/stores/aiServiceStore';
@@ -179,6 +184,12 @@ const AINovelWorkspace: React.FC = () => {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null) // 添加章节选择状态
   const [chapters, setChapters] = useState<any[]>([]) // 章节列表状态
   const [loadingChapters, setLoadingChapters] = useState(false) // 章节加载状态
+  
+  // 角色生成助手状态
+  const [characterHelperVisible, setCharacterHelperVisible] = useState(false);
+  // 世界设定生成助手状态
+  const [worldSettingHelperVisible, setWorldSettingHelperVisible] = useState(false);
+  const [worldSettingHelperType, setWorldSettingHelperType] = useState<'location' | 'culture' | 'technology' | 'magic' | 'history' | null>(null);
 
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
   const aiButtonRef = useRef<HTMLDivElement>(null)
@@ -209,9 +220,14 @@ const AINovelWorkspace: React.FC = () => {
             // 获取小说信息
             const novel = await databaseManager.novels.getNovel(state.novelId);
             if (novel) {
-              setTargetNovel(novel);
+              // 确保小说对象有id字段（处理API返回_id但没有id的情况）
+              const novelWithId = {
+                ...novel,
+                id: novel.id || (novel as any)._id || state.novelId
+              };
+              setTargetNovel(novelWithId);
               // 加载章节列表
-              await loadChapters(state.novelId);
+              await loadChapters(novelWithId.id);
               // 如果有章节ID，设置选中章节
               if (state.chapterId) {
                 setSelectedChapterId(state.chapterId);
@@ -243,21 +259,30 @@ const AINovelWorkspace: React.FC = () => {
 
   // 初始化选择默认配置
   useEffect(() => {
+    // 确保模型数据已经加载完成
+    if (loadingModels) {
+      console.log('Models are still loading, waiting...');
+      return;
+    }
+    
     // 优先使用useModelSelection hook中的模型列表
     if (availableModels.length > 0 && !selectedConfigId) {
       // 优先使用默认模型（管理员配置的统一默认模型）
       const defaultModel = availableModels.find(model => model.isDefault);
       if (defaultModel) {
+        console.log('Selecting default model:', defaultModel);
         setSelectedConfigId(defaultModel.id);
       } else {
         // 如果没有默认模型，使用第一个可用模型
+        console.log('Selecting first available model:', availableModels[0]);
         setSelectedConfigId(availableModels[0].id);
       }
     } else if (configs.length > 0 && !selectedConfigId) {
       // 回退到useLLM hook中的配置
+      console.log('Falling back to LLM config, defaultConfigId:', defaultConfigId);
       setSelectedConfigId(defaultConfigId || configs[0].id);
     }
-  }, [configs, selectedConfigId, defaultConfigId, availableModels]);
+  }, [configs, selectedConfigId, defaultConfigId, availableModels, loadingModels]);
 
   // 监听流式状态变化，同步本地状态
   useEffect(() => {
@@ -326,7 +351,12 @@ const AINovelWorkspace: React.FC = () => {
   // 处理小说选择
   const handleBookSelect = async (novelId: string, novel: Novel) => {
     console.log('选择小说:', novel);
-    setTargetNovel(novel);
+    // 确保小说对象有id字段（处理API返回_id但没有id的情况）
+    const novelWithId = {
+      ...novel,
+      id: novel.id || (novel as any)._id || novelId
+    };
+    setTargetNovel(novelWithId);
     // 当选择小说时，加载对应的章节列表
     if (novelId) {
       await loadChapters(novelId);
@@ -334,6 +364,48 @@ const AINovelWorkspace: React.FC = () => {
       setChapters([]);
     }
   };
+
+  // 刷新世界观设定数据
+  const refreshWorldSettingsData = async (novelId: string) => {
+    try {
+      // 重新加载章节列表来刷新数据
+      await loadChapters(novelId);
+      
+      // 触发相关组件更新
+      eventBus.emit('dataRefreshNeeded', { novelId });
+    } catch (error) {
+      console.error('刷新世界观设定数据失败:', error);
+    }
+  };
+
+  // 监听删除和同步完成事件
+  useEffect(() => {
+    const handleWorldSettingDeleted = () => {
+      // 当世界观设定被删除时，刷新相关数据
+      if (targetNovel?.id) {
+        refreshWorldSettingsData(targetNovel.id);
+      }
+    };
+    
+    const handleWorldSettingSyncComplete = (event: CustomEvent) => {
+      // 当同步完成时，刷新相关数据
+      const { novelId, type } = event.detail || {};
+      // 优先使用事件中的novelId，如果没有则使用targetNovel.id
+      const idToUse = novelId || targetNovel?.id;
+      if (idToUse) {
+        refreshWorldSettingsData(idToUse);
+      }
+    };
+    
+    // 监听删除和同步完成事件
+    window.addEventListener('worldSettingDeleted', handleWorldSettingDeleted);
+    window.addEventListener('worldSettingSyncComplete', handleWorldSettingSyncComplete as EventListener);
+    
+    return () => {
+      window.removeEventListener('worldSettingDeleted', handleWorldSettingDeleted);
+      window.removeEventListener('worldSettingSyncComplete', handleWorldSettingSyncComplete as EventListener);
+    };
+  }, [targetNovel?.id]);
 
   // 处理同步完成
   const handleSyncComplete = (result: any) => {
@@ -352,16 +424,17 @@ const AINovelWorkspace: React.FC = () => {
     }
     
     // 直接执行同步
-    performSync(optionKey);
+    performSync();
   }
 
   // 执行同步
-  const performSync = async (optionKey: string) => {
+  const performSync = async () => {
     if (!targetNovel || !content) return;
     
     try {
       // 使用优化的数据同步服务替换旧的同步服务
       // 根据generationType执行相应的同步操作
+      console.log('开始同步操作，generationType:', generationType);
       let result: any;
       switch (generationType) {
         case 'content':
@@ -414,23 +487,30 @@ const AINovelWorkspace: React.FC = () => {
         case 'magic':
         case 'history':
           // 对于世界观设定相关操作，使用专门的同步服务
+          console.log('世界观设定同步，类型:', generationType);
           // 根据类型导入相应的同步服务
           if (generationType === 'character') {
+            console.log('调用角色同步服务');
             const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
             result = await characterSyncService.syncCharacters(content, targetNovel.id);
           } else if (generationType === 'location') {
+            console.log('调用地点同步服务');
             const { locationSyncService } = await import('@/services/sync/LocationSyncService');
             result = await locationSyncService.syncLocations(content, targetNovel.id);
           } else if (generationType === 'culture') {
+            console.log('调用文化同步服务');
             const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
             result = await cultureSyncService.syncCultures(content, targetNovel.id);
           } else if (generationType === 'technology') {
+            console.log('调用科技同步服务');
             const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
             result = await technologySyncService.syncTechnologies(content, targetNovel.id);
           } else if (generationType === 'magic') {
+            console.log('调用魔法同步服务');
             const { magicSyncService } = await import('@/services/sync/MagicSyncService');
             result = await magicSyncService.syncMagics(content, targetNovel.id);
           } else if (generationType === 'history') {
+            console.log('调用历史同步服务');
             const { historySyncService } = await import('@/services/sync/HistorySyncService');
             result = await historySyncService.syncHistories(content, targetNovel.id);
           }
@@ -656,7 +736,50 @@ ${prompt}`;
         // 对于其他类型的生成，添加小说信息和大纲上下文
         try {
           // 使用增强的特定指导功能，该功能会自动包含大纲信息
-          const enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id);
+          let enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id);
+          
+          // 对于角色生成，额外添加大纲中提及的角色信息
+          if (generationType === 'character') {
+            try {
+              // 获取大纲信息
+              const outlines = await hybridStorageService.getOutlines(targetNovel.id);
+              if (outlines && outlines.length > 0) {
+                // 导入角色提取工具
+                const { extractCharactersFromOutline } = await import('@/utils/outlineCharacterExtractor');
+                
+                // 提取大纲中提及的角色
+                const mentionedCharacters = await extractCharactersFromOutline(outlines);
+                
+                // 获取已存在的角色
+                const existingCharacters = await hybridStorageService.getWorldElements('character', targetNovel.id);
+                const existingCharacterNames = existingCharacters.map((char: any) => char.name);
+                
+                // 过滤出未详细设定的角色
+                const undetailedCharacters = mentionedCharacters.filter(
+                  name => !existingCharacterNames.includes(name)
+                );
+                
+                if (undetailedCharacters.length > 0) {
+                  enhancedGuidance += `
+
+【大纲中提及但未详细设定的角色】
+请为以下角色生成详细设定：${undetailedCharacters.join('、')}
+`;
+                }
+                
+                // 添加防重复指令
+                if (existingCharacterNames.length > 0) {
+                  enhancedGuidance += `
+
+【重要提醒】
+请勿生成与以下已存在角色重复的角色：${existingCharacterNames.join('、')}
+`;
+                }
+              }
+            } catch (extractError) {
+              console.warn('提取大纲角色信息失败:', extractError);
+            }
+          }
           
           // 构建包含上下文的完整提示词
           fullPrompt = `${prompt}\n\n${enhancedGuidance}`;
@@ -785,7 +908,110 @@ ${prompt}`;
     if (!['content', 'optimize', 'plot'].includes(value)) {
       setSelectedChapterId(null);
     }
+    
+    // 当切换到角色生成类型时，显示角色生成助手
+    if (value === 'character' && targetNovel?.id) {
+      setCharacterHelperVisible(true);
+    }
   };
+  
+  // 处理角色生成请求
+  const handleCharacterGenerateRequest = (characterNames: string[]) => {
+    // 构造自定义提示词，包含完整的大纲上下文
+    const characterList = characterNames.join('、');
+    
+    // 获取当前小说的大纲内容作为上下文（从大纲数据中获取）
+    const customPromptText = `请严格围绕以下小说大纲（含大纲内提及的人物、情节、核心冲突），为指定角色生成详细设定，确保所有角色与大纲情节强绑定、无逻辑冲突。
+
+请为以下角色生成详细设定：${characterList}
+
+要求：
+1. 严格按照大纲中提及的角色进行设定
+2. 不要生成与已有角色重复的角色
+3. 为每个角色提供完整的背景、性格、能力等信息
+4. 角色设定需与小说整体世界观保持一致`;
+    
+    setCustomPrompt(customPromptText);
+    
+    // 自动触发生成
+    setTimeout(() => {
+      handleAIGenerate(customPromptText);
+    }, 100);
+  };
+  
+  // 处理角色生成助手取消
+  const handleCharacterHelperCancel = () => {
+    setCharacterHelperVisible(false);
+  };
+  
+  // 处理打开角色生成助手
+  const handleOpenCharacterHelper = () => {
+    if (!targetNovel?.id) {
+      message.warning('请先选择目标小说');
+      return;
+    }
+    setCharacterHelperVisible(true);
+  };
+  
+  // 处理世界设定生成助手取消
+  const handleWorldSettingHelperCancel = () => {
+    setWorldSettingHelperVisible(false);
+    setWorldSettingHelperType(null);
+  };
+  
+  // 处理打开世界设定生成助手
+  const handleOpenWorldSettingHelper = (type: 'location' | 'culture' | 'technology' | 'magic' | 'history') => {
+    if (!targetNovel?.id) {
+      message.warning('请先选择目标小说');
+      return;
+    }
+    setWorldSettingHelperType(type);
+    setWorldSettingHelperVisible(true);
+  };
+  
+  // 处理世界设定生成请求
+  const handleWorldSettingGenerateRequest = (settingNames: string[]) => {
+    // 构造自定义提示词，包含完整的大纲上下文
+    const settingList = settingNames.join('、');
+    
+    // 获取当前小说的大纲内容作为上下文
+    const customPromptText = `请严格围绕以下小说大纲（含大纲内提及的设定、情节、核心冲突），为指定${getSettingTypeName(worldSettingHelperType)}生成详细设定，确保所有设定与大纲情节强绑定、无逻辑冲突。
+
+请为以下${getSettingTypeName(worldSettingHelperType)}生成详细设定：${settingList}
+
+要求：
+1. 严格按照大纲中提及的设定进行生成，不要生成与已有设定重复的内容
+2. 为每个设定提供完整的背景、特点、作用等信息
+3. 设定需与小说整体世界观保持一致
+4. 确保设定与大纲情节强绑定、无逻辑冲突
+5. 每个设定的生成应包含相关的核心要素`;
+
+    setCustomPrompt(customPromptText);
+    
+    // 自动触发生成
+    setTimeout(() => {
+      handleAIGenerate(customPromptText);
+    }, 100);
+  };
+  
+  // 获取设定类型名称
+  const getSettingTypeName = (type: 'location' | 'culture' | 'technology' | 'magic' | 'history' | null) => {
+    switch (type) {
+      case 'location': return '地点';
+      case 'culture': return '文化';
+      case 'technology': return '科技';
+      case 'magic': return '魔法';
+      case 'history': return '历史';
+      default: return '设定';
+    }
+  };
+
+  // 监听目标小说变化，当选择小说时显示角色生成助手（如果当前是角色生成模式）
+  useEffect(() => {
+    if (generationType === 'character' && targetNovel?.id) {
+      setCharacterHelperVisible(true);
+    }
+  }, [targetNovel?.id, generationType]);
 
   // 添加一个useEffect来监听生成类型和目标小说的变化
   useEffect(() => {
@@ -820,6 +1046,7 @@ ${prompt}`;
 
   // 处理配置选择变化
   const handleConfigChange = (value: string) => {
+    console.log('handleConfigChange: value=', value);
     setSelectedConfigId(value)
   }
 
@@ -954,6 +1181,7 @@ ${prompt}`;
               onChange={handleConfigChange}
               style={{ width: 200 }}
               loading={loadingModels}
+              disabled={loadingModels}
             >
               {availableModels.map(config => (
                 <Option key={config.id} value={config.id}>
@@ -1015,6 +1243,96 @@ ${prompt}`;
                   </Option>
                 ))}
               </Select>
+            </div>
+          )}
+          
+          {/* 角色生成助手按钮（当生成类型为角色设定时显示） */}
+          {targetNovel && generationType === 'character' && (
+            <div>
+              <div style={{ marginBottom: 8 }}><strong>角色生成：</strong></div>
+              <Button 
+                type="primary" 
+                icon={<TeamOutlined />} 
+                onClick={handleOpenCharacterHelper}
+                style={{ width: '100%' }}
+              >
+                打开角色生成助手
+              </Button>
+            </div>
+          )}
+          
+          {/* 地点设定助手按钮（当生成类型为地点设定时显示） */}
+          {targetNovel && generationType === 'location' && (
+            <div>
+              <div style={{ marginBottom: 8 }}><strong>地点生成：</strong></div>
+              <Button 
+                type="primary" 
+                icon={<EnvironmentOutlined />} 
+                onClick={() => handleOpenWorldSettingHelper('location')}
+                style={{ width: '100%' }}
+              >
+                打开地点生成助手
+              </Button>
+            </div>
+          )}
+          
+          {/* 文化设定助手按钮（当生成类型为文化设定时显示） */}
+          {targetNovel && generationType === 'culture' && (
+            <div>
+              <div style={{ marginBottom: 8 }}><strong>文化生成：</strong></div>
+              <Button 
+                type="primary" 
+                icon={<GlobalOutlined />} 
+                onClick={() => handleOpenWorldSettingHelper('culture')}
+                style={{ width: '100%' }}
+              >
+                打开文化生成助手
+              </Button>
+            </div>
+          )}
+          
+          {/* 科技设定助手按钮（当生成类型为科技设定时显示） */}
+          {targetNovel && generationType === 'technology' && (
+            <div>
+              <div style={{ marginBottom: 8 }}><strong>科技生成：</strong></div>
+              <Button 
+                type="primary" 
+                icon={<ApiOutlined />} 
+                onClick={() => handleOpenWorldSettingHelper('technology')}
+                style={{ width: '100%' }}
+              >
+                打开科技生成助手
+              </Button>
+            </div>
+          )}
+          
+          {/* 魔法设定助手按钮（当生成类型为魔法设定时显示） */}
+          {targetNovel && generationType === 'magic' && (
+            <div>
+              <div style={{ marginBottom: 8 }}><strong>魔法生成：</strong></div>
+              <Button 
+                type="primary" 
+                icon={<ExperimentOutlined />} 
+                onClick={() => handleOpenWorldSettingHelper('magic')}
+                style={{ width: '100%' }}
+              >
+                打开魔法生成助手
+              </Button>
+            </div>
+          )}
+          
+          {/* 历史设定助手按钮（当生成类型为历史设定时显示） */}
+          {targetNovel && generationType === 'history' && (
+            <div>
+              <div style={{ marginBottom: 8 }}><strong>历史生成：</strong></div>
+              <Button 
+                type="primary" 
+                icon={<HistoryOutlined />} 
+                onClick={() => handleOpenWorldSettingHelper('history')}
+                style={{ width: '100%' }}
+              >
+                打开历史生成助手
+              </Button>
             </div>
           )}
           
@@ -1140,6 +1458,27 @@ ${prompt}`;
         </div>
         <div className="control-content">
           {renderAIControlPanel()}
+          
+          {/* 角色生成助手 */}
+          {targetNovel?.id && (
+            <CharacterGenerationHelper
+              novelId={targetNovel.id}
+              onGenerateRequest={handleCharacterGenerateRequest}
+              visible={characterHelperVisible}
+              onCancel={handleCharacterHelperCancel}
+            />
+          )}
+          
+          {/* 世界设定生成助手 */}
+          {targetNovel?.id && worldSettingHelperType && (
+            <WorldSettingGenerationHelper
+              novelId={targetNovel.id}
+              settingType={worldSettingHelperType}
+              onGenerateRequest={handleWorldSettingGenerateRequest}
+              visible={worldSettingHelperVisible}
+              onCancel={handleWorldSettingHelperCancel}
+            />
+          )}
           
           <Divider />
           

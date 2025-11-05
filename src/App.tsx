@@ -19,6 +19,7 @@ import SyncConfigPage from './pages/SyncConfigPage'
 import NovelListIndexDB from './pages/NovelListIndexDB'
 import NovelsIndex from './pages/Novels'
 import HomePage from './pages/HomePage'
+import TestSyncPage from './pages/TestSyncPage'
 import { usePromptLibraryStore } from './stores/promptLibraryStore'
 import NovelSettingsPage from './pages/NovelWorkspace/settings'
 import NovelPromptsPage from './pages/NovelWorkspace/prompts/index'
@@ -191,6 +192,7 @@ function App() {
           <Route path="/config/users" element={<UserManagement />} />
           <Route path="/config/novels" element={<NovelManagementPage />} />
           <Route path="/sync-config" element={<SyncConfigPage />} />
+          <Route path="/test-sync" element={<TestSyncPage />} />
           <Route path="/novels" element={<NovelListIndexDB />} />
           <Route path="/creation-center" element={<NovelsIndex />} />
           <Route path="/home" element={<HomePage />} />

@@ -819,8 +819,9 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
       guidance = ''
   }
 
-  // 获取已有元素信息并添加到指导中
-  const existingElementsInfo = await getExistingElementsInfo(novelId)
+  // 获取增强版的已有元素信息并添加到指导中
+  const { getEnhancedExistingElementsInfo } = await import('@/utils/enhancedWorldElementUtils');
+  const existingElementsInfo = await getEnhancedExistingElementsInfo(novelId, type)
   if (existingElementsInfo) {
     guidance += '\n\n【重要提醒】\n' +
                 '请在生成内容时参考以下已有的元素信息，确保新生成的内容与已有元素保持一致性和关联性：\n' +

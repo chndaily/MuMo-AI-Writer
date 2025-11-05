@@ -528,29 +528,39 @@ class HybridStorageService {
       case 'character':
         // 根据是否有ID决定是添加还是更新
         if (element.id) {
-          // 更新现有角色
-          console.log('更新现有角色:', element.name);
-          await databaseManager.characters.updateCharacter({
-            ...element,
-            id: element.id,
-            novelId: element.novelId,
-            name: element.name || '未命名角色',
-            description: element.description || '',
-            role: element.role || 'supporting',
-            appearance: element.appearance || '',
-            personality: element.personality || '',
-            background: element.background || '',
-            abilities: element.abilities || '',
-            relationships: element.relationships || '',
-            characterArc: element.characterArc || '',
-            // 保持details字段，因为Character接口中有这个字段
-            details: element.details || '',
-            tags: element.tags || [],
-            professionTags: element.professionTags || [],
-            personalityTags: element.personalityTags || [],
-            functionTags: element.functionTags || [],
-          });
-          localElement = element; // 更新操作直接使用传入的元素
+          // 检查元素是否真的存在于数据库中
+          const existingElement = await databaseManager.characters.getCharacter(element.id);
+          if (existingElement) {
+            // 更新现有角色
+            console.log('更新现有角色:', element.name);
+            await databaseManager.characters.updateCharacter({
+              ...element,
+              id: element.id,
+              novelId: element.novelId,
+              name: element.name || '未命名角色',
+              description: element.description || '',
+              role: element.role || 'supporting',
+              customRole: element.customRole || '', // 添加自定义角色类型字段
+              appearance: element.appearance || '',
+              personality: element.personality || '',
+              background: element.background || '',
+              abilities: element.abilities || '',
+              relationships: element.relationships || '',
+              characterArc: element.characterArc || '',
+              // 保持details字段，因为Character接口中有这个字段
+              details: element.details || '',
+              tags: element.tags || [],
+              professionTags: element.professionTags || [],
+              personalityTags: element.personalityTags || [],
+              functionTags: element.functionTags || [],
+            });
+            localElement = element; // 更新操作直接使用传入的元素
+          } else {
+            // 元素不存在，记录警告信息并跳过操作
+            console.warn('尝试更新不存在的角色，跳过操作:', element.id, element.name);
+            // 不创建新角色，因为这可能导致重复
+            return;
+          }
         } else {
           // 添加新角色
           console.log('添加新角色:', element.name);
@@ -560,6 +570,7 @@ class HybridStorageService {
             name: element.name || '未命名角色',
             description: element.description || '',
             role: element.role || 'supporting',
+            customRole: element.customRole || '', // 添加自定义角色类型字段
             appearance: element.appearance || '',
             personality: element.personality || '',
             background: element.background || '',
@@ -578,36 +589,69 @@ class HybridStorageService {
       case 'location':
         // 根据是否有ID决定是添加还是更新
         if (element.id) {
-          // 更新现有地点
-          await databaseManager.locations.updateLocation({
-            ...element,
-            id: element.id,
-            novelId: element.novelId,
-            name: element.name,
-            description: element.description,
-            type: element.locationType || element.type,  // 优先使用locationType作为type字段的值
-            importance: element.importance,
-            geography: element.geography,
-            climate: element.climate,
-            terrain: element.terrain,
-            naturalResources: element.naturalResources,
-            ecosystem: element.ecosystem,
-            architecture: element.architecture,
-            socialStructure: element.socialStructure,
-            culture: element.culture,
-            historyBackground: element.historyBackground,
-            politics: element.politics,
-            governance: element.governance,
-            laws: element.laws,
-            economy: element.economy,
-            mainIndustries: element.mainIndustries,
-            trade: element.trade,
-            wealth: element.wealth,
-            details: element.details || '', // 添加details字段
-            tags: element.tags || [],
-            locationType: element.locationType, // 保持locationType字段
-          });
-          localElement = element; // 更新操作直接使用传入的元素
+          // 检查元素是否真的存在于数据库中
+          const existingElement = await databaseManager.locations.getLocation(element.id);
+          if (existingElement) {
+            // 更新现有地点
+            await databaseManager.locations.updateLocation({
+              ...element,
+              id: element.id,
+              novelId: element.novelId,
+              name: element.name,
+              description: element.description,
+              type: element.locationType || element.type,  // 优先使用locationType作为type字段的值
+              importance: element.importance,
+              geography: element.geography,
+              climate: element.climate,
+              terrain: element.terrain,
+              naturalResources: element.naturalResources,
+              ecosystem: element.ecosystem,
+              architecture: element.architecture,
+              socialStructure: element.socialStructure,
+              culture: element.culture,
+              historyBackground: element.historyBackground,
+              politics: element.politics,
+              governance: element.governance,
+              laws: element.laws,
+              economy: element.economy,
+              mainIndustries: element.mainIndustries,
+              trade: element.trade,
+              wealth: element.wealth,
+              details: element.details || '', // 添加details字段
+              tags: element.tags || [],
+              locationType: element.locationType, // 保持locationType字段
+            });
+            localElement = element; // 更新操作直接使用传入的元素
+          } else {
+            // 元素不存在，添加新地点
+            console.log('元素不存在，添加新地点:', element.name);
+            localElement = await databaseManager.locations.addLocation({
+              novelId: element.novelId,
+              name: element.name,
+              description: element.description,
+              type: element.locationType || element.type,  // 优先使用locationType作为type字段的值
+              importance: element.importance,
+              geography: element.geography,
+              climate: element.climate,
+              terrain: element.terrain,
+              naturalResources: element.naturalResources,
+              ecosystem: element.ecosystem,
+              architecture: element.architecture,
+              socialStructure: element.socialStructure,
+              culture: element.culture,
+              historyBackground: element.historyBackground,
+              politics: element.politics,
+              governance: element.governance,
+              laws: element.laws,
+              economy: element.economy,
+              mainIndustries: element.mainIndustries,
+              trade: element.trade,
+              wealth: element.wealth,
+              details: element.details || '', // 添加details字段
+              tags: element.tags || [],
+              locationType: element.locationType, // 保持locationType字段
+            });
+          }
         } else {
           // 添加新地点
           localElement = await databaseManager.locations.addLocation({
@@ -641,31 +685,58 @@ class HybridStorageService {
       case 'culture':
         // 根据是否有ID决定是添加还是更新
         if (element.id) {
-          // 更新现有文化设定
-          await databaseManager.worldSettings.updateWorldSetting({
-            ...element,
-            id: element.id,
-            novelId: element.novelId,
-            name: element.name,
-            description: element.description,
-            type: 'culture',
-            tags: element.tags || [],
-            traditions: element.traditions,
-            values: element.values,
-            arts: element.arts,
-            language: element.language,
-            religion: element.religion,
-            customs: element.customs,
-            festivals: element.festivals,
-            art: element.art,
-            socialStructure: element.socialStructure,
-            education: element.education,
-            technology: element.technology,
-            details: element.details,
-            cultureInteraction: element.cultureInteraction,
-            literature: element.literature,
-          }, 'culture');
-          localElement = element; // 更新操作直接使用传入的元素
+          // 检查元素是否真的存在于数据库中
+          const existingElement = await databaseManager.worldSettings.getWorldSetting(element.id, 'culture');
+          if (existingElement) {
+            // 更新现有文化设定
+            await databaseManager.worldSettings.updateWorldSetting({
+              ...element,
+              id: element.id,
+              novelId: element.novelId,
+              name: element.name,
+              description: element.description,
+              type: 'culture',
+              tags: element.tags || [],
+              traditions: element.traditions,
+              values: element.values,
+              arts: element.arts,
+              language: element.language,
+              religion: element.religion,
+              customs: element.customs,
+              festivals: element.festivals,
+              art: element.art,
+              socialStructure: element.socialStructure,
+              education: element.education,
+              technology: element.technology,
+              details: element.details,
+              cultureInteraction: element.cultureInteraction,
+              literature: element.literature,
+            }, 'culture');
+            localElement = element; // 更新操作直接使用传入的元素
+          } else {
+            // 元素不存在，添加新文化设定
+            console.log('元素不存在，添加新文化设定');
+            localElement = await databaseManager.worldSettings.addWorldSetting({
+              novelId: element.novelId,
+              name: element.name,
+              description: element.description,
+              type: 'culture',
+              tags: element.tags || [],
+              traditions: element.traditions,
+              values: element.values,
+              arts: element.arts,
+              language: element.language,
+              religion: element.religion,
+              customs: element.customs,
+              festivals: element.festivals,
+              art: element.art,
+              socialStructure: element.socialStructure,
+              education: element.education,
+              technology: element.technology,
+              details: element.details,
+              cultureInteraction: element.cultureInteraction,
+            }, 'culture');
+          }
         } else {
           // 添加新文化设定
           localElement = await databaseManager.worldSettings.addWorldSetting({
@@ -693,23 +764,43 @@ class HybridStorageService {
       case 'technology':
         // 根据是否有ID决定是添加还是更新
         if (element.id) {
-          // 更新现有科技设定
-          const techSetting = {
-            ...element,
-            id: element.id,
-            novelId: element.novelId,
-            name: element.name || '', // 确保name字段存在
-            description: element.description || '',
-            type: 'technology' as const,
-            tags: element.tags || [],
-            level: element.level,
-            applications: element.applications,
-            limitations: element.limitations,
-            impact: element.impact,
-            details: element.details
-          };
-          await databaseManager.worldSettings.updateWorldSetting(techSetting, 'technology');
-          localElement = element; // 更新操作直接使用传入的元素
+          // 检查元素是否真的存在于数据库中
+          const existingElement = await databaseManager.worldSettings.getWorldSetting(element.id, 'technology');
+          if (existingElement) {
+            // 更新现有科技设定
+            const techSetting = {
+              ...element,
+              id: element.id,
+              novelId: element.novelId,
+              name: element.name || '', // 确保name字段存在
+              description: element.description || '',
+              type: 'technology' as const,
+              tags: element.tags || [],
+              level: element.level,
+              applications: element.applications,
+              limitations: element.limitations,
+              impact: element.impact,
+              details: element.details
+            };
+            await databaseManager.worldSettings.updateWorldSetting(techSetting, 'technology');
+            localElement = element; // 更新操作直接使用传入的元素
+          } else {
+            // 元素不存在，添加新科技设定
+            console.log('元素不存在，添加新科技设定');
+            const techSetting = {
+              novelId: element.novelId,
+              name: element.name || '', // 确保name字段存在
+              description: element.description || '',
+              type: 'technology' as const,
+              tags: element.tags || [],
+              level: element.level,
+              applications: element.applications,
+              limitations: element.limitations,
+              impact: element.impact,
+              details: element.details
+            };
+            localElement = await databaseManager.worldSettings.addWorldSetting(techSetting, 'technology');
+          }
         } else {
           // 添加新科技设定
           const techSetting = {
@@ -730,25 +821,47 @@ class HybridStorageService {
       case 'magic':
         // 根据是否有ID决定是添加还是更新
         if (element.id) {
-          // 更新现有魔法设定
-          const magicSetting = {
-            ...element,
-            id: element.id,
-            novelId: element.novelId,
-            name: element.name || '', // 确保name字段存在
-            description: element.description || '',
-            type: 'magic' as const,
-            tags: element.tags || [],
-            system: element.system,
-            sources: element.sources,
-            rules: element.rules,
-            spells: element.spells,
-            artifacts: element.artifacts,
-            worldRelation: element.worldRelation, // 添加世界观关联字段
-            details: element.details
-          };
-          await databaseManager.worldSettings.updateWorldSetting(magicSetting, 'magic');
-          localElement = element; // 更新操作直接使用传入的元素
+          // 检查元素是否真的存在于数据库中
+          const existingElement = await databaseManager.worldSettings.getWorldSetting(element.id, 'magic');
+          if (existingElement) {
+            // 更新现有魔法设定
+            const magicSetting = {
+              ...element,
+              id: element.id,
+              novelId: element.novelId,
+              name: element.name || '', // 确保name字段存在
+              description: element.description || '',
+              type: 'magic' as const,
+              tags: element.tags || [],
+              system: element.system,
+              sources: element.sources,
+              rules: element.rules,
+              spells: element.spells,
+              artifacts: element.artifacts,
+              worldRelation: element.worldRelation, // 添加世界观关联字段
+              details: element.details
+            };
+            await databaseManager.worldSettings.updateWorldSetting(magicSetting, 'magic');
+            localElement = element; // 更新操作直接使用传入的元素
+          } else {
+            // 元素不存在，添加新魔法设定
+            console.log('元素不存在，添加新魔法设定');
+            const magicSetting = {
+              novelId: element.novelId,
+              name: element.name || '', // 确保name字段存在
+              description: element.description || '',
+              type: 'magic' as const,
+              tags: element.tags || [],
+              system: element.system,
+              sources: element.sources,
+              rules: element.rules,
+              spells: element.spells,
+              artifacts: element.artifacts,
+              worldRelation: element.worldRelation, // 添加世界观关联字段
+              details: element.details
+            };
+            localElement = await databaseManager.worldSettings.addWorldSetting(magicSetting, 'magic');
+          }
         } else {
           // 添加新魔法设定
           const magicSetting = {
@@ -771,23 +884,43 @@ class HybridStorageService {
       case 'history':
         // 根据是否有ID决定是添加还是更新
         if (element.id) {
-          // 更新现有历史设定
-          const historySetting = {
-            ...element,
-            id: element.id,
-            novelId: element.novelId,
-            name: element.name || '', // 确保name字段存在
-            description: element.description || '',
-            type: 'history' as const,
-            tags: element.tags || [],
-            timeline: element.timeline,
-            events: element.events,
-            figures: element.figures,
-            consequences: element.consequences,
-            details: element.details
-          };
-          await databaseManager.worldSettings.updateWorldSetting(historySetting, 'history');
-          localElement = element; // 更新操作直接使用传入的元素
+          // 检查元素是否真的存在于数据库中
+          const existingElement = await databaseManager.worldSettings.getWorldSetting(element.id, 'history');
+          if (existingElement) {
+            // 更新现有历史设定
+            const historySetting = {
+              ...element,
+              id: element.id,
+              novelId: element.novelId,
+              name: element.name || '', // 确保name字段存在
+              description: element.description || '',
+              type: 'history' as const,
+              tags: element.tags || [],
+              timeline: element.timeline,
+              events: element.events,
+              figures: element.figures,
+              consequences: element.consequences,
+              details: element.details
+            };
+            await databaseManager.worldSettings.updateWorldSetting(historySetting, 'history');
+            localElement = element; // 更新操作直接使用传入的元素
+          } else {
+            // 元素不存在，添加新历史设定
+            console.log('元素不存在，添加新历史设定');
+            const historySetting = {
+              novelId: element.novelId,
+              name: element.name || '', // 确保name字段存在
+              description: element.description || '',
+              type: 'history' as const,
+              tags: element.tags || [],
+              timeline: element.timeline,
+              events: element.events,
+              figures: element.figures,
+              consequences: element.consequences,
+              details: element.details
+            };
+            localElement = await databaseManager.worldSettings.addWorldSetting(historySetting, 'history');
+          }
         } else {
           // 添加新历史设定
           const historySetting = {
@@ -1146,11 +1279,48 @@ class HybridStorageService {
         switch (type) {
           case 'character':
             console.log(`获取角色数据，novelId: ${novelId}`);
-            const characters = novelId 
+            // 获取通过角色API创建的角色
+            const charactersFromCharacters = novelId 
               ? await databaseManager.characters.getCharactersByNovelId(novelId)
               : await databaseManager.characters.getCharactersByNovelId('');
-            console.log(`获取到 ${characters.length} 个角色`);
-            return characters;
+            
+            // 获取通过世界观设定API创建的角色
+            const charactersFromWorldSettings = novelId 
+              ? await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'character')
+              : await databaseManager.worldSettings.getAllData('character');
+            
+            // 合并两种来源的角色数据，并确保角色类型字段正确处理
+            // 修复：去除重复的角色数据，避免同一个角色在两个数据源中都存在
+            const allCharactersMap = new Map();
+            
+            // 先处理角色API创建的角色
+            charactersFromCharacters.forEach(item => {
+              if (item.id) {
+                allCharactersMap.set(item.id, {
+                  ...item,
+                  // 确保角色类型字段存在且有默认值
+                  role: item.role || 'supporting',
+                  customRole: item.customRole || ''
+                });
+              }
+            });
+            
+            // 再处理世界观设定API创建的角色，如果ID已存在则跳过
+            charactersFromWorldSettings.forEach(item => {
+              if (item.id) {
+                if (!allCharactersMap.has(item.id)) {
+                  allCharactersMap.set(item.id, {
+                    ...item,
+                    role: (item as any).role || 'supporting',
+                    customRole: (item as any).customRole || ''
+                  });
+                }
+              }
+            });
+          
+          const allCharacters = Array.from(allCharactersMap.values());
+          console.log(`获取到 ${allCharacters.length} 个角色 (角色API: ${charactersFromCharacters.length}, 世界观设定API: ${charactersFromWorldSettings.length})`);
+          return allCharacters;
           case 'location':
             console.log(`获取地点数据，novelId: ${novelId}`);
             const locations = novelId 
@@ -1203,15 +1373,55 @@ class HybridStorageService {
       } else {
         // 获取所有类型的世界观元素
         console.log('获取所有类型的世界观元素');
-        const allElements: any[] = [];
+        const allElementsMap = new Map(); // 使用Map来避免重复元素
         
         try {
           // 获取角色
-          const characters = novelId 
-            ? await databaseManager.characters.getCharactersByNovelId(novelId)
-            : await databaseManager.characters.getCharactersByNovelId('');
-          allElements.push(...characters);
-          console.log(`获取到 ${characters.length} 个角色`);
+          const charactersFromCharacters = novelId 
+              ? await databaseManager.characters.getCharactersByNovelId(novelId)
+              : await databaseManager.characters.getCharactersByNovelId('');
+          
+          // 获取通过世界观设定API创建的角色
+          const charactersFromWorldSettings = novelId 
+              ? await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'character')
+              : await databaseManager.worldSettings.getAllData('character' as any);
+          
+          // 合并两种来源的角色数据，并确保角色类型字段正确处理
+          // 修复：去除重复的角色数据，避免同一个角色在两个数据源中都存在
+          const allCharactersMap = new Map();
+          
+          // 先处理角色API创建的角色
+          charactersFromCharacters.forEach(item => {
+            if (item.id) {
+              allCharactersMap.set(item.id, {
+                ...item,
+                // 确保角色类型字段存在且有默认值
+                role: item.role || 'supporting',
+                customRole: item.customRole || ''
+              });
+            }
+          });
+          
+          // 再处理世界观设定API创建的角色，如果ID已存在则跳过
+          charactersFromWorldSettings.forEach(item => {
+            if (item.id) {
+              if (!allCharactersMap.has(item.id)) {
+                allCharactersMap.set(item.id, {
+                  ...item,
+                  role: 'supporting',
+                  customRole: ''
+                });
+              }
+            }
+          });
+          
+          const allCharacters = Array.from(allCharactersMap.values());
+          console.log(`获取到 ${allCharacters.length} 个角色 (角色API: ${charactersFromCharacters.length}, 世界观设定API: ${charactersFromWorldSettings.length})`);
+          allCharacters.forEach(char => {
+            if (char.id) {
+              allElementsMap.set(char.id, char);
+            }
+          });
         } catch (error) {
           console.error('获取角色数据失败:', error);
         }
@@ -1219,8 +1429,8 @@ class HybridStorageService {
         try {
           // 获取地点
           const locations = novelId 
-            ? await databaseManager.locations.getLocationsByNovelId(novelId)
-            : await databaseManager.locations.getLocationsByNovelId('');
+              ? await databaseManager.locations.getLocationsByNovelId(novelId)
+              : await databaseManager.locations.getLocationsByNovelId('');
           // 转换Location对象为WorldElement格式
           const worldElements = locations.map(location => ({
             ...location,
@@ -1231,7 +1441,11 @@ class HybridStorageService {
             // 确保tags字段存在
             tags: location.tags || []
           }));
-          allElements.push(...worldElements);
+          worldElements.forEach(loc => {
+            if (loc.id) {
+              allElementsMap.set(loc.id, loc);
+            }
+          });
           console.log(`获取到 ${locations.length} 个地点`);
         } catch (error) {
           console.error('获取地点数据失败:', error);
@@ -1242,7 +1456,11 @@ class HybridStorageService {
           const cultures = novelId 
             ? await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'culture')
             : await databaseManager.worldSettings.getAllData('culture');
-          allElements.push(...cultures);
+          cultures.forEach(culture => {
+            if (culture.id) {
+              allElementsMap.set(culture.id, culture);
+            }
+          });
           console.log(`获取到 ${cultures.length} 个文化设定`);
         } catch (error) {
           console.error('获取文化设定数据失败:', error);
@@ -1253,7 +1471,11 @@ class HybridStorageService {
           const technologies = novelId 
             ? await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'technology')
             : await databaseManager.worldSettings.getAllData('technology');
-          allElements.push(...technologies);
+          technologies.forEach(tech => {
+            if (tech.id) {
+              allElementsMap.set(tech.id, tech);
+            }
+          });
           console.log(`获取到 ${technologies.length} 个科技设定`);
         } catch (error) {
           console.error('获取科技设定数据失败:', error);
@@ -1264,7 +1486,11 @@ class HybridStorageService {
           const magics = novelId 
             ? await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'magic')
             : await databaseManager.worldSettings.getAllData('magic');
-          allElements.push(...magics);
+          magics.forEach(magic => {
+            if (magic.id) {
+              allElementsMap.set(magic.id, magic);
+            }
+          });
           console.log(`获取到 ${magics.length} 个魔法设定`);
         } catch (error) {
           console.error('获取魔法设定数据失败:', error);
@@ -1275,18 +1501,51 @@ class HybridStorageService {
           const histories = novelId 
             ? await databaseManager.worldSettings.getWorldSettingsByNovelId(novelId, 'history')
             : await databaseManager.worldSettings.getAllData('history');
-          allElements.push(...histories);
+          histories.forEach(history => {
+            if (history.id) {
+              allElementsMap.set(history.id, history);
+            }
+          });
           console.log(`获取到 ${histories.length} 个历史设定`);
         } catch (error) {
           console.error('获取历史设定数据失败:', error);
         }
         
+        const allElements = Array.from(allElementsMap.values());
         console.log(`总共获取到 ${allElements.length} 个世界观元素`);
         return allElements;
       }
     } catch (error) {
       console.error('获取世界观元素失败:', error);
       throw new Error(`获取世界观元素失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }
+
+  /**
+   * 根据ID获取单个世界观元素（绕过缓存直接从数据库获取）
+   */
+  async getWorldElementById(id: string, type: string): Promise<any> {
+    try {
+      // 直接从数据库获取，绕过缓存
+      switch (type) {
+        case 'character':
+          return await databaseManager.characters.getCharacter(id);
+        case 'location':
+          return await databaseManager.locations.getLocation(id);
+        case 'culture':
+          return await databaseManager.worldSettings.getWorldSetting(id, 'culture');
+        case 'technology':
+          return await databaseManager.worldSettings.getWorldSetting(id, 'technology');
+        case 'magic':
+          return await databaseManager.worldSettings.getWorldSetting(id, 'magic');
+        case 'history':
+          return await databaseManager.worldSettings.getWorldSetting(id, 'history');
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.error('获取世界观元素失败:', error);
+      return null;
     }
   }
 

@@ -112,6 +112,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
         case 'magic':
         case 'history':
           // 使用新的世界观设定同步服务，默认使用合并模式
+          console.log('世界观设定同步，类型:', optionKey);
           result = await worldSettingSyncService.syncWorldSettings(content, novel.id, optionKey as WorldSettingType, { syncMode: 'merge' });
           break;
         case 'outline':
@@ -151,10 +152,12 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
   const handleSyncClick = useCallback((optionKey: string) => {
     // 对于大纲同步，提供智能同步选项
     if (optionKey === 'outline' || optionKey === 'plot') {
-      // 显示智能同步选项模态框
+      // 设置选中的同步选项并显示智能同步选项模态框
+      setSelectedSyncOption(optionKey);
       setSyncModeModalVisible(true);
     } else if (['character', 'location', 'culture', 'technology', 'magic', 'history'].includes(optionKey)) {
-      // 对于世界观设定，显示同步模式选择对话框
+      // 对于世界观设定，设置选中的同步选项并显示同步模式选择对话框
+      setSelectedSyncOption(optionKey);
       setWorldViewSyncModeModalVisible(true);
     } else {
       // 对于其他类型，直接执行同步
@@ -182,6 +185,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
         case 'magic':
         case 'history':
           // 使用新的世界观设定同步服务
+          console.log('世界观设定同步（带模式），类型:', optionKey, '模式:', syncMode);
           result = await worldSettingSyncService.syncWorldSettings(content, novel.id, optionKey as WorldSettingType, { syncMode });
           break;
         case 'outline':

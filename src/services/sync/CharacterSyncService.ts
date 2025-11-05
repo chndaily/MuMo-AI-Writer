@@ -40,6 +40,18 @@ export class CharacterSyncService {
         throw new Error(`角色解析失败: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
       }
       
+      // 获取大纲信息，用于检查角色是否在大纲中提及
+      let outlineCharacters: string[] = [];
+      try {
+        const outlines = await hybridStorageService.getOutlines(novelId);
+        if (outlines && outlines.length > 0) {
+          const { extractCharactersFromOutline } = await import('@/utils/outlineCharacterExtractor');
+          outlineCharacters = await extractCharactersFromOutline(outlines);
+        }
+      } catch (outlineError) {
+        console.warn('获取大纲角色信息失败:', outlineError);
+      }
+      
       let syncedCount = 0;
       let updatedCount = 0;
       let createdCount = 0;
@@ -102,25 +114,44 @@ export class CharacterSyncService {
               // 如果没有找到同名角色，尝试按标签匹配
               const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(characterData.tags, 'character', novelId);
               
+              // 修复：处理多个匹配项的情况，选择最匹配的一个
               if (elementsWithTags.length > 0) {
-                // 使用第一个匹配的元素进行更新
-                existingElement = elementsWithTags[0];
-                console.log('按标签匹配到角色:', existingElement.name);
-                shouldCreateNew = false;
-                
-                // 检查角色数据是否有实际变更
-                const hasChanges = this.hasCharacterChanges(existingElement, characterData);
-                if (!hasChanges) {
-                  console.log(`角色 ${characterData.name} 没有变化，跳过更新`);
-                  continue;
+                // 如果只有一个匹配项，直接使用
+                if (elementsWithTags.length === 1) {
+                  existingElement = elementsWithTags[0];
+                  console.log('按标签匹配到角色:', existingElement.name);
+                  shouldCreateNew = false;
+                } else {
+                  // 如果有多个匹配项，选择标签匹配度最高的一个
+                  const bestMatch = this.findBestTagMatch(elementsWithTags, characterData.tags);
+                  if (bestMatch) {
+                    existingElement = bestMatch;
+                    console.log('按标签匹配到最佳角色:', existingElement.name);
+                    shouldCreateNew = false;
+                  }
                 }
                 
-                // 记录有修改的角色
-                modifiedCharacters.push(characterData.name);
+                // 检查角色数据是否有实际变更
+                if (!shouldCreateNew && existingElement) {
+                  const hasChanges = this.hasCharacterChanges(existingElement, characterData);
+                  if (!hasChanges) {
+                    console.log(`角色 ${characterData.name} 没有变化，跳过更新`);
+                    continue;
+                  }
+                  
+                  // 记录有修改的角色
+                  modifiedCharacters.push(characterData.name);
+                }
               }
             }
           } catch (error) {
             console.warn('获取现有角色时出错:', error);
+          }
+          
+          // 如果没有找到匹配的角色且没有名称，则跳过
+          if (shouldCreateNew && !characterData.name) {
+            console.warn('无法创建没有名称的新角色，跳过:', characterData);
+            continue;
           }
           
           // 使用标签同步工具确保标签一致性
@@ -133,6 +164,9 @@ export class CharacterSyncService {
             syncedTags = [];
           }
                   
+          // 检查角色是否在大纲中提及
+          const isMentionedInOutline = outlineCharacters.includes(characterData.name);
+          
           // 创建角色对象
           const characterElement: any = {
             // 如果应该创建新条目，则不指定ID让系统生成，否则使用现有元素的ID
@@ -145,7 +179,9 @@ export class CharacterSyncService {
             tags: normalizeTags(syncedTags), // 使用同步后的标签
             createdAt: shouldCreateNew ? new Date().toISOString() : (existingElement?.createdAt || new Date().toISOString()),
             lastModified: new Date().toISOString(),
-            role: characterData.role || 'supporting'
+            role: characterData.role || 'supporting',
+            // 添加大纲关联标识
+            isFromOutline: isMentionedInOutline
           }
 
           // 确保所有角色字段都被正确设置
@@ -161,6 +197,8 @@ export class CharacterSyncService {
           if (characterData.professionTags) characterElement.professionTags = characterData.professionTags;
           if (characterData.personalityTags) characterElement.personalityTags = characterData.personalityTags;
           if (characterData.functionTags) characterElement.functionTags = characterData.functionTags;
+          // 添加自定义角色类型字段 - 修复字段名匹配问题
+          if (characterData.customRole) characterElement.customRole = characterData.customRole;
 
           console.log(`${shouldCreateNew ? '创建新角色' : '更新现有角色'}: ${characterElement.name}`);
           console.log('角色数据:', characterElement);
@@ -193,6 +231,20 @@ export class CharacterSyncService {
       // 添加一个小延迟确保数据完全写入
       await new Promise(resolve => setTimeout(resolve, 200));
       
+      // 触发世界设定同步完成事件，通知相关组件刷新数据
+      const event = new CustomEvent('worldSettingSyncComplete', {
+        detail: {
+          novelId,
+          type: 'character',
+          typeName: '角色',
+          syncedCount,
+          createdCount,
+          updatedCount
+        }
+      });
+      window.dispatchEvent(event);
+      console.log('已触发worldSettingSyncComplete事件，novelId:', novelId, 'type: character');
+      
       // 如果有更新操作且有实际修改的角色，触发替换内容事件
       if (updatedCount > 0 && modifiedCharacters.length > 0) {
         // 触发世界设定替换事件，用于通知相关组件显示替换警告
@@ -215,11 +267,35 @@ export class CharacterSyncService {
   }
   
   /**
+   * 查找标签匹配度最高的元素
+   * @param elements 元素数组
+   * @param targetTags 目标标签
+   * @returns 匹配度最高的元素
+   */
+  private findBestTagMatch(elements: any[], targetTags: string[]): any {
+    let bestMatch = null;
+    let maxMatchCount = 0;
+    
+    for (const element of elements) {
+      if (element.tags && Array.isArray(element.tags)) {
+        // 计算标签匹配数量
+        const matchCount = element.tags.filter((tag: string) => targetTags.includes(tag)).length;
+        if (matchCount > maxMatchCount) {
+          maxMatchCount = matchCount;
+          bestMatch = element;
+        }
+      }
+    }
+    
+    return bestMatch;
+  }
+  
+  /**
    * 检查角色数据是否有实际变更
    */
   private hasCharacterChanges(existing: any, newData: any): boolean {
     // 检查基本字段是否有变化
-    const basicFields = ['name', 'description', 'role', 'appearance', 'personality', 'background', 'abilities', 'relationships', 'characterArc', 'details'];
+    const basicFields = ['name', 'description', 'role', 'appearance', 'personality', 'background', 'abilities', 'relationships', 'characterArc', 'details', 'customRole'];
     for (const field of basicFields) {
       if (existing[field] !== newData[field]) {
         console.log(`角色字段 ${field} 有变化: ${existing[field]} -> ${newData[field]}`);

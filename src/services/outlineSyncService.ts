@@ -34,6 +34,7 @@ export class OutlineSyncService {
   }): Promise<SyncResult> {
     try {
       console.log('开始同步大纲内容', { novelId, contentLength: content.length, options });
+      console.log('大纲同步服务被调用，检查是否被错误调用');
       
       // 检查参数
       if (!content || content.trim().length === 0) {

@@ -135,12 +135,22 @@ const BookSelector = forwardRef<BookSelectorRef, BookSelectorProps>(({
   const getSelectedNovelTitle = () => {
     if (!selectedNovelId) return placeholder;
     const novel = novels.find(n => n.id === selectedNovelId);
+    // 如果找不到对应的小说，可能是因为数据还在加载中，显示ID而不是标题
+    return novel ? novel.title : selectedNovelId;
+  };
+
+  // 在Select组件中添加对novels加载状态的检查
+  const getDisplayValue = () => {
+    if (!selectedNovelId) return undefined;
+    // 如果novels还在加载中，直接返回selectedNovelId
+    if (loading || novels.length === 0) return selectedNovelId;
+    const novel = novels.find(n => n.id === selectedNovelId);
     return novel ? novel.title : selectedNovelId;
   };
 
   return (
     <Select
-      value={selectedNovelId || undefined}
+      value={getDisplayValue()}
       placeholder={placeholder}
       onChange={handleSelect}
       onClear={allowClear ? handleClear : undefined}

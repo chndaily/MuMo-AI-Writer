@@ -20,6 +20,7 @@ import {
   Divider
 } from 'antd';
 import { optimizedDataSyncService } from '@/services/optimizedDataSyncService';
+import { eventBus } from '@/utils/eventBus';
 
 const { Text } = Typography;
 
@@ -63,12 +64,32 @@ const SyncStatusMonitor: React.FC = () => {
     // 初始更新
     updateStatus();
     
+    // 监听同步事件
+    const handleSyncStarted = () => {
+      setLastSyncMessage('开始同步...');
+      updateStatus();
+    };
+    
+    const handleSyncCompleted = (data: { success: boolean; error?: string }) => {
+      if (data.success) {
+        setLastSyncMessage('同步完成');
+      } else {
+        setLastSyncMessage(`同步失败: ${data.error || '未知错误'}`);
+      }
+      updateStatus();
+    };
+    
+    eventBus.on('syncStarted', handleSyncStarted);
+    eventBus.on('syncCompleted', handleSyncCompleted);
+    
     // 定时更新状态
     const interval = setInterval(updateStatus, 1000);
     
     // 清理函数
     return () => {
       clearInterval(interval);
+      eventBus.off('syncStarted', handleSyncStarted);
+      eventBus.off('syncCompleted', handleSyncCompleted);
     };
   }, []);
 

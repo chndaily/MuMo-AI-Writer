@@ -432,7 +432,7 @@ export class MongodbStorageService {
   /**
    * 根据小说ID获取世界观设定
    */
-  async getWorldSettingsByNovelId(type: 'culture' | 'technology' | 'magic' | 'history', novelId: string): Promise<WorldSetting[]> {
+  async getWorldSettingsByNovelId(type: 'culture' | 'technology' | 'magic' | 'history' | 'character', novelId: string): Promise<WorldSetting[]> {
     try {
       return await apiService.worldSettings.getWorldSettingsByNovelId(novelId, type);
     } catch (error) {
@@ -444,7 +444,7 @@ export class MongodbStorageService {
   /**
    * 获取所有世界观设定
    */
-  async getAllWorldSettings(type: 'culture' | 'technology' | 'magic' | 'history'): Promise<WorldSetting[]> {
+  async getAllWorldSettings(type: 'culture' | 'technology' | 'magic' | 'history' | 'character'): Promise<WorldSetting[]> {
     try {
       // 这里需要一个获取所有世界观设定的API，暂时返回空数组
       return [];

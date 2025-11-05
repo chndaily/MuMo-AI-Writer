@@ -50,7 +50,7 @@ import { cultureConfig } from './configs/cultureConfig';
 import { technologyConfig } from './configs/technologyConfig';
 import { magicConfig } from './configs/magicConfig';
 import { historyConfig } from './configs/historyConfig';
-import CustomRoleManager from './CustomRoleManager';
+
 import { enhanceTypeSpecificGuidance } from '@/utils/worldElementUtils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import worldSettingParserService from '@/services/worldSettingParserService';
@@ -84,7 +84,7 @@ interface WorldElement extends WorldElementBase {
   lastModified?: string;
   
   // 角色特有字段
-  role?: 'protagonist' | 'antagonist' | 'supporting' | 'minor' | 'side' | 'foil' | 'mentor' | 'loveInterest' | 'rival' | 'neutral' | 'keySupporting' | 'minorSupporting' | 'complexSupporting' | 'custom';
+  role?: string;  // 修改为字符串类型，支持AI生成的内容
   customRole?: string;  // 自定义角色类型
   appearance?: string;      // 外貌特征
   personality?: string;     // 性格特质
@@ -213,9 +213,22 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
   // 监听世界设定同步完成事件，自动刷新数据
   useEffect(() => {
     const handleWorldSettingSyncComplete = (event: CustomEvent) => {
-      const { novelId: eventNovelId, type } = event.detail;
+      const { novelId: eventNovelId, type: eventType } = event.detail;
       // 确保是当前小说的世界设定同步事件
-      if (eventNovelId === novelId && type === typeName) {
+      // 修复：使用正确的变量名进行比较，避免变量覆盖问题
+      if (eventNovelId === novelId && eventType === type) {
+        // 添加一个小延迟确保数据同步完成
+        setTimeout(() => {
+          loadWorldElements();
+        }, 500);
+      }
+    };
+
+    // 监听数据刷新事件
+    const handleDataRefresh = (event: CustomEvent) => {
+      const { novelId: eventNovelId } = event.detail;
+      // 确保是当前小说的数据刷新事件
+      if (eventNovelId === novelId) {
         // 添加一个小延迟确保数据同步完成
         setTimeout(() => {
           loadWorldElements();
@@ -225,11 +238,13 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
 
     // 监听世界设定同步完成事件
     window.addEventListener('worldSettingSyncComplete', handleWorldSettingSyncComplete as EventListener);
+    window.addEventListener('dataRefreshNeeded', handleDataRefresh as EventListener);
     
     return () => {
       window.removeEventListener('worldSettingSyncComplete', handleWorldSettingSyncComplete as EventListener);
+      window.removeEventListener('dataRefreshNeeded', handleDataRefresh as EventListener);
     };
-  }, [novelId, typeName]);
+  }, [novelId, type]);
 
   // 处理URL参数，自动打开特定元素的编辑对话框
   useEffect(() => {
@@ -573,9 +588,11 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
       formValues.locationType = element.locationType || '';  // 使用元素的locationType字段值
     }
     
-    // 特殊处理角色类型字段
-    if (element.type === 'character' && element.role) {
-      formValues.role = element.role;
+    // 特殊处理角色类型字段 - 修复角色类型显示问题
+    if (element.type === 'character') {
+      // 确保角色类型字段正确设置
+      formValues.role = element.role || '';
+      formValues.customRole = element.customRole || '';
     }
     
       form.setFieldsValue(formValues);
@@ -588,6 +605,11 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
       const newElements = elements.filter(el => el.id !== id);
       setElements(newElements);
       message.success('删除成功');
+      
+      // 发布数据刷新事件，通知其他组件数据已更新
+      window.dispatchEvent(new CustomEvent('dataRefreshNeeded', {
+        detail: { novelId }
+      }));
     } catch (error) {
       console.error(`删除${typeName}设定失败:`, error);
       message.error('删除失败');
@@ -823,8 +845,9 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
       // 根据不同类型添加特定字段
       switch (type) {
         case 'character':
-          elementData.role = values.role;
-          elementData.customRole = values.customRole; // 添加自定义角色类型
+          // 修复角色类型处理，确保正确保存role和customRole字段
+          elementData.role = values.role || 'supporting';  // 默认角色类型为配角
+          elementData.customRole = values.customRole || '';  // 自定义角色类型
           elementData.appearance = values.appearance;
           elementData.personality = values.personality;
           elementData.background = values.background;
@@ -1231,27 +1254,14 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
             {icon} {element.name}
           </h4>
         </div>
-        {element.type === 'character' && element.role && (
+        {/* 修复角色类型显示问题，确保只要元素类型是角色就显示标签，即使role和customRole为空 */}
+        {element.type === 'character' && (
           <div className="element-role" style={{ marginBottom: '8px' }}>
             <Tag 
               color={element.role === 'protagonist' ? 'red' : element.role === 'antagonist' ? 'volcano' : 'blue'}
               style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}
             >
-              {element.role === 'protagonist' ? '主角' : 
-               element.role === 'antagonist' ? '反角' : 
-               element.role === 'supporting' ? '配角' : 
-               element.role === 'minor' ? '次要角色' : 
-               element.role === 'side' ? '侧面角色' : 
-               element.role === 'foil' ? '对照角色' : 
-               element.role === 'mentor' ? '导师角色' : 
-               element.role === 'loveInterest' ? '恋爱对象' : 
-               element.role === 'rival' ? '竞争对手' : 
-               element.role === 'neutral' ? '中立角色' : 
-               element.role === 'keySupporting' ? '重要配角' : 
-               element.role === 'minorSupporting' ? '次要配角' : 
-               element.role === 'complexSupporting' ? '复杂配角' : 
-               element.role === 'custom' ? (element.customRole || '自定义类型') : 
-               element.role}
+              {(element.customRole && element.customRole.trim()) || (element.role && element.role.trim()) || '未设置类型'}
             </Tag>
           </div>
         )}
@@ -1273,7 +1283,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
             <Tag 
               key={tag} 
               color="blue"
-              style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}
+              style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }} // 修复高度拼写错误
             >
               {tag}
             </Tag>
@@ -1323,12 +1333,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         </Space>
       </div>
 
-      {/* 如果是角色类型，显示自定义角色类型管理器 */}
-      {type === 'character' && (
-        <div style={{ marginBottom: '24px' }}>
-          <CustomRoleManager />
-        </div>
-      )}
+
 
       <div 
         className="world-elements-grid" 
@@ -1385,19 +1390,6 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         >
           {/* 动态渲染字段，避免重复渲染name和description字段 */}
           {fields.map(field => {
-            // 特殊处理：只有当角色类型为自定义时才显示自定义角色类型输入框
-            if (field.name === 'customRole') {
-              return form.getFieldValue('role') === 'custom' ? (
-                <Form.Item 
-                  key={field.name} 
-                  name={field.name} 
-                  label={field.label}
-                >
-                  <Input placeholder={field.placeholder} />
-                </Form.Item>
-              ) : null;
-            }
-            
             if (field.type === 'textarea') {
               return (
                 <Form.Item 

@@ -394,6 +394,69 @@ export class WorldSettingParserService {
                 details[currentField] += '\n' + trimmedLine;
               }
             }
+          } else {
+            // 处理没有明确部分的内容
+            if (trimmedLine.includes('名称') || trimmedLine.includes('名字')) {
+              if (!details.name) {
+                details.name = this.extractValue(trimmedLine);
+              } else {
+                details.name += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('标签')) {
+              if (!details.tags) {
+                details.tags = this.extractValue(trimmedLine);
+              } else {
+                details.tags += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('描述')) {
+              if (!details.description) {
+                details.description = this.extractValue(trimmedLine);
+              } else {
+                details.description += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('传统') || trimmedLine.includes('习俗')) {
+              if (!details.customs) {
+                details.customs = this.extractValue(trimmedLine);
+              } else {
+                details.customs += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('价值') || trimmedLine.includes('观念')) {
+              if (!details.values) {
+                details.values = this.extractValue(trimmedLine);
+              } else {
+                details.values += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('艺术') || trimmedLine.includes('表现')) {
+              if (!details.art) {
+                details.art = this.extractValue(trimmedLine);
+              } else {
+                details.art += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('宗教') || trimmedLine.includes('信仰')) {
+              if (!details.religion) {
+                details.religion = this.extractValue(trimmedLine);
+              } else {
+                details.religion += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('语言') || trimmedLine.includes('文字')) {
+              if (!details.language) {
+                details.language = this.extractValue(trimmedLine);
+              } else {
+                details.language += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('互动') || trimmedLine.includes('交流')) {
+              if (!details.cultureInteraction) {
+                details.cultureInteraction = this.extractValue(trimmedLine);
+              } else {
+                details.cultureInteraction += '\n' + this.extractValue(trimmedLine);
+              }
+            } else if (trimmedLine.includes('细节')) {
+              if (!details.details) {
+                details.details = this.extractValue(trimmedLine);
+              } else {
+                details.details += '\n' + this.extractValue(trimmedLine);
+              }
+            }
           }
         }
         break;

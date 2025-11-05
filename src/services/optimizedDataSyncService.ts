@@ -5,6 +5,7 @@ import { eventBus } from '@/utils/eventBus';
 import { useMembershipStore } from '@/stores/membershipStore';
 import { Novel, Character, Location, NovelOutline, WorldSetting } from '#/novel';
 import { ErrorHandler, createSyncError, createNetworkError } from '@/utils/errorHandler';
+import { authFixService } from '@/services/authFixService';
 
 /**
  * 优化的数据同步服务
@@ -90,6 +91,11 @@ class OptimizedDataSyncService {
   triggerSync() {
     // 触发同步事件
     eventBus.emit('syncTriggered');
+    
+    // 立即开始同步所有数据
+    this.syncAllData().catch(error => {
+      console.error('触发同步时发生错误:', error);
+    });
   }
 
   /**
@@ -146,6 +152,14 @@ class OptimizedDataSyncService {
         authToken: useMembershipStore.getState().authToken
       });
       
+      // 触发数据刷新事件，通知相关组件刷新数据
+      eventBus.emit('dataRefreshNeeded');
+      
+      // 同时触发全局事件
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dataRefreshNeeded'));
+      }
+      
       return { success: true, message: '数据同步完成' };
     } catch (error) {
       const syncError = createSyncError(error, '全部数据');
@@ -157,6 +171,12 @@ class OptimizedDataSyncService {
       };
     } finally {
       this.isSyncing = false;
+      // 触发数据刷新事件，即使同步失败也要通知相关组件
+      eventBus.emit('dataRefreshNeeded');
+      // 同时触发全局事件
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dataRefreshNeeded'));
+      }
     }
   }
 
@@ -294,6 +314,12 @@ class OptimizedDataSyncService {
    */
   private async syncCharacters() {
     try {
+      // 确保认证状态正确
+      const isAuthFixed = await authFixService.checkAndFixAuthState();
+      if (!isAuthFixed) {
+        throw new Error('无法修复认证状态，角色数据同步失败');
+      }
+      
       // 获取当前用户信息
       const { membershipInfo } = useMembershipStore.getState();
       const currentUserId = membershipInfo.email || 'anonymous';
@@ -429,17 +455,29 @@ class OptimizedDataSyncService {
    */
   private async syncLocations() {
     try {
+      // 确保认证状态正确
+      const isAuthFixed = await authFixService.checkAndFixAuthState();
+      if (!isAuthFixed) {
+        throw new Error('无法修复认证状态，地点数据同步失败');
+      }
+      
       // 获取当前用户信息
       const { membershipInfo } = useMembershipStore.getState();
       const currentUserId = membershipInfo.email || 'anonymous';
       
+      console.log('开始同步地点数据，当前用户ID:', currentUserId);
+      
       // 获取本地所有小说
       const localNovels = await databaseManager.novels.getNovelsByUserId(currentUserId);
+      console.log('本地小说数量:', localNovels.length);
       
       // 遍历每本小说同步地点
       for (const novel of localNovels) {
+        console.log('正在同步小说的地点数据:', novel.id, novel.title);
+        
         // 获取本地地点
         const localLocations = await databaseManager.locations.getLocationsByNovelId(novel.id);
+        console.log('本地地点数量:', localLocations.length);
         
         // 获取远程地点（带缓存和重试机制）
         const remoteLocations = await this.retryableApiCall(() => 
@@ -447,6 +485,7 @@ class OptimizedDataSyncService {
             apiService.locations.getLocationsByNovelId(novel.id)
           )
         );
+        console.log('远程地点数量:', remoteLocations.length);
         
         // 合并数据 - 本地优先策略
         const locationsToCreate: Location[] = [];
@@ -458,9 +497,11 @@ class OptimizedDataSyncService {
           
           if (!localLocation) {
             // 远程有但本地没有，添加到本地
+            console.log('发现远程新地点，需要添加到本地:', remoteLocation.name);
             locationsToCreate.push(remoteLocation);
           } else if (new Date(remoteLocation.lastModified) > new Date(localLocation.lastModified)) {
             // 远程版本更新，更新本地
+            console.log('发现远程更新的地点，需要更新本地:', remoteLocation.name);
             locationsToUpdate.push(remoteLocation);
           }
         }
@@ -471,10 +512,32 @@ class OptimizedDataSyncService {
           
           if (!remoteLocation) {
             // 本地有但远程没有，上传到远程（带重试机制）
+            console.log('发现本地新地点，需要上传到远程:', localLocation.name);
             try {
+              // 确保地点对象包含novelId字段
+              const locationToUpload = {
+                ...localLocation,
+                novelId: localLocation.novelId || novel.id
+              };
+              
+              // 添加更多日志信息
+              console.log('准备上传地点数据:', {
+                originalLocation: localLocation,
+                locationToUpload: locationToUpload,
+                localNovelId: localLocation.novelId,
+                novelId: novel.id
+              });
+              
+              // 验证novelId是否存在
+              if (!locationToUpload.novelId) {
+                console.error('错误：地点数据缺少novelId字段', locationToUpload);
+                throw new Error('地点数据缺少novelId字段');
+              }
+              
               await this.retryableApiCall(() => 
-                apiService.locations.createLocation(localLocation)
+                apiService.locations.createLocation(locationToUpload)
               );
+              console.log('成功上传本地新地点到远程:', localLocation.name);
             } catch (error) {
               const syncError = createSyncError(error, '上传地点');
               ErrorHandler.logError(syncError, `上传地点失败: ${localLocation.name}`);
@@ -482,10 +545,32 @@ class OptimizedDataSyncService {
             }
           } else if (new Date(localLocation.lastModified) > new Date(remoteLocation.lastModified)) {
             // 本地版本更新，更新远程（带重试机制）
+            console.log('发现本地更新的地点，需要更新远程:', localLocation.name);
             try {
+              // 确保地点对象包含novelId字段
+              const locationToUpdate = {
+                ...localLocation,
+                novelId: localLocation.novelId || novel.id
+              };
+              
+              // 添加更多日志信息
+              console.log('准备更新地点数据:', {
+                originalLocation: localLocation,
+                locationToUpdate: locationToUpdate,
+                localNovelId: localLocation.novelId,
+                novelId: novel.id
+              });
+              
+              // 验证novelId是否存在
+              if (!locationToUpdate.novelId) {
+                console.error('错误：地点数据缺少novelId字段', locationToUpdate);
+                throw new Error('地点数据缺少novelId字段');
+              }
+              
               await this.retryableApiCall(() => 
-                apiService.locations.updateLocation(localLocation.id, localLocation)
+                apiService.locations.updateLocation(localLocation.id, locationToUpdate)
               );
+              console.log('成功更新本地地点到远程:', localLocation.name);
             } catch (error) {
               const syncError = createSyncError(error, '更新地点');
               ErrorHandler.logError(syncError, `更新地点失败: ${localLocation.name}`);
@@ -496,11 +581,13 @@ class OptimizedDataSyncService {
         
         // 批量保存新地点到本地
         if (locationsToCreate.length > 0) {
+          console.log('需要保存的新地点数量:', locationsToCreate.length);
           await this.batchSaveLocations(locationsToCreate);
         }
         
         // 批量更新本地地点
         if (locationsToUpdate.length > 0) {
+          console.log('需要更新的地点数量:', locationsToUpdate.length);
           await this.batchUpdateLocations(locationsToUpdate);
         }
       }
@@ -564,6 +651,12 @@ class OptimizedDataSyncService {
    */
   private async syncOutlines() {
     try {
+      // 确保认证状态正确
+      const isAuthFixed = await authFixService.checkAndFixAuthState();
+      if (!isAuthFixed) {
+        throw new Error('无法修复认证状态，大纲数据同步失败');
+      }
+      
       // 获取当前用户信息
       const { membershipInfo } = useMembershipStore.getState();
       const currentUserId = membershipInfo.email || 'anonymous';
@@ -699,6 +792,12 @@ class OptimizedDataSyncService {
    */
   private async syncWorldSettings() {
     try {
+      // 确保认证状态正确
+      const isAuthFixed = await authFixService.checkAndFixAuthState();
+      if (!isAuthFixed) {
+        throw new Error('无法修复认证状态，世界观设定数据同步失败');
+      }
+      
       // 获取当前用户信息
       const { membershipInfo } = useMembershipStore.getState();
       const currentUserId = membershipInfo.email || 'anonymous';
@@ -706,77 +805,82 @@ class OptimizedDataSyncService {
       // 获取本地所有小说
       const localNovels = await databaseManager.novels.getNovelsByUserId(currentUserId);
       
-      // 定义世界观设定类型
-      const settingTypes = ['culture', 'technology', 'magic', 'history'];
-      
-      // 遍历每本小说和每种设定类型同步数据
+      // 遍历每本小说同步世界观设定
       for (const novel of localNovels) {
-        for (const type of settingTypes) {
-          // 获取本地世界观设定
-          const localSettings = await databaseManager.worldSettings.getWorldSettingsByNovelId(novel.id, type as any);
+        // 获取本地世界观设定（需要分别获取每种类型）
+        const localCultureSettings = await databaseManager.worldSettings.getWorldSettingsByNovelId(novel.id, 'culture');
+        const localTechnologySettings = await databaseManager.worldSettings.getWorldSettingsByNovelId(novel.id, 'technology');
+        const localMagicSettings = await databaseManager.worldSettings.getWorldSettingsByNovelId(novel.id, 'magic');
+        const localHistorySettings = await databaseManager.worldSettings.getWorldSettingsByNovelId(novel.id, 'history');
+        
+        const localSettings = [
+          ...localCultureSettings,
+          ...localTechnologySettings,
+          ...localMagicSettings,
+          ...localHistorySettings
+        ];
+        
+        // 获取远程世界观设定（带缓存和重试机制）
+        const remoteSettings = await this.retryableApiCall(() => 
+          this.cachedApiRequest(`worldSettings_${novel.id}`, () => 
+            apiService.worldSettings.getWorldSettingsByNovelId(novel.id, '')
+          )
+        );
+        
+        // 合并数据 - 本地优先策略
+        const settingsToCreate: WorldSetting[] = [];
+        const settingsToUpdate: WorldSetting[] = [];
+        
+        // 检查远程有但本地没有的设定，添加到本地
+        for (const remoteSetting of remoteSettings) {
+          const localSetting = localSettings.find(s => s.id === remoteSetting.id);
           
-          // 获取远程世界观设定（带缓存和重试机制）
-          const remoteSettings = await this.retryableApiCall(() => 
-            this.cachedApiRequest(`worldSettings_${novel.id}_${type}`, () => 
-              apiService.worldSettings.getWorldSettingsByNovelId(novel.id, type)
-            )
-          );
+          if (!localSetting) {
+            // 远程有但本地没有，添加到本地
+            settingsToCreate.push(remoteSetting);
+          } else if (new Date(remoteSetting.lastModified) > new Date(localSetting.lastModified)) {
+            // 远程版本更新，更新本地
+            settingsToUpdate.push(remoteSetting);
+          }
+        }
+        
+        // 检查本地有但远程没有的设定，上传到远程
+        for (const localSetting of localSettings) {
+          const remoteSetting = remoteSettings.find(s => s.id === localSetting.id);
           
-          // 合并数据 - 本地优先策略
-          const settingsToCreate: WorldSetting[] = [];
-          const settingsToUpdate: WorldSetting[] = [];
-          
-          // 检查远程有但本地没有的设定，添加到本地
-          for (const remoteSetting of remoteSettings) {
-            const localSetting = localSettings.find(s => s.id === remoteSetting.id);
-            
-            if (!localSetting) {
-              // 远程有但本地没有，添加到本地
-              settingsToCreate.push(remoteSetting);
-            } else if (new Date(remoteSetting.lastModified) > new Date(localSetting.lastModified)) {
-              // 远程版本更新，更新本地
-              settingsToUpdate.push(remoteSetting);
+          if (!remoteSetting) {
+            // 本地有但远程没有，上传到远程（带重试机制）
+            try {
+              await this.retryableApiCall(() => 
+                apiService.worldSettings.createWorldSetting(localSetting)
+              );
+            } catch (error) {
+              const syncError = createSyncError(error, '上传世界观设定');
+              ErrorHandler.logError(syncError, `上传世界观设定失败: ${localSetting.name}`);
+              throw syncError;
+            }
+          } else if (new Date(localSetting.lastModified) > new Date(remoteSetting.lastModified)) {
+            // 本地版本更新，更新远程（带重试机制）
+            try {
+              await this.retryableApiCall(() => 
+                apiService.worldSettings.updateWorldSetting(localSetting.id, localSetting)
+              );
+            } catch (error) {
+              const syncError = createSyncError(error, '更新世界观设定');
+              ErrorHandler.logError(syncError, `更新世界观设定失败: ${localSetting.name}`);
+              throw syncError;
             }
           }
-          
-          // 检查本地有但远程没有的设定，上传到远程
-          for (const localSetting of localSettings) {
-            const remoteSetting = remoteSettings.find(s => s.id === localSetting.id);
-            
-            if (!remoteSetting) {
-              // 本地有但远程没有，上传到远程（带重试机制）
-              try {
-                await this.retryableApiCall(() => 
-                  apiService.worldSettings.createWorldSetting(localSetting)
-                );
-              } catch (error) {
-                const syncError = createSyncError(error, `上传${type}设定`);
-                ErrorHandler.logError(syncError, `上传${type}设定失败: ${localSetting.name}`);
-                throw syncError;
-              }
-            } else if (new Date(localSetting.lastModified) > new Date(remoteSetting.lastModified)) {
-              // 本地版本更新，更新远程（带重试机制）
-              try {
-                await this.retryableApiCall(() => 
-                  apiService.worldSettings.updateWorldSetting(localSetting.id, localSetting)
-                );
-              } catch (error) {
-                const syncError = createSyncError(error, `更新${type}设定`);
-                ErrorHandler.logError(syncError, `更新${type}设定失败: ${localSetting.name}`);
-                throw syncError;
-              }
-            }
-          }
-          
-          // 批量保存新设定到本地
-          if (settingsToCreate.length > 0) {
-            await this.batchSaveWorldSettings(settingsToCreate, type as any);
-          }
-          
-          // 批量更新本地设定
-          if (settingsToUpdate.length > 0) {
-            await this.batchUpdateWorldSettings(settingsToUpdate, type as any);
-          }
+        }
+        
+        // 批量保存新设定到本地
+        if (settingsToCreate.length > 0) {
+          await this.batchSaveWorldSettings(settingsToCreate);
+        }
+        
+        // 批量更新本地设定
+        if (settingsToUpdate.length > 0) {
+          await this.batchUpdateWorldSettings(settingsToUpdate);
         }
       }
       
@@ -791,21 +895,57 @@ class OptimizedDataSyncService {
   /**
    * 批量保存世界观设定
    */
-  private async batchSaveWorldSettings(settings: WorldSetting[], type: 'culture' | 'technology' | 'magic' | 'history'): Promise<void> {
+  private async batchSaveWorldSettings(settings: WorldSetting[]): Promise<void> {
     // 分批处理
     for (let i = 0; i < settings.length; i += this.batchSize) {
       const batch = settings.slice(i, i + this.batchSize);
       
-      // 并行保存到本地
-      const localSavePromises = batch.map(setting => 
-        databaseManager.worldSettings.addWorldSetting(setting, type)
-      );
+      // 按类型分组处理
+      const cultureSettings = batch.filter(s => s.type === 'culture');
+      const technologySettings = batch.filter(s => s.type === 'technology');
+      const magicSettings = batch.filter(s => s.type === 'magic');
+      const historySettings = batch.filter(s => s.type === 'history');
       
       try {
-        await Promise.all(localSavePromises);
+        // 并行保存不同类型的世界观设定
+        const savePromises = [];
+        
+        if (cultureSettings.length > 0) {
+          savePromises.push(
+            ...cultureSettings.map(setting => 
+              databaseManager.worldSettings.addWorldSetting(setting, 'culture')
+            )
+          );
+        }
+        
+        if (technologySettings.length > 0) {
+          savePromises.push(
+            ...technologySettings.map(setting => 
+              databaseManager.worldSettings.addWorldSetting(setting, 'technology')
+            )
+          );
+        }
+        
+        if (magicSettings.length > 0) {
+          savePromises.push(
+            ...magicSettings.map(setting => 
+              databaseManager.worldSettings.addWorldSetting(setting, 'magic')
+            )
+          );
+        }
+        
+        if (historySettings.length > 0) {
+          savePromises.push(
+            ...historySettings.map(setting => 
+              databaseManager.worldSettings.addWorldSetting(setting, 'history')
+            )
+          );
+        }
+        
+        await Promise.all(savePromises);
       } catch (error) {
-        const dbError = ErrorHandler.createDatabaseError(error, `保存${type}设定`);
-        ErrorHandler.logError(dbError, `本地保存${type}设定批次失败`);
+        const dbError = ErrorHandler.createDatabaseError(error, '保存世界观设定');
+        ErrorHandler.logError(dbError, '本地保存世界观设定批次失败');
         throw dbError;
       }
     }
@@ -814,21 +954,57 @@ class OptimizedDataSyncService {
   /**
    * 批量更新世界观设定
    */
-  private async batchUpdateWorldSettings(settings: WorldSetting[], type: 'culture' | 'technology' | 'magic' | 'history'): Promise<void> {
+  private async batchUpdateWorldSettings(settings: WorldSetting[]): Promise<void> {
     // 分批处理
     for (let i = 0; i < settings.length; i += this.batchSize) {
       const batch = settings.slice(i, i + this.batchSize);
       
-      // 并行更新到本地
-      const localUpdatePromises = batch.map(setting => 
-        databaseManager.worldSettings.updateWorldSetting(setting, type)
-      );
+      // 按类型分组处理
+      const cultureSettings = batch.filter(s => s.type === 'culture');
+      const technologySettings = batch.filter(s => s.type === 'technology');
+      const magicSettings = batch.filter(s => s.type === 'magic');
+      const historySettings = batch.filter(s => s.type === 'history');
       
       try {
-        await Promise.all(localUpdatePromises);
+        // 并行更新不同类型的世界观设定
+        const updatePromises = [];
+        
+        if (cultureSettings.length > 0) {
+          updatePromises.push(
+            ...cultureSettings.map(setting => 
+              databaseManager.worldSettings.updateWorldSetting(setting, 'culture')
+            )
+          );
+        }
+        
+        if (technologySettings.length > 0) {
+          updatePromises.push(
+            ...technologySettings.map(setting => 
+              databaseManager.worldSettings.updateWorldSetting(setting, 'technology')
+            )
+          );
+        }
+        
+        if (magicSettings.length > 0) {
+          updatePromises.push(
+            ...magicSettings.map(setting => 
+              databaseManager.worldSettings.updateWorldSetting(setting, 'magic')
+            )
+          );
+        }
+        
+        if (historySettings.length > 0) {
+          updatePromises.push(
+            ...historySettings.map(setting => 
+              databaseManager.worldSettings.updateWorldSetting(setting, 'history')
+            )
+          );
+        }
+        
+        await Promise.all(updatePromises);
       } catch (error) {
-        const dbError = ErrorHandler.createDatabaseError(error, `更新${type}设定`);
-        ErrorHandler.logError(dbError, `本地更新${type}设定批次失败`);
+        const dbError = ErrorHandler.createDatabaseError(error, '更新世界观设定');
+        ErrorHandler.logError(dbError, '本地更新世界观设定批次失败');
         throw dbError;
       }
     }

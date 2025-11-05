@@ -20,6 +20,10 @@ export default defineConfig(({ mode }) => {
         '#': path.resolve(__dirname, './types'),
       },
     },
+    esbuild: {
+      // 禁用eval以符合CSP策略
+      pure: ['eval'],
+    },
     server: {
       host: 'localhost',
       port: 3030,

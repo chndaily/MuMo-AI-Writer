@@ -147,23 +147,30 @@ export class WorldSettingSyncService {
    * 根据类型调用对应的同步方法
    */
   private async syncSettingsByType(content: string, novelId: string, type: WorldSettingType): Promise<SyncResult> {
+    console.log('调用具体同步服务，类型:', type);
     switch (type) {
       case 'character':
+        console.log('调用角色同步服务');
         const { characterSyncService } = await import('@/services/sync/CharacterSyncService');
         return await characterSyncService.syncCharacters(content, novelId);
       case 'location':
+        console.log('调用地点同步服务');
         const { locationSyncService } = await import('@/services/sync/LocationSyncService');
         return await locationSyncService.syncLocations(content, novelId);
       case 'culture':
+        console.log('调用文化同步服务');
         const { cultureSyncService } = await import('@/services/sync/CultureSyncService');
         return await cultureSyncService.syncCultures(content, novelId);
       case 'technology':
+        console.log('调用科技同步服务');
         const { technologySyncService } = await import('@/services/sync/TechnologySyncService');
         return await technologySyncService.syncTechnologies(content, novelId);
       case 'magic':
+        console.log('调用魔法同步服务');
         const { magicSyncService } = await import('@/services/sync/MagicSyncService');
         return await magicSyncService.syncMagics(content, novelId);
       case 'history':
+        console.log('调用历史同步服务');
         const { historySyncService } = await import('@/services/sync/HistorySyncService');
         return await historySyncService.syncHistories(content, novelId);
       default:

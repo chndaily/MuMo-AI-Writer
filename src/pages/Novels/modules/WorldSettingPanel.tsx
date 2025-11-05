@@ -155,11 +155,22 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
       }
     };
     
+    // 监听数据刷新事件
+    const handleDataRefresh = (data: { novelId: string }) => {
+      // 如果是当前小说的数据刷新请求，重新加载数据
+      if (data.novelId === novelId) {
+        console.log('收到数据刷新事件，重新加载数据');
+        loadWorldElements();
+      }
+    };
+    
     eventBus.on('worldSettingSyncComplete', handleSyncComplete);
+    eventBus.on('dataRefreshNeeded', handleDataRefresh);
     
     // 清理事件监听
     return () => {
       eventBus.off('worldSettingSyncComplete', handleSyncComplete);
+      eventBus.off('dataRefreshNeeded', handleDataRefresh);
     };
   }, [novelId]);
 
@@ -595,21 +606,7 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
               color={element.role === 'protagonist' ? 'red' : element.role === 'antagonist' ? 'volcano' : 'blue'}
               style={{ fontSize: '12px', lineHeight: '20px', height: '22px', borderRadius: '4px' }}
             >
-              {element.role === 'protagonist' ? '主角' : 
-               element.role === 'antagonist' ? '反角' : 
-               element.role === 'supporting' ? '配角' : 
-               element.role === 'minor' ? '次要角色' : 
-               element.role === 'side' ? '侧面角色' : 
-               element.role === 'foil' ? '对照角色' : 
-               element.role === 'mentor' ? '导师角色' : 
-               element.role === 'loveInterest' ? '恋爱对象' : 
-               element.role === 'rival' ? '竞争对手' : 
-               element.role === 'neutral' ? '中立角色' : 
-               element.role === 'keySupporting' ? '重要配角' : 
-               element.role === 'minorSupporting' ? '次要配角' : 
-               element.role === 'complexSupporting' ? '复杂配角' : 
-               element.role === 'custom' ? (element.customRole || '自定义类型') : 
-               element.role}
+              {element.customRole || element.role || '未设置类型'}
             </Tag>
           </div>
         )}
@@ -756,29 +753,13 @@ const WorldSettingPanel: React.FC<WorldSettingPanelProps> = ({ aiSyncData, novel
           {form.getFieldValue('type') === 'character' && (
             <>
               <Form.Item name="role" label="角色类型">
-                <Select placeholder="请选择角色类型">
-                  <Select.Option value="protagonist">主角</Select.Option>
-                  <Select.Option value="antagonist">反角</Select.Option>
-                  <Select.Option value="supporting">配角</Select.Option>
-                  <Select.Option value="minor">次要角色</Select.Option>
-                  <Select.Option value="side">侧面角色</Select.Option>
-                  <Select.Option value="foil">对照角色</Select.Option>
-                  <Select.Option value="mentor">导师角色</Select.Option>
-                  <Select.Option value="loveInterest">恋爱对象</Select.Option>
-                  <Select.Option value="rival">竞争对手</Select.Option>
-                  <Select.Option value="neutral">中立角色</Select.Option>
-                  <Select.Option value="keySupporting">重要配角</Select.Option>
-                  <Select.Option value="minorSupporting">次要配角</Select.Option>
-                  <Select.Option value="complexSupporting">复杂配角</Select.Option>
-                  <Select.Option value="custom">自定义类型</Select.Option>
-                </Select>
+                <Input placeholder="请输入角色类型，如：主角、配角（医疗线核心成员）等" />
               </Form.Item>
               <Form.Item 
                 name="customRole" 
-                label="自定义角色类型"
-                hidden={form.getFieldValue('role') !== 'custom'}
+                label="自定义角色类型详细描述"
               >
-                <Input placeholder="请输入具体的角色类型描述，如：配角（医疗线核心成员）" />
+                <Input placeholder="当需要详细描述角色类型时，请在此输入具体描述" />
               </Form.Item>
               <Form.Item name="tags" label="标签">
                 <Input placeholder="请输入标签，多个标签请用中文顿号“、”分隔，如：剑士、勇敢、推动者" />

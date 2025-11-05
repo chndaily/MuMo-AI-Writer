@@ -103,9 +103,32 @@ const SyncConfigPage: React.FC = () => {
   };
 
   // 立即同步
-  const handleImmediateSync = () => {
-    optimizedDataSyncService.triggerSync();
-    message.info('已触发同步任务');
+  const handleImmediateSync = async () => {
+    setIsSyncing(true);
+    setSyncResult(null);
+    
+    try {
+      const result = await optimizedDataSyncService.syncAllData();
+      setSyncResult({
+        success: result.success,
+        message: result.message
+      });
+      
+      if (result.success) {
+        message.success('数据同步完成');
+      } else {
+        message.error('数据同步失败');
+      }
+    } catch (error) {
+      console.error('数据同步时出错:', error);
+      setSyncResult({
+        success: false,
+        message: `数据同步失败: ${error instanceof Error ? error.message : '未知错误'}`
+      });
+      message.error('数据同步失败');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (

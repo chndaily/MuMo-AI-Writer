@@ -22,6 +22,61 @@ export class CultureSyncService {
   }
 
   /**
+   * 查找现有的元素（改进版，添加数据库验证）
+   */
+  private async findExistingElement(cultureData: any, existingCultures: any[], novelId: string): Promise<{ existingElement: any; shouldCreateNew: boolean }> {
+    let existingElement = null;
+    let shouldCreateNew = true;
+    
+    // 1. 首先尝试按名称匹配
+    if (cultureData && cultureData.name) {
+      existingElement = existingCultures.find((el: any) => el && el.name === cultureData.name);
+      
+      // 如果找到匹配项，验证它是否真的存在于数据库中
+      if (existingElement) {
+        try {
+          const dbElement = await hybridStorageService.getWorldElementById(existingElement.id, 'culture');
+          if (!dbElement) {
+            // 数据库中不存在，说明已被删除，应该创建新项
+            console.log('数据库中不存在匹配项，创建新项');
+            existingElement = null;
+          } else {
+            // 确实存在，可以更新
+            console.log('找到同名文化设定:', existingElement.name);
+            shouldCreateNew = false;
+          }
+        } catch (error) {
+          console.warn('验证现有元素时出错:', error);
+          // 出错时保守处理，创建新项
+          existingElement = null;
+        }
+      }
+    }
+    
+    // 2. 如果没有找到同名设定，尝试按标签匹配
+    if (!existingElement && cultureData && cultureData.tags && cultureData.tags.length > 0) {
+      const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(cultureData.tags, 'culture', novelId);
+      
+      // 同样验证数据库中是否存在
+      for (const element of elementsWithTags) {
+        try {
+          const dbElement = await hybridStorageService.getWorldElementById(element.id, 'culture');
+          if (dbElement) {
+            existingElement = element;
+            console.log('按标签匹配到文化设定:', existingElement.name);
+            shouldCreateNew = false;
+            break;
+          }
+        } catch (error) {
+          console.warn('验证标签匹配元素时出错:', error);
+        }
+      }
+    }
+    
+    return { existingElement, shouldCreateNew };
+  }
+
+  /**
    * 同步文化设定
    */
   async syncCultures(content: string, novelId: string, options?: any): Promise<SyncResult> {
@@ -56,53 +111,20 @@ export class CultureSyncService {
           // 解析详细信息
           const details = parserServices.culture.parseCultureDetails(detailsContent);
           
-          // 尝试按名称匹配现有设定
-          let existingElement = null;
-          let shouldCreateNew = true; // 默认创建新条目
+          // 改进的现有元素查找逻辑
+          const { existingElement, shouldCreateNew } = await this.findExistingElement(cultureData, existingCultures, novelId);
           
-          try {
-            // 首先尝试按名称匹配
-            if (cultureData && cultureData.name) {
-              existingElement = existingCultures.find((el: any) => el && el.name === cultureData.name);
+          // 如果找到了现有元素但没有变化，跳过更新
+          if (!shouldCreateNew) {
+            // 检查文化设定数据是否有实际变更
+            const hasChanges = this.hasCultureChanges(existingElement, cultureData, details);
+            if (!hasChanges) {
+              console.log(`文化设定 ${cultureData.name} 没有变化，跳过更新`);
+              continue;
             }
             
-            if (existingElement) {
-              // 找到同名设定，检查是否有实际变更
-              console.log('找到同名文化设定:', existingElement.name);
-              shouldCreateNew = false;
-              
-              // 检查文化设定数据是否有实际变更
-              const hasChanges = this.hasCultureChanges(existingElement, cultureData, details);
-              if (!hasChanges) {
-                console.log(`文化设定 ${cultureData.name} 没有变化，跳过更新`);
-                continue;
-              }
-              
-              // 记录有修改的文化设定
-              modifiedCultures.push(cultureData.name);
-            } else if (cultureData && cultureData.tags && cultureData.tags.length > 0) {
-              // 如果没有找到同名设定，尝试按标签匹配
-              const elementsWithTags = await hybridStorageService.getWorldElementsByExactTags(cultureData.tags, 'culture', novelId);
-              
-              if (elementsWithTags.length > 0) {
-                // 使用第一个匹配的元素进行更新
-                existingElement = elementsWithTags[0];
-                console.log('按标签匹配到文化设定:', existingElement.name);
-                shouldCreateNew = false;
-                
-                // 检查文化设定数据是否有实际变更
-                const hasChanges = this.hasCultureChanges(existingElement, cultureData, details);
-                if (!hasChanges) {
-                  console.log(`文化设定 ${cultureData.name} 没有变化，跳过更新`);
-                  continue;
-                }
-                
-                // 记录有修改的文化设定
-                modifiedCultures.push(cultureData.name);
-              }
-            }
-          } catch (error) {
-            console.warn('获取现有文化设定时出错:', error);
+            // 记录有修改的文化设定
+            modifiedCultures.push(cultureData.name);
           }
           
           // 使用标签同步工具确保标签一致性

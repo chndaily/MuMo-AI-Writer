@@ -77,6 +77,21 @@ const NovelListIndexDB: React.FC = () => {
     initialize();
   }, [refreshNovels]);
 
+  // 监听数据刷新事件
+  useEffect(() => {
+    const handleDataRefresh = () => {
+      refreshNovels();
+    };
+    
+    // 添加事件监听器
+    window.addEventListener('dataRefreshNeeded', handleDataRefresh);
+    
+    // 清理函数
+    return () => {
+      window.removeEventListener('dataRefreshNeeded', handleDataRefresh);
+    };
+  }, [refreshNovels]);
+
   // 当类型数据变化时，确保UI能正确更新
   useEffect(() => {
     console.log('类型数据更新:', genres);

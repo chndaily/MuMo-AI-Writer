@@ -29,31 +29,10 @@ export const characterConfig: Omit<WorldElementPanelProps, 'novelId' | 'aiSyncDa
     {
       name: 'role',
       label: '角色类型',
-      type: 'select',
-      placeholder: '请选择角色类型',
-      options: [
-        { value: 'protagonist', label: '主角 (protagonist)' },
-        { value: 'antagonist', label: '反角 (antagonist)' },
-        { value: 'supporting', label: '配角 (supporting)' },
-        { value: 'minor', label: '次要角色 (minor)' },
-        { value: 'side', label: '侧面角色 (side)' },
-        { value: 'foil', label: '对照角色 (foil)' },
-        { value: 'mentor', label: '导师角色 (mentor)' },
-        { value: 'loveInterest', label: '恋爱对象 (loveInterest)' },
-        { value: 'rival', label: '竞争对手 (rival)' },
-        { value: 'neutral', label: '中立角色 (neutral)' },
-        { value: 'keySupporting', label: '重要配角 (keySupporting)' },
-        { value: 'minorSupporting', label: '次要配角 (minorSupporting)' },
-        { value: 'complexSupporting', label: '复杂配角 (complexSupporting)' },
-        { value: 'custom', label: '自定义类型' }
-      ]
-    },
-    {
-      name: 'customRole',
-      label: '自定义角色类型',
       type: 'input',
-      placeholder: '当选择"自定义类型"时，请在此输入具体的角色类型描述，如：配角（医疗线核心成员）'
+      placeholder: '请输入角色类型，如：主角、配角（医疗线核心成员）等'
     },
+
     {
       name: 'appearance',
       label: '外貌特征',
@@ -65,42 +44,42 @@ export const characterConfig: Omit<WorldElementPanelProps, 'novelId' | 'aiSyncDa
       name: 'personality',
       label: '性格特质',
       type: 'textarea',
-      placeholder: '描述角色的性格特质，包括核心性格特点、优点和缺点、习惯动作、口头禅、恐惧和弱点等...',
+      placeholder: '描述角色的性格特质，包括主要性格特点、行为习惯、情绪模式、价值观等...',
       rows: 3
     },
     {
       name: 'background',
       label: '背景故事',
       type: 'textarea',
-      placeholder: '描述角色的背景故事，包括出生背景、家庭环境、成长经历、关键事件、教育背景、重要人际关系等...',
+      placeholder: '描述角色的背景故事，包括出身、成长经历、重要事件、家庭背景等...',
       rows: 3
     },
     {
       name: 'abilities',
-      label: '能力设定',
+      label: '能力技能',
       type: 'textarea',
-      placeholder: '描述角色的特殊能力或技能，包括超能力、战斗技能、专业知识、技能等级等...',
+      placeholder: '描述角色的能力和技能，包括特殊能力、战斗技能、专业知识、天赋等...',
       rows: 3
     },
     {
       name: 'relationships',
       label: '人际关系',
       type: 'textarea',
-      placeholder: '描述角色的重要人际关系，包括与主要角色的关系、社会地位、盟友和敌人等...',
+      placeholder: '描述角色的人际关系，包括家人、朋友、敌人、恋人等重要关系...',
       rows: 3
     },
     {
       name: 'characterArc',
-      label: '角色发展弧光',
+      label: '角色弧光',
       type: 'textarea',
-      placeholder: '描述角色的成长和变化过程，包括初始状态、目标、面临的挑战、成长过程、最终转变等...',
+      placeholder: '描述角色的成长变化，包括性格发展、目标转变、内心冲突等...',
       rows: 3
     },
     {
       name: 'details',
-      label: '细节补充',
+      label: '其他细节',
       type: 'textarea',
-      placeholder: '其他关于角色的细节信息...',
+      placeholder: '其他关于角色的补充信息...',
       rows: 3
     }
   ]

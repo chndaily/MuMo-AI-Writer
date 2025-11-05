@@ -121,19 +121,25 @@ class DefaultModelService {
         // 匹配管理员配置的模型与数据库中的模型
         result = defaultModels.map((model, index) => {
           // 在数据库中查找匹配的模型
+          // 优先通过connectionId匹配，然后通过name匹配
           const dbModel = allDBModels.find(dbModel => 
             dbModel.connectionId === model.connectionId || 
-            dbModel.name === model.name ||
-            dbModel.id === model.connectionId // 也尝试通过ID匹配
+            dbModel.name === model.name
           );
           
           console.log(`getDefaultModelList: Matching model for ${model.name}:`, dbModel);
           
+          // 确保显示的是模型名称而不是Connection ID
+          const displayName = dbModel?.name || model.name;
+          console.log(`getDefaultModelList: Display name for ${model.name}:`, displayName);
+          
           return {
+            // 使用数据库中的ID作为选项的value，确保与getModelDetailsById方法一致
             id: dbModel?.id || model.connectionId || `${model.name}_${index}`,
-            name: model.name,
+            // 显示模型名称而不是Connection ID
+            name: displayName,
             provider: this.getProviderFromModel(model),
-            description: `默认模型: ${model.name}`,
+            description: `默认模型: ${displayName}`,
             isDefault: true
           };
         });
@@ -161,7 +167,7 @@ class DefaultModelService {
         console.log('getDefaultModelList: dbDefaultModels=', dbDefaultModels);
         result = dbDefaultModels.map(model => ({
           id: model.id, // 使用数据库ID
-          name: model.name,
+          name: model.name, // 显示模型名称
           provider: model.provider,
           description: model.description,
           isDefault: model.isDefault
@@ -202,6 +208,50 @@ class DefaultModelService {
     } catch (error) {
       console.warn('检查数据库中的默认模型失败:', error);
       return false;
+    }
+  }
+  
+  // 根据ID获取模型详情
+  async getModelDetailsById(modelId: string): Promise<any> {
+    try {
+      console.log('getModelDetailsById: modelId=', modelId);
+      
+      // 首先尝试通过数据库ID获取模型
+      const dbModel = await databaseManager.aiModels.getAIModel(modelId);
+      if (dbModel) {
+        console.log('getModelDetailsById: Found model in database by ID', dbModel);
+        return {
+          id: dbModel.id,
+          name: dbModel.name,
+          provider: dbModel.provider,
+          model: dbModel.name,
+          isDefault: dbModel.isDefault,
+          apiKey: dbModel.raw?.apiKey,
+          baseUrl: dbModel.raw?.baseUrl || dbModel.raw?.baseURL,
+        };
+      }
+      
+      // 如果通过ID没找到，尝试通过connectionId查找
+      const allModels = await databaseManager.aiModels.getAllAIModels();
+      const modelByConnectionId = allModels.find(model => model.connectionId === modelId);
+      if (modelByConnectionId) {
+        console.log('getModelDetailsById: Found model by connectionId', modelByConnectionId);
+        return {
+          id: modelByConnectionId.id,
+          name: modelByConnectionId.name,
+          provider: modelByConnectionId.provider,
+          model: modelByConnectionId.name,
+          isDefault: modelByConnectionId.isDefault,
+          apiKey: modelByConnectionId.raw?.apiKey,
+          baseUrl: modelByConnectionId.raw?.baseUrl || modelByConnectionId.raw?.baseURL,
+        };
+      }
+      
+      console.log('getModelDetailsById: No model found for ID', modelId);
+      return null;
+    } catch (error) {
+      console.error('getModelDetailsById: Error getting model details:', error);
+      return null;
     }
   }
   

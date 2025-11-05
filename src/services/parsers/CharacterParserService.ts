@@ -110,63 +110,63 @@ export class CharacterParserService {
       } else if (trimmedLine.includes('【外貌特征】')) {
         currentSection = 'appearance';
         currentField = 'appearance';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const appearanceValue = this.extractValue(trimmedLine);
-        if (appearanceValue) {
+        if (appearanceValue && !appearanceValue.includes('【外貌特征】')) {
           character.appearance = this.normalizeLineBreaks(appearanceValue);
         }
         continue;
       } else if (trimmedLine.includes('【性格特质】')) {
         currentSection = 'personality';
         currentField = 'personality';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const personalityValue = this.extractValue(trimmedLine);
-        if (personalityValue) {
+        if (personalityValue && !personalityValue.includes('【性格特质】')) {
           character.personality = this.normalizeLineBreaks(personalityValue);
         }
         continue;
       } else if (trimmedLine.includes('【背景故事】')) {
         currentSection = 'background';
         currentField = 'background';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const backgroundValue = this.extractValue(trimmedLine);
-        if (backgroundValue) {
+        if (backgroundValue && !backgroundValue.includes('【背景故事】')) {
           character.background = this.normalizeLineBreaks(backgroundValue);
         }
         continue;
       } else if (trimmedLine.includes('【能力设定】')) {
         currentSection = 'abilities';
         currentField = 'abilities';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const abilitiesValue = this.extractValue(trimmedLine);
-        if (abilitiesValue) {
+        if (abilitiesValue && !abilitiesValue.includes('【能力设定】')) {
           character.abilities = this.normalizeLineBreaks(abilitiesValue);
         }
         continue;
       } else if (trimmedLine.includes('【人际关系】')) {
         currentSection = 'relationships';
         currentField = 'relationships';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const relationshipsValue = this.extractValue(trimmedLine);
-        if (relationshipsValue) {
+        if (relationshipsValue && !relationshipsValue.includes('【人际关系】')) {
           character.relationships = this.normalizeLineBreaks(relationshipsValue);
         }
         continue;
       } else if (trimmedLine.includes('【角色发展弧光】')) {
         currentSection = 'characterArc';
         currentField = 'characterArc';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const characterArcValue = this.extractValue(trimmedLine);
-        if (characterArcValue) {
+        if (characterArcValue && !characterArcValue.includes('【角色发展弧光】')) {
           character.characterArc = this.normalizeLineBreaks(characterArcValue);
         }
         continue;
       } else if (trimmedLine.includes('【细节补充】')) {
         currentSection = 'details';
         currentField = 'details';
-        // 处理同一行的内容
+        // 处理同一行的内容，但要排除标签本身
         const detailsValue = this.extractValue(trimmedLine);
-        if (detailsValue) {
+        if (detailsValue && !detailsValue.includes('【细节补充】')) {
           character.details = this.normalizeLineBreaks(detailsValue);
         }
         continue;
@@ -181,68 +181,12 @@ export class CharacterParserService {
               character.name = nameValue;
             } else if (trimmedLine.includes('角色类型')) {
               const roleValue = this.extractValue(trimmedLine).toLowerCase().trim();
-              // 映射角色类型，增加更多匹配规则
-              const roleMap: Record<string, any> = {
-                '主角': 'protagonist',
-                '主人公': 'protagonist',
-                '主要角色': 'protagonist',
-                'protagonist': 'protagonist',
-                'main character': 'protagonist',
-                '反派': 'antagonist',
-                '反角': 'antagonist',
-                '敌对角色': 'antagonist',
-                'antagonist': 'antagonist',
-                'villain': 'antagonist',
-                '配角': 'supporting',
-                '重要配角': 'supporting',
-                'supporting': 'supporting',
-                'supporting character': 'supporting',
-                '次要角色': 'minor',
-                'minor': 'minor',
-                'minor character': 'minor',
-                '次要': 'minor',
-                '侧面角色': 'side',
-                'side': 'side',
-                'side character': 'side',
-                '对照角色': 'foil',
-                'foil': 'foil',
-                'foil character': 'foil',
-                '导师角色': 'mentor',
-                '老师': 'mentor',
-                'mentor': 'mentor',
-                'teacher': 'mentor',
-                '导师': 'mentor',
-                '恋爱对象': 'loveInterest',
-                '恋人': 'loveInterest',
-                'loveinterest': 'loveInterest',
-                'love interest': 'loveInterest',
-                '竞争对手': 'rival',
-                '对手': 'rival',
-                'rival': 'rival',
-                'competitor': 'rival',
-                '中立角色': 'neutral',
-                '中立': 'neutral',
-                'neutral': 'neutral',
-                'neutral character': 'neutral',
-                'keysupporting': 'keySupporting',
-                'key supporting': 'keySupporting',
-                'minorsupporting': 'minorSupporting',
-                'minor supporting': 'minorSupporting',
-                '复杂配角': 'complexSupporting',
-                'complexsupporting': 'complexSupporting',
-                'complex supporting': 'complexSupporting'
-              };
+              // 直接使用AI生成的角色类型，而不是映射到预设值
+              character.role = roleValue;
               
-              // 首先尝试精确匹配
-              if (roleMap[roleValue]) {
-                character.role = roleMap[roleValue];
-              } else {
-                // 如果没有精确匹配，使用自定义类型
-                character.role = 'custom';
-                // 将原始角色类型存储在自定义字段中
-                character.customRole = roleValue;
-              }
-
+              // 修复：确保customRole字段正确设置，保存原始的角色类型值
+              // 不管是否包含括号，都保存到customRole字段以确保显示
+              character.customRole = this.extractValue(trimmedLine).trim();
             } else if (trimmedLine.includes('标签')) {
               // 统一使用 extractTagsFromAIContent 和 normalizeTags 处理标签
               const tagsStr = this.extractValue(trimmedLine);
