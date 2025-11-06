@@ -64,7 +64,8 @@ const WorldSettingGenerationHelper: React.FC<WorldSettingGenerationHelperProps> 
           "2. 明确要求地点与情节强绑定",
           "3. 指定地点的类型和重要性",
           "4. 强调避免生成重复地点",
-          "5. 要求设定符合小说世界观"
+          "5. 要求设定符合小说世界观",
+          "6. 根据地点在大纲中的出场顺序进行细节补充"
         ].join('<br />');
       case 'culture':
         return [
@@ -73,7 +74,8 @@ const WorldSettingGenerationHelper: React.FC<WorldSettingGenerationHelperProps> 
           "2. 明确要求文化设定与情节强绑定",
           "3. 指定文化的特点和影响范围",
           "4. 强调避免生成重复文化设定",
-          "5. 要求设定符合小说世界观"
+          "5. 要求设定符合小说世界观",
+          "6. 根据文化在大纲中的出场顺序进行细节补充"
         ].join('<br />');
       case 'technology':
         return [
@@ -82,7 +84,8 @@ const WorldSettingGenerationHelper: React.FC<WorldSettingGenerationHelperProps> 
           "2. 明确要求科技设定与情节强绑定",
           "3. 指定科技的水平和应用领域",
           "4. 强调避免生成重复科技设定",
-          "5. 要求设定符合小说世界观"
+          "5. 要求设定符合小说世界观",
+          "6. 根据科技在大纲中的出场顺序进行细节补充"
         ].join('<br />');
       case 'magic':
         return [
@@ -91,7 +94,8 @@ const WorldSettingGenerationHelper: React.FC<WorldSettingGenerationHelperProps> 
           "2. 明确要求魔法设定与情节强绑定",
           "3. 指定魔法体系的特点和规则",
           "4. 强调避免生成重复魔法设定",
-          "5. 要求设定符合小说世界观"
+          "5. 要求设定符合小说世界观",
+          "6. 根据魔法在大纲中的出场顺序进行细节补充"
         ].join('<br />');
       case 'history':
         return [
@@ -100,7 +104,8 @@ const WorldSettingGenerationHelper: React.FC<WorldSettingGenerationHelperProps> 
           "2. 明确要求历史设定与情节强绑定",
           "3. 指定历史时期的特点和影响",
           "4. 强调避免生成重复历史设定",
-          "5. 要求设定符合小说世界观"
+          "5. 要求设定符合小说世界观",
+          "6. 根据历史在大纲中的出场顺序进行细节补充"
         ].join('<br />');
       default:
         return [
@@ -109,7 +114,8 @@ const WorldSettingGenerationHelper: React.FC<WorldSettingGenerationHelperProps> 
           "2. 明确要求设定与情节强绑定",
           "3. 指定设定的特点和作用",
           "4. 强调避免生成重复设定",
-          "5. 要求设定符合小说世界观"
+          "5. 要求设定符合小说世界观",
+          "6. 根据设定在大纲中的出场顺序进行细节补充"
         ].join('<br />');
     }
   };

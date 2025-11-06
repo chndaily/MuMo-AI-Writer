@@ -231,19 +231,22 @@ export class LocationParserService {
           } else {
             location.geography += '\n' + this.normalizeLineBreaks(this.extractValue(trimmedLine));
           }
-        } else if (trimmedLine.includes('文化')) {
+        } else if (trimmedLine.includes('文化') && !trimmedLine.includes('标签')) {
+          // 只有在不是标签行的情况下才处理文化背景
           if (!location.culture) {
             location.culture = this.normalizeLineBreaks(this.extractValue(trimmedLine));
           } else {
             location.culture += '\n' + this.normalizeLineBreaks(this.extractValue(trimmedLine));
           }
-        } else if (trimmedLine.includes('政治')) {
+        } else if (trimmedLine.includes('政治') && !trimmedLine.includes('标签')) {
+          // 只有在不是标签行的情况下才处理政治环境
           if (!location.politics) {
             location.politics = this.normalizeLineBreaks(this.extractValue(trimmedLine));
           } else {
             location.politics += '\n' + this.normalizeLineBreaks(this.extractValue(trimmedLine));
           }
-        } else if (trimmedLine.includes('经济')) {
+        } else if (trimmedLine.includes('经济') && !trimmedLine.includes('标签')) {
+          // 只有在不是标签行的情况下才处理经济状况
           if (!location.economy) {
             location.economy = this.normalizeLineBreaks(this.extractValue(trimmedLine));
           } else {

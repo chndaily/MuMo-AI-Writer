@@ -82,6 +82,7 @@ const CharacterGenerationHelper: React.FC<CharacterGenerationHelperProps> = ({
             <br />3. 指定角色的分类和相互关系
             <br />4. 强调避免生成重复角色
             <br />5. 要求设定符合小说世界观
+            <br />6. 根据角色在大纲中的出场顺序进行细节补充
           </Text>
         </Card>
       </div>

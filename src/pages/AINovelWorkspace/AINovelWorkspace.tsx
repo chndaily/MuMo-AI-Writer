@@ -913,6 +913,13 @@ ${prompt}`;
     if (value === 'character' && targetNovel?.id) {
       setCharacterHelperVisible(true);
     }
+    
+    // 当切换到世界设定生成类型时，显示对应的生成助手
+    if (['location', 'culture', 'technology', 'magic', 'history'].includes(value) && targetNovel?.id) {
+      const settingType = value as 'location' | 'culture' | 'technology' | 'magic' | 'history';
+      setWorldSettingHelperType(settingType);
+      setWorldSettingHelperVisible(true);
+    }
   };
   
   // 处理角色生成请求
@@ -929,7 +936,8 @@ ${prompt}`;
 1. 严格按照大纲中提及的角色进行设定
 2. 不要生成与已有角色重复的角色
 3. 为每个角色提供完整的背景、性格、能力等信息
-4. 角色设定需与小说整体世界观保持一致`;
+4. 角色设定需与小说整体世界观保持一致
+5. 根据角色在大纲中的出场顺序进行细节补充`;
     
     setCustomPrompt(customPromptText);
     
@@ -984,7 +992,8 @@ ${prompt}`;
 2. 为每个设定提供完整的背景、特点、作用等信息
 3. 设定需与小说整体世界观保持一致
 4. 确保设定与大纲情节强绑定、无逻辑冲突
-5. 每个设定的生成应包含相关的核心要素`;
+5. 每个设定的生成应包含相关的核心要素
+6. 根据设定在大纲中的出场顺序进行细节补充`;
 
     setCustomPrompt(customPromptText);
     
@@ -1261,77 +1270,23 @@ ${prompt}`;
             </div>
           )}
           
-          {/* 地点设定助手按钮（当生成类型为地点设定时显示） */}
-          {targetNovel && generationType === 'location' && (
+          {/* 世界设定助手按钮（当生成类型为世界设定时显示） */}
+          {targetNovel && ['location', 'culture', 'technology', 'magic', 'history'].includes(generationType) && (
             <div>
-              <div style={{ marginBottom: 8 }}><strong>地点生成：</strong></div>
+              <div style={{ marginBottom: 8 }}><strong>{getSettingTypeName(generationType as any)}生成：</strong></div>
               <Button 
                 type="primary" 
-                icon={<EnvironmentOutlined />} 
-                onClick={() => handleOpenWorldSettingHelper('location')}
+                icon={
+                  generationType === 'location' ? <EnvironmentOutlined /> :
+                  generationType === 'culture' ? <GlobalOutlined /> :
+                  generationType === 'technology' ? <ApiOutlined /> :
+                  generationType === 'magic' ? <ExperimentOutlined /> :
+                  <HistoryOutlined />
+                }
+                onClick={() => handleOpenWorldSettingHelper(generationType as any)}
                 style={{ width: '100%' }}
               >
-                打开地点生成助手
-              </Button>
-            </div>
-          )}
-          
-          {/* 文化设定助手按钮（当生成类型为文化设定时显示） */}
-          {targetNovel && generationType === 'culture' && (
-            <div>
-              <div style={{ marginBottom: 8 }}><strong>文化生成：</strong></div>
-              <Button 
-                type="primary" 
-                icon={<GlobalOutlined />} 
-                onClick={() => handleOpenWorldSettingHelper('culture')}
-                style={{ width: '100%' }}
-              >
-                打开文化生成助手
-              </Button>
-            </div>
-          )}
-          
-          {/* 科技设定助手按钮（当生成类型为科技设定时显示） */}
-          {targetNovel && generationType === 'technology' && (
-            <div>
-              <div style={{ marginBottom: 8 }}><strong>科技生成：</strong></div>
-              <Button 
-                type="primary" 
-                icon={<ApiOutlined />} 
-                onClick={() => handleOpenWorldSettingHelper('technology')}
-                style={{ width: '100%' }}
-              >
-                打开科技生成助手
-              </Button>
-            </div>
-          )}
-          
-          {/* 魔法设定助手按钮（当生成类型为魔法设定时显示） */}
-          {targetNovel && generationType === 'magic' && (
-            <div>
-              <div style={{ marginBottom: 8 }}><strong>魔法生成：</strong></div>
-              <Button 
-                type="primary" 
-                icon={<ExperimentOutlined />} 
-                onClick={() => handleOpenWorldSettingHelper('magic')}
-                style={{ width: '100%' }}
-              >
-                打开魔法生成助手
-              </Button>
-            </div>
-          )}
-          
-          {/* 历史设定助手按钮（当生成类型为历史设定时显示） */}
-          {targetNovel && generationType === 'history' && (
-            <div>
-              <div style={{ marginBottom: 8 }}><strong>历史生成：</strong></div>
-              <Button 
-                type="primary" 
-                icon={<HistoryOutlined />} 
-                onClick={() => handleOpenWorldSettingHelper('history')}
-                style={{ width: '100%' }}
-              >
-                打开历史生成助手
+                打开{getSettingTypeName(generationType as any)}生成助手
               </Button>
             </div>
           )}
