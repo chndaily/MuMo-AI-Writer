@@ -38,17 +38,22 @@ export const useNovelPromptLibraryStore = create<NovelPromptLibraryState>()(
                 const allCollections = await databaseManager.promptLibrary.getAllCollections();
                 // 过滤出全局提示词和当前小说的特定提示词
                 const novelCollections = allCollections.filter(collection => {
+                    // 确保集合对象存在且不为null
+                    if (!collection) {
+                        return false;
+                    }
+                    
                     // 检查集合是否有标签属性
                     if (collection.attributes && Array.isArray(collection.attributes.tags)) {
                         // 检查是否包含公共标签（全局提示词）
-                        const hasPublicTag = collection.attributes.tags.some(tag => tag.type === 'public');
+                        const hasPublicTag = collection.attributes.tags.some(tag => tag && tag.type === 'public');
                         // 检查是否包含与当前小说ID匹配的标签（当前小说特定提示词）
                         const hasCurrentNovelTag = collection.attributes.tags.some(tag => 
-                            tag.type === 'novel' && tag.id === novelId
+                            tag && tag.type === 'novel' && tag.id === novelId
                         );
                         // 检查是否包含其他小说的标签
                         const hasOtherNovelTags = collection.attributes.tags.some(tag => 
-                            tag.type === 'novel' && tag.id !== novelId
+                            tag && tag.type === 'novel' && tag.id !== novelId
                         );
                         
                         // 加载条件：
@@ -62,7 +67,7 @@ export const useNovelPromptLibraryStore = create<NovelPromptLibraryState>()(
                     }
                     // 检查是否有与当前小说关联的项目
                     return collection.relationships.projects.some(project => 
-                        project.type === 'novels' && project.id === novelId
+                        project && project.type === 'novels' && project.id === novelId
                     );
                 });
                 set({ collections: novelCollections });
@@ -81,17 +86,22 @@ export const useNovelPromptLibraryStore = create<NovelPromptLibraryState>()(
                 const allCollections = await databaseManager.promptLibrary.getAllCollections();
                 // 过滤出全局提示词和当前小说的特定提示词
                 const novelCollections = allCollections.filter(collection => {
+                    // 确保集合对象存在且不为null
+                    if (!collection) {
+                        return false;
+                    }
+                    
                     // 检查集合是否有标签属性
                     if (collection.attributes && Array.isArray(collection.attributes.tags)) {
                         // 检查是否包含公共标签（全局提示词）
-                        const hasPublicTag = collection.attributes.tags.some(tag => tag.type === 'public');
+                        const hasPublicTag = collection.attributes.tags.some(tag => tag && tag.type === 'public');
                         // 检查是否包含与当前小说ID匹配的标签（当前小说特定提示词）
                         const hasCurrentNovelTag = collection.attributes.tags.some(tag => 
-                            tag.type === 'novel' && tag.id === novelId
+                            tag && tag.type === 'novel' && tag.id === novelId
                         );
                         // 检查是否包含其他小说的标签
                         const hasOtherNovelTags = collection.attributes.tags.some(tag => 
-                            tag.type === 'novel' && tag.id !== novelId
+                            tag && tag.type === 'novel' && tag.id !== novelId
                         );
                         
                         // 加载条件：
@@ -105,7 +115,7 @@ export const useNovelPromptLibraryStore = create<NovelPromptLibraryState>()(
                     }
                     // 检查是否有与当前小说关联的项目
                     return collection.relationships.projects.some(project => 
-                        project.type === 'novels' && project.id === novelId
+                        project && project.type === 'novels' && project.id === novelId
                     );
                 });
                 set({ collections: novelCollections });

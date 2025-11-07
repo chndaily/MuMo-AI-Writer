@@ -70,8 +70,6 @@ const apiRequest = async <T>(
     credentials: 'include'
   })
   
-  console.log(`API response status: ${response.status}`)
-  
   if (!response.ok) {
     let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
     
@@ -749,35 +747,60 @@ export const chapterVersionApi = {
 export const promptLibraryApi = {
   // 获取所有提示词库集合
   getAllCollections: async () => {
-    return apiRequest<Collection[]>('/api/prompt-library')
+    try {
+      return await apiRequest<Collection[]>('/api/prompt-library');
+    } catch (error) {
+      console.error('API调用失败：获取提示词库集合', error);
+      throw error;
+    }
   },
   
   // 根据ID获取提示词库集合
   getCollectionById: async (id: string) => {
-    return apiRequest<Collection>(`/api/prompt-library/${id}`)
+    try {
+      return await apiRequest<Collection>(`/api/prompt-library/${id}`);
+    } catch (error) {
+      console.error('API调用失败：根据ID获取提示词库集合', error);
+      throw error;
+    }
   },
   
   // 创建提示词库集合
   createCollection: async (collectionData: Omit<Collection, 'id'>) => {
-    return apiRequest<Collection>('/api/prompt-library', {
-      method: 'POST',
-      body: JSON.stringify(collectionData),
-    })
+    try {
+      return await apiRequest<Collection>('/api/prompt-library', {
+        method: 'POST',
+        body: JSON.stringify(collectionData),
+      });
+    } catch (error) {
+      console.error('API调用失败：创建提示词库集合', error);
+      throw error;
+    }
   },
   
   // 更新提示词库集合
   updateCollection: async (id: string, updateData: Partial<Collection>) => {
-    return apiRequest<Collection>(`/api/prompt-library/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updateData),
-    })
+    try {
+      return await apiRequest<Collection>(`/api/prompt-library/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      });
+    } catch (error) {
+      console.error('API调用失败：更新提示词库集合', error);
+      throw error;
+    }
   },
   
   // 删除提示词库集合
   deleteCollection: async (id: string) => {
-    return apiRequest<void>(`/api/prompt-library/${id}`, {
-      method: 'DELETE',
-    })
+    try {
+      return await apiRequest<void>(`/api/prompt-library/${id}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error('API调用失败：删除提示词库集合', error);
+      throw error;
+    }
   },
 }
 

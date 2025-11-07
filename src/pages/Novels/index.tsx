@@ -94,7 +94,7 @@ const NovelCrafter: React.FC = () => {
     refreshNovels();
     // 刷新类型数据
     refreshGenres();
-  }, [refreshNovels, refreshGenres]);
+  }, [refreshNovels, refreshGenres, membershipInfo]); // 添加membershipInfo作为依赖项
 
   // 处理来自AI工作台的数据
   useEffect(() => {

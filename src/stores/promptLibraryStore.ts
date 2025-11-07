@@ -41,11 +41,16 @@ export const usePromptLibraryStore = create<PromptLibraryState>()(
                 const allCollections = await databaseManager.promptLibrary.getAllCollections();
                 // 过滤出全局提示词（不关联特定小说的）
                 const globalCollections = allCollections.filter(collection => {
+                    // 确保集合对象存在且不为null
+                    if (!collection) {
+                        return false;
+                    }
+                    
                     // 检查集合是否有标签属性
                     if (collection.attributes && Array.isArray(collection.attributes.tags)) {
                         // 全局提示词：包含公共标签但不包含小说标签
-                        const hasPublicTag = collection.attributes.tags.some(tag => tag.type === 'public');
-                        const hasNovelTag = collection.attributes.tags.some(tag => tag.type === 'novel');
+                        const hasPublicTag = collection.attributes.tags.some(tag => tag && tag.type === 'public');
+                        const hasNovelTag = collection.attributes.tags.some(tag => tag && tag.type === 'novel');
                         return hasPublicTag && !hasNovelTag;
                     }
                     // 如果没有标签属性，使用原有的项目关联逻辑作为后备
@@ -54,7 +59,7 @@ export const usePromptLibraryStore = create<PromptLibraryState>()(
                     }
                     // 检查是否关联了小说项目，如果没有关联小说项目则是全局的
                     return !collection.relationships.projects.some(project => 
-                        project.type === 'novels'
+                        project && project.type === 'novels'
                     );
                 });
                 // 如果没有数据，使用默认数据
@@ -78,11 +83,16 @@ export const usePromptLibraryStore = create<PromptLibraryState>()(
                 const allCollections = await databaseManager.promptLibrary.getAllCollections();
                 // 过滤出全局提示词（不关联特定小说的）
                 const globalCollections = allCollections.filter(collection => {
+                    // 确保集合对象存在且不为null
+                    if (!collection) {
+                        return false;
+                    }
+                    
                     // 检查集合是否有标签属性
                     if (collection.attributes && Array.isArray(collection.attributes.tags)) {
                         // 全局提示词：包含公共标签但不包含小说标签
-                        const hasPublicTag = collection.attributes.tags.some(tag => tag.type === 'public');
-                        const hasNovelTag = collection.attributes.tags.some(tag => tag.type === 'novel');
+                        const hasPublicTag = collection.attributes.tags.some(tag => tag && tag.type === 'public');
+                        const hasNovelTag = collection.attributes.tags.some(tag => tag && tag.type === 'novel');
                         return hasPublicTag && !hasNovelTag;
                     }
                     // 如果没有标签属性，使用原有的项目关联逻辑作为后备
@@ -91,7 +101,7 @@ export const usePromptLibraryStore = create<PromptLibraryState>()(
                     }
                     // 检查是否关联了小说项目，如果没有关联小说项目则是全局的
                     return !collection.relationships.projects.some(project => 
-                        project.type === 'novels'
+                        project && project.type === 'novels'
                     );
                 });
                 // 更新集合数据

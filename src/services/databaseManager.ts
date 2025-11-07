@@ -297,19 +297,48 @@ export class DatabaseManager {
   get promptLibrary() {
     return {
       getAllCollections: async (): Promise<Collection[]> => {
-        return await this.mongodbStorageService.getPromptLibraryCollections()
+        try {
+          const collections = await this.mongodbStorageService.getPromptLibraryCollections();
+          // 确保返回的集合不包含undefined或null值
+          return collections.filter(collection => collection !== undefined && collection !== null);
+        } catch (error) {
+          console.error('DatabaseManager: 获取提示词库集合失败', error);
+          return [];
+        }
       },
       getCollectionById: async (id: string): Promise<Collection | undefined> => {
-        return await this.mongodbStorageService.getPromptLibraryCollectionById(id)
+        try {
+          const collection = await this.mongodbStorageService.getPromptLibraryCollectionById(id);
+          // 确保返回的集合不为undefined或null
+          return collection !== undefined && collection !== null ? collection : undefined;
+        } catch (error) {
+          console.error('DatabaseManager: 根据ID获取提示词库集合失败', error);
+          return undefined;
+        }
       },
       createCollection: async (collection: Omit<Collection, 'id'>): Promise<Collection> => {
-        return await this.mongodbStorageService.createPromptLibraryCollection(collection)
+        try {
+          return await this.mongodbStorageService.createPromptLibraryCollection(collection);
+        } catch (error) {
+          console.error('DatabaseManager: 创建提示词库集合失败', error);
+          throw error;
+        }
       },
       updateCollection: async (id: string, updateData: Partial<Collection>): Promise<Collection> => {
-        return await this.mongodbStorageService.updatePromptLibraryCollection(id, updateData)
+        try {
+          return await this.mongodbStorageService.updatePromptLibraryCollection(id, updateData);
+        } catch (error) {
+          console.error('DatabaseManager: 更新提示词库集合失败', error);
+          throw error;
+        }
       },
       deleteCollection: async (id: string): Promise<void> => {
-        await this.mongodbStorageService.deletePromptLibraryCollection(id)
+        try {
+          await this.mongodbStorageService.deletePromptLibraryCollection(id);
+        } catch (error) {
+          console.error('DatabaseManager: 删除提示词库集合失败', error);
+          throw error;
+        }
       }
     }
   }

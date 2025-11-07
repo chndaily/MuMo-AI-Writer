@@ -803,7 +803,9 @@ export class MongodbStorageService {
   // 获取所有提示词库集合
   async getPromptLibraryCollections(): Promise<Collection[]> {
     try {
-      return await apiService.promptLibrary.getAllCollections();
+      const collections = await apiService.promptLibrary.getAllCollections();
+      // 确保返回的集合不包含undefined或null值
+      return collections.filter(collection => collection !== undefined && collection !== null);
     } catch (error) {
       console.error('获取提示词库集合失败:', error);
       return [];
@@ -813,7 +815,9 @@ export class MongodbStorageService {
   // 根据ID获取提示词库集合
   async getPromptLibraryCollectionById(id: string): Promise<Collection | undefined> {
     try {
-      return await apiService.promptLibrary.getCollectionById(id);
+      const collection = await apiService.promptLibrary.getCollectionById(id);
+      // 确保返回的集合不为undefined或null
+      return collection !== undefined && collection !== null ? collection : undefined;
     } catch (error) {
       console.error('根据ID获取提示词库集合失败:', error);
       return undefined;

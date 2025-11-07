@@ -2633,6 +2633,10 @@ app.get('/api/prompt-library', async (req, res) => {
     const collections = await db.collection('promptLibrary').find({}).toArray();
     // 确保返回的数据有id字段（映射自_id）
     const result = collections.map(collection => {
+      // 确保collection对象存在且不为null
+      if (!collection) {
+        return {};
+      }
       const { _id, ...rest } = collection;
       return { ...rest, id: _id };
     });
