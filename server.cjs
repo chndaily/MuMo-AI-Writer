@@ -2068,7 +2068,7 @@ app.post('/api/ai-models/:id/unset-default', async (req, res) => {
 
 // 大纲API路由
 // 获取所有大纲
-app.get('/api/outlines', authenticateToken, async (req, res) => {
+app.get('/api/outlines', optionalAuthenticateToken, async (req, res) => {
   try {
     // 检查是否有novelId查询参数
     const novelId = req.query.novelId;
@@ -2146,7 +2146,7 @@ app.delete('/api/outlines/:id', authenticateToken, async (req, res) => {
 
 // 世界观设定API路由
 // 获取所有世界观设定
-app.get('/api/world-settings', authenticateToken, async (req, res) => {
+app.get('/api/world-settings', optionalAuthenticateToken, async (req, res) => {
   try {
     // 检查是否有novelId和type查询参数
     const novelId = req.query.novelId;
@@ -2193,7 +2193,7 @@ app.get('/api/world-settings', authenticateToken, async (req, res) => {
 });
 
 // 获取世界观设定详情
-app.get('/api/world-settings/:id', authenticateToken, async (req, res) => {
+app.get('/api/world-settings/:id', optionalAuthenticateToken, async (req, res) => {
   try {
     const worldSetting = await db.collection('worldSettings').findOne({ _id: req.params.id });
     res.json(worldSetting);
@@ -2203,7 +2203,7 @@ app.get('/api/world-settings/:id', authenticateToken, async (req, res) => {
 });
 
 // 创建世界观设定
-app.post('/api/world-settings', authenticateToken, async (req, res) => {
+app.post('/api/world-settings', optionalAuthenticateToken, async (req, res) => {
   try {
     const worldSetting = req.body;
     
@@ -2216,7 +2216,11 @@ app.post('/api/world-settings', authenticateToken, async (req, res) => {
     worldSetting._id = 'world-setting-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     
     // 设置作者信息
-    worldSetting.authorId = req.user.userId;
+    if (req.user) {
+      worldSetting.authorId = req.user.userId;
+    } else {
+      worldSetting.authorId = 'system';
+    }
     
     // 设置创建和修改时间
     const now = new Date().toISOString();
@@ -2232,7 +2236,7 @@ app.post('/api/world-settings', authenticateToken, async (req, res) => {
 });
 
 // 更新世界观设定
-app.put('/api/world-settings/:id', authenticateToken, async (req, res) => {
+app.put('/api/world-settings/:id', optionalAuthenticateToken, async (req, res) => {
   try {
     const worldSetting = req.body;
     
@@ -2261,7 +2265,7 @@ app.put('/api/world-settings/:id', authenticateToken, async (req, res) => {
 });
 
 // 删除世界观设定
-app.delete('/api/world-settings/:id', authenticateToken, async (req, res) => {
+app.delete('/api/world-settings/:id', optionalAuthenticateToken, async (req, res) => {
   try {
     await db.collection('worldSettings').deleteOne({ _id: req.params.id });
     res.json({ message: 'World setting deleted' });

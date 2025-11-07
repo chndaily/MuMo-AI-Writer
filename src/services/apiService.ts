@@ -54,13 +54,28 @@ const apiRequest = async <T>(
     },
   }
   
-  // 添加认证token到请求头
-  const { authToken } = useMembershipStore.getState();
-  if (authToken) {
-    defaultOptions.headers = {
-      ...defaultOptions.headers,
-      'Authorization': `Bearer ${authToken}`
-    };
+  // 对于某些不需要认证的公开API端点，不添加认证token
+  const publicEndpoints = [
+    '/api/ai-models',
+    '/api/world-settings'  // 世界观设定API也应该是公开的，因为它们是内部服务调用
+  ];
+  
+  // 检查是否为公开端点
+  const isPublicEndpoint = publicEndpoints.some(ep => 
+    endpoint === ep || endpoint.startsWith(ep + '?') || endpoint.startsWith(ep + '/')
+  );
+  
+  if (!isPublicEndpoint) {
+    // 添加认证token到请求头（仅对需要认证的端点）
+    const { authToken } = useMembershipStore.getState();
+    if (authToken) {
+      defaultOptions.headers = {
+        ...defaultOptions.headers,
+        'Authorization': `Bearer ${authToken}`
+      };
+    } else {
+      console.warn('缺少认证token，请求可能失败:', endpoint);
+    }
   }
   
   const response = await fetch(url, {

@@ -2,6 +2,7 @@ import { Novel, Character, Location } from '#/novel'
 import { hybridStorageService } from '@/services/hybridStorageService'
 import { isSuperLargeOutline } from '@/utils/superLargeOutlineHandler'
 import { getSuperLargeOutlineStructureSummary } from '@/utils/superLargeOutlineHandler'
+import { useMembershipStore } from '@/stores/membershipStore'
 
 /**
  * 获取已有元素信息，用于增强AI生成内容的关联性
@@ -14,6 +15,13 @@ import { getSuperLargeOutlineStructureSummary } from '@/utils/superLargeOutlineH
  */
 export async function getExistingElementsInfo(novelId: string): Promise<string> {
   try {
+    // 检查认证状态
+    const { isAuthenticated, authToken } = useMembershipStore.getState();
+    if (!isAuthenticated || !authToken) {
+      console.warn('用户未认证，无法获取元素信息');
+      return '';
+    }
+    
     // 获取已有的角色信息
     const characters = await hybridStorageService.getWorldElements('character', novelId)
     // 获取已有的地点信息
@@ -197,6 +205,13 @@ export async function getExistingElementsInfo(novelId: string): Promise<string> 
  */
 export async function getOutlineSummaryInfo(novelId: string): Promise<string> {
   try {
+    // 检查认证状态
+    const { isAuthenticated, authToken } = useMembershipStore.getState();
+    if (!isAuthenticated || !authToken) {
+      console.warn('用户未认证，无法获取大纲摘要信息');
+      return '';
+    }
+    
     // 获取大纲信息
     const outlines = await hybridStorageService.getOutlines(novelId)
 
@@ -254,6 +269,13 @@ export async function getOutlineSummaryInfo(novelId: string): Promise<string> {
  */
 export async function getCondensedElementsInfo(novelId: string): Promise<string> {
   try {
+    // 检查认证状态
+    const { isAuthenticated, authToken } = useMembershipStore.getState();
+    if (!isAuthenticated || !authToken) {
+      console.warn('用户未认证，无法获取精简元素信息');
+      return '';
+    }
+    
     // 获取已有的元素信息
     const characters = await hybridStorageService.getWorldElements('character', novelId)
     const locations = await hybridStorageService.getWorldElements('location', novelId)
@@ -362,6 +384,13 @@ export async function getCondensedElementsInfo(novelId: string): Promise<string>
  * @returns 增强后的特定指导
  */
 export async function enhanceTypeSpecificGuidance(type: string, novelId: string): Promise<string> {
+  // 检查认证状态
+  const { isAuthenticated, authToken } = useMembershipStore.getState();
+  if (!isAuthenticated || !authToken) {
+    console.warn('用户未认证，无法增强特定指导');
+    return '';
+  }
+  
   let guidance = ''
   
   // 根据生成类型添加基础指导
@@ -411,6 +440,7 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '- 生成多维度标签，包括职业标签、性格标签、功能标签\n' +
                 '- 增加角色内在矛盾和动机合理性\n' +
                 '- 强化角色与世界观及其他角色的动态关系\n' +
+                '- 如果大纲中提及了相关人物，请确保角色设定与大纲描述保持一致\n' +
                 '- 如果大纲中提及了相关人物，请确保角色设定与大纲描述保持一致\n' +
                 '- 角色的行为和动机应符合大纲中的情节发展要求\n' +
                 '- 角色的成长弧线应与大纲中的故事线索相呼应\n' +
@@ -710,19 +740,28 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝、革命等\n' +
                 '【描述】：\n' +
                 '【时间线】\n' +
-                '起始时间：\n' +
-                '结束时间：\n' +
-                '重要时间节点：\n' +
+                '时间节点：\n' +
+                '重要时期：\n' +
+                '年代跨度：\n' +
                 '【重要事件】\n' +
-                '事件1：\n' +
-                '事件2：\n' +
-                '事件3：\n' +
-                '【关键人物】\n' +
-                '人物1：\n' +
-                '人物2：\n' +
+                '重大事件：\n' +
+                '战争冲突：\n' +
+                '政治变迁：\n' +
+                '文化交融：\n' +
+                '【历史人物】\n' +
+                '关键人物：\n' +
+                '英雄豪杰：\n' +
+                '奸臣恶徒：\n' +
+                '普通民众：\n' +
                 '【历史后果】\n' +
                 '对后世的影响：\n' +
+                '遗产传承：\n' +
+                '未解之谜：\n' +
                 '【细节补充】\n' +
+                '社会状况：\n' +
+                '经济发展：\n' +
+                '科技水平：\n' +
+                '其他相关信息\n' +
                 '---\n' +
                 '【历史设定2：名称】\n' +
                 '---\n' +
@@ -731,19 +770,28 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string)
                 '【标签】：使用中文顿号"、"分隔，如：古代、战争、王朝、革命等\n' +
                 '【描述】：\n' +
                 '【时间线】\n' +
-                '起始时间：\n' +
-                '结束时间：\n' +
-                '重要时间节点：\n' +
+                '时间节点：\n' +
+                '重要时期：\n' +
+                '年代跨度：\n' +
                 '【重要事件】\n' +
-                '事件1：\n' +
-                '事件2：\n' +
-                '事件3：\n' +
-                '【关键人物】\n' +
-                '人物1：\n' +
-                '人物2：\n' +
+                '重大事件：\n' +
+                '战争冲突：\n' +
+                '政治变迁：\n' +
+                '文化交融：\n' +
+                '【历史人物】\n' +
+                '关键人物：\n' +
+                '英雄豪杰：\n' +
+                '奸臣恶徒：\n' +
+                '普通民众：\n' +
                 '【历史后果】\n' +
                 '对后世的影响：\n' +
+                '遗产传承：\n' +
+                '未解之谜：\n' +
                 '【细节补充】\n' +
+                '社会状况：\n' +
+                '经济发展：\n' +
+                '科技水平：\n' +
+                '其他相关信息\n' +
                 '---\n' +
                 '生成的历史设定数量应根据用户的具体需求和上下文来确定，可以是一个或多个，每个设定项之间使用三个短横线"---"分隔'
       break

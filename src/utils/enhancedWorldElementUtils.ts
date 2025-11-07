@@ -3,6 +3,7 @@ import { hybridStorageService } from '@/services/hybridStorageService'
 import { isSuperLargeOutline } from '@/utils/superLargeOutlineHandler'
 import { getSuperLargeOutlineStructureSummary } from '@/utils/superLargeOutlineHandler'
 import { extractCharactersFromOutline } from '@/utils/outlineCharacterExtractor'
+import { useMembershipStore } from '@/stores/membershipStore'
 
 /**
  * 获取增强版的已有元素信息，特别针对角色生成场景
@@ -11,6 +12,13 @@ import { extractCharactersFromOutline } from '@/utils/outlineCharacterExtractor'
  */
 export async function getEnhancedExistingElementsInfo(novelId: string, generationType: string): Promise<string> {
   try {
+    // 检查认证状态
+    const { isAuthenticated, authToken } = useMembershipStore.getState();
+    if (!isAuthenticated || !authToken) {
+      console.warn('用户未认证，无法获取元素信息');
+      return '';
+    }
+    
     // 获取已有的角色信息
     const characters = await hybridStorageService.getWorldElements('character', novelId)
     // 获取已有的地点信息
@@ -215,6 +223,13 @@ export async function getEnhancedExistingElementsInfo(novelId: string, generatio
  */
 export async function getUndetailedCharactersFromOutline(novelId: string): Promise<string[]> {
   try {
+    // 检查认证状态
+    const { isAuthenticated, authToken } = useMembershipStore.getState();
+    if (!isAuthenticated || !authToken) {
+      console.warn('用户未认证，无法获取未详细设定角色信息');
+      return [];
+    }
+    
     // 获取大纲信息
     const outlines = await hybridStorageService.getOutlines(novelId);
     

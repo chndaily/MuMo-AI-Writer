@@ -314,6 +314,12 @@ export class MongodbStorageService {
    */
   async getCharactersByNovelId(novelId: string): Promise<Character[]> {
     try {
+      // 检查认证状态
+      const { isAuthenticated, authToken } = useMembershipStore.getState();
+      if (!isAuthenticated || !authToken) {
+        console.warn('用户未认证，无法获取角色数据');
+        return [];
+      }
       return await apiService.characters.getCharactersByNovelId(novelId);
     } catch (error) {
       console.error('根据小说ID获取角色失败:', error);
@@ -374,6 +380,12 @@ export class MongodbStorageService {
    */
   async getLocationsByNovelId(novelId: string): Promise<Location[]> {
     try {
+      // 检查认证状态
+      const { isAuthenticated, authToken } = useMembershipStore.getState();
+      if (!isAuthenticated || !authToken) {
+        console.warn('用户未认证，无法获取地点数据');
+        return [];
+      }
       return await apiService.locations.getLocationsByNovelId(novelId);
     } catch (error) {
       console.error('根据小说ID获取地点失败:', error);

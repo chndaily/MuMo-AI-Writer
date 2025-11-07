@@ -6,6 +6,8 @@ import { Message, ChatHistory } from './chatStore'
 import { AIUsageRecord } from './aiUsageHistoryService'
 import { AIModelRecord } from './aiModelStore'
 import { Collection } from '#/promptLibrary'
+// 导入会员store
+import { useMembershipStore } from '@/stores/membershipStore'
 
 /**
  * 数据库管理器
@@ -86,6 +88,12 @@ export class DatabaseManager {
         return await this.mongodbStorageService.getOutline(id)
       },
       getOutlinesByNovelId: async (novelId: string): Promise<NovelOutline[]> => {
+        // 检查认证状态
+        const { isAuthenticated, authToken } = useMembershipStore.getState();
+        if (!isAuthenticated || !authToken) {
+          console.warn('用户未认证，无法获取大纲数据');
+          return [];
+        }
         return await this.mongodbStorageService.getOutlinesByNovelId(novelId)
       },
       batchUpdateParentIds: async (updates: { id: string; parentId: string }[]): Promise<void> => {
@@ -111,6 +119,12 @@ export class DatabaseManager {
         return await this.mongodbStorageService.getCharacter(id)
       },
       getCharactersByNovelId: async (novelId: string): Promise<Character[]> => {
+        // 检查认证状态
+        const { isAuthenticated, authToken } = useMembershipStore.getState();
+        if (!isAuthenticated || !authToken) {
+          console.warn('用户未认证，无法获取角色数据');
+          return [];
+        }
         return await this.mongodbStorageService.getCharactersByNovelId(novelId)
       }
     }
@@ -132,6 +146,12 @@ export class DatabaseManager {
         return await this.mongodbStorageService.getLocation(id)
       },
       getLocationsByNovelId: async (novelId: string): Promise<Location[]> => {
+        // 检查认证状态
+        const { isAuthenticated, authToken } = useMembershipStore.getState();
+        if (!isAuthenticated || !authToken) {
+          console.warn('用户未认证，无法获取地点数据');
+          return [];
+        }
         return await this.mongodbStorageService.getLocationsByNovelId(novelId)
       }
     }

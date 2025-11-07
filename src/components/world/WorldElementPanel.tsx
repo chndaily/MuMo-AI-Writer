@@ -52,6 +52,7 @@ import { magicConfig } from './configs/magicConfig';
 import { historyConfig } from './configs/historyConfig';
 
 import { enhanceTypeSpecificGuidance } from '@/utils/worldElementUtils';
+import { HISTORY_GENERATION_PROMPT } from '@/constants/aiPrompts';
 import { useNavigate, useLocation } from 'react-router-dom';
 import worldSettingParserService from '@/services/worldSettingParserService';
 
@@ -1119,34 +1120,7 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
           break;
           
         case 'history':
-          basePrompt = '为我的小说生成详细的历史设定，要求如下：\n\n' +
-                  '【基本信息】\n' +
-                  '1. 名称：历史时期的完整名称\n' +
-                  '2. 标签：使用中文顿号"、"分隔，如：古代、战争、王朝、革命等\n' +
-                  '3. 描述：历史时期的简要概述\n\n' +
-                  '【时间线】\n' +
-                  '1. 重要时期：历史的重要分期\n' +
-                  '2. 时间节点：重要的时间节点\n' +
-                  '3. 年代跨度：历史时期的年代跨度\n\n' +
-                  '【重要事件】\n' +
-                  '1. 重大事件：影响历史进程的重大事件\n' +
-                  '2. 战争冲突：重要的战争和冲突\n' +
-                  '3. 政治变迁：政治制度的变化\n' +
-                  '4. 文化交融：不同文化的交流融合\n\n' +
-                  '【历史人物】\n' +
-                  '1. 关键人物：影响历史的关键人物\n' +
-                  '2. 英雄豪杰：著名的英雄人物\n' +
-                  '3. 奸臣恶徒：著名的反面人物\n' +
-                  '4. 普通民众：普通民众的生活状况\n\n' +
-                  '【历史后果】\n' +
-                  '1. 对后世的影响：对后世产生的影响\n' +
-                  '2. 遗产传承：历史留下的遗产\n' +
-                  '3. 未解之谜：历史中的未解之谜\n\n' +
-                  '【细节补充】\n' +
-                  '1. 社会状况：当时的社会状况\n' +
-                  '2. 经济发展：当时的经济发展水平\n' +
-                  '3. 科技水平：当时的科技发展水平\n' +
-                  '4. 其他相关信息';
+          basePrompt = HISTORY_GENERATION_PROMPT;
           break;
       }
 

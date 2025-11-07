@@ -124,6 +124,7 @@ export class HistorySyncService {
           // 确保所有历史特有字段都被正确设置
           historyElement.timeline = historyData.timeline || details.timeline || '';
           historyElement.events = historyData.events || details.events || '';
+          // 修复历史人物字段映射问题，确保AI生成的"关键人物"内容正确同步到figures字段
           historyElement.figures = historyData.figures || details.figures || '';
           historyElement.consequences = historyData.consequences || details.consequences || '';
           historyElement.details = historyData.details || details.details || '';
@@ -179,6 +180,7 @@ export class HistorySyncService {
     
     for (const field of basicFields) {
       const existingValue = existing[field];
+      // 修复历史人物字段变更检查，确保正确比较figures字段
       const newValue = newData[field] || newDetails[field] || '';
       
       if (existingValue !== newValue) {
@@ -398,6 +400,17 @@ export class HistorySyncService {
           }
         } else if (trimmedLine.includes('描述') || trimmedLine.includes('简介')) {
           currentSetting.description = this.extractValue(trimmedLine);
+        } else if (trimmedLine.includes('时间线')) {
+          currentSetting.timeline = this.extractValue(trimmedLine);
+        } else if (trimmedLine.includes('重要事件')) {
+          currentSetting.events = this.extractValue(trimmedLine);
+        } else if (trimmedLine.includes('历史人物') || trimmedLine.includes('关键人物')) {
+          // 修复历史人物字段解析问题，确保"关键人物"内容正确同步到figures字段
+          currentSetting.figures = this.extractValue(trimmedLine);
+        } else if (trimmedLine.includes('历史后果')) {
+          currentSetting.consequences = this.extractValue(trimmedLine);
+        } else if (trimmedLine.includes('细节补充')) {
+          currentSetting.details = this.extractValue(trimmedLine);
         } else if (trimmedLine && !trimmedLine.startsWith('#')) {
           // 将其他内容添加到描述中
           if (currentSetting.description) {

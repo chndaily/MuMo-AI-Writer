@@ -130,7 +130,7 @@ export class HistoryParserService {
               } else {
                 details[currentField] += '\n' + trimmedLine;
               }
-            } else if (currentField === 'figures' && (trimmedLine.includes('关键人物：') || trimmedLine.includes('贡献：') || trimmedLine.includes('英雄豪杰：') || trimmedLine.includes('奸臣恶徒：') || trimmedLine.includes('普通民众：'))) {
+            } else if (currentField === 'figures' && (trimmedLine.includes('关键人物：') || trimmedLine.includes('人物1：')|| trimmedLine.includes('人物2：')|| trimmedLine.includes('人物3：')|| trimmedLine.includes('人物4：')|| trimmedLine.includes('人物5：')|| trimmedLine.includes('贡献：')  || trimmedLine.includes('英雄豪杰：') || trimmedLine.includes('奸臣恶徒：') || trimmedLine.includes('普通民众：'))) {
               // 修复：保留内容标识，不丢弃冒号前的部分
               if (!details[currentField]) {
                 details[currentField] = trimmedLine;

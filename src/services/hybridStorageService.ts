@@ -1317,7 +1317,7 @@ class HybridStorageService {
                 }
               }
             });
-          
+        
           const allCharacters = Array.from(allCharactersMap.values());
           console.log(`获取到 ${allCharacters.length} 个角色 (角色API: ${charactersFromCharacters.length}, 世界观设定API: ${charactersFromWorldSettings.length})`);
           return allCharacters;
@@ -1408,8 +1408,8 @@ class HybridStorageService {
               if (!allCharactersMap.has(item.id)) {
                 allCharactersMap.set(item.id, {
                   ...item,
-                  role: 'supporting',
-                  customRole: ''
+                  role: (item as any).role || 'supporting',
+                  customRole: (item as any).customRole || ''
                 });
               }
             }
