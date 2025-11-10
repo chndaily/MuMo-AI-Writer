@@ -56,6 +56,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
     count: number;
     names: string[];
   } | null>(null);
+  const [chapterSelectModalVisible, setChapterSelectModalVisible] = useState(false); // 添加章节选择模态框状态
 
   // 添加状态来存储解析后的内容和摘要
   const [parsedContent, setParsedContent] = useState<{ content: string; summary: string } | null>(null);
@@ -99,6 +100,13 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       return;
     }
 
+    // 检查是否需要选择章节但未选择
+    const requiresChapterSelection = ['content', 'optimize', 'plot'].includes(generationType);
+    if (requiresChapterSelection && !selectedChapterId) {
+      message.warning('请选择目标章节');
+      return;
+    }
+
     setSelectedSyncOption(optionKey);
     setSyncing(true);
     try {
@@ -116,7 +124,6 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
           result = await worldSettingSyncService.syncWorldSettings(content, novel.id, optionKey as WorldSettingType, { syncMode: 'merge' });
           break;
         case 'outline':
-        case 'plot':
           // 对于大纲生成，使用专门的大纲同步服务，采用智能合并模式
           if (parsedContent && parsedContent.content) {
             // 如果有解析出的内容，使用解析后的内容
@@ -124,6 +131,24 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
           } else {
             // 否则使用原始内容，采用智能合并模式
             result = await outlineSyncService.syncOutline(content, novel.id, { syncMode: 'merge' });
+          }
+          break;
+        case 'plot':
+        case 'content':
+        case 'optimize':
+          // 对于内容创作、内容优化和情节发展，使用内容同步服务
+          console.log('内容同步，类型:', optionKey);
+          if (selectedChapterId) {
+            // 确保使用正确的内容同步方法
+            if (optionKey === 'optimize') {
+              // 对于优化操作，使用替换内容的方法
+              result = await contentSyncService.syncToChapter(content, novel.id, selectedChapterId);
+            } else {
+              // 对于内容创作和情节发展，使用追加内容的方法
+              result = await contentSyncService.appendToChapter(content, novel.id, selectedChapterId);
+            }
+          } else {
+            result = { success: false, message: '未选择目标章节' };
           }
           break;
         default:
@@ -146,10 +171,20 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       setSyncing(false);
       setSyncModalVisible(false);
       setWorldViewSyncModeModalVisible(false); // 关闭世界观设定同步模式对话框
+      setChapterSelectModalVisible(false); // 关闭章节选择对话框
     }
   }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
 
   const handleSyncClick = useCallback((optionKey: string) => {
+    // 对于内容创作、内容优化和情节发展，检查是否已选择章节
+    const requiresChapterSelection = ['content', 'optimize', 'plot'].includes(generationType);
+    if (requiresChapterSelection && !selectedChapterId) {
+      // 显示章节选择提醒
+      setSelectedSyncOption(optionKey);
+      setChapterSelectModalVisible(true);
+      return;
+    }
+
     // 对于大纲同步，提供智能同步选项
     if (optionKey === 'outline' || optionKey === 'plot') {
       // 设置选中的同步选项并显示智能同步选项模态框
@@ -163,12 +198,19 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       // 对于其他类型，直接执行同步
       performSync(optionKey);
     }
-  }, [performSync]);
+  }, [performSync, generationType, selectedChapterId]);
 
   // 执行同步操作（带同步模式）
   const performSyncWithMode = useCallback(async (optionKey: string, syncMode: 'replace' | 'merge' | 'specific' = 'merge') => {
     if (!content || !novel.id) {
       message.error('缺少必要参数');
+      return;
+    }
+
+    // 检查是否需要选择章节但未选择
+    const requiresChapterSelection = ['content', 'optimize', 'plot'].includes(generationType);
+    if (requiresChapterSelection && !selectedChapterId) {
+      message.warning('请选择目标章节');
       return;
     }
 
@@ -189,7 +231,6 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
           result = await worldSettingSyncService.syncWorldSettings(content, novel.id, optionKey as WorldSettingType, { syncMode });
           break;
         case 'outline':
-        case 'plot':
           // 对于大纲生成，使用专门的大纲同步服务
           if (parsedContent && parsedContent.content) {
             // 如果有解析出的内容，使用解析后的内容
@@ -197,6 +238,24 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
           } else {
             // 否则使用原始内容
             result = await outlineSyncService.syncOutline(content, novel.id, { syncMode });
+          }
+          break;
+        case 'plot':
+        case 'content':
+        case 'optimize':
+          // 对于内容创作、内容优化和情节发展，使用内容同步服务
+          console.log('内容同步（带模式），类型:', optionKey, '模式:', syncMode);
+          if (selectedChapterId) {
+            // 根据同步模式选择合适的方法
+            if (syncMode === 'replace' || optionKey === 'optimize') {
+              // 对于替换模式或优化操作，使用替换内容的方法
+              result = await contentSyncService.syncToChapter(content, novel.id, selectedChapterId);
+            } else {
+              // 对于追加模式，使用追加内容的方法
+              result = await contentSyncService.appendToChapter(content, novel.id, selectedChapterId);
+            }
+          } else {
+            result = { success: false, message: '未选择目标章节' };
           }
           break;
         default:
@@ -219,6 +278,7 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
       setSyncing(false);
       setSyncModeModalVisible(false);
       setWorldViewSyncModeModalVisible(false); // 关闭世界观设定同步模式对话框
+      setChapterSelectModalVisible(false); // 关闭章节选择对话框
     }
   }, [content, generationType, novel.id, onSync, parsedContent, selectedChapterId, syncOptions]);
 
@@ -505,6 +565,24 @@ const SyncPanel: React.FC<SyncPanelProps> = ({
           <li><strong>智能合并</strong>：保留现有结构，只更新或添加新内容</li>
         </ul>
         <p>推荐使用<strong>智能合并</strong>模式，以保护您已有的创作内容。</p>
+      </Modal>
+
+      {/* 章节选择提醒对话框 */}
+      <Modal
+        title="请选择目标章节"
+        open={chapterSelectModalVisible}
+        onCancel={() => setChapterSelectModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setChapterSelectModalVisible(false)}>
+            取消
+          </Button>
+        ]}
+      >
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <ExclamationCircleOutlined style={{ fontSize: '48px', color: '#faad14', marginBottom: '16px' }} />
+          <p>在同步内容到章节之前，请先在AI工作区中选择目标章节。</p>
+          <p>请前往AI工作区顶部的章节选择器中选择一个章节，然后再执行同步操作。</p>
+        </div>
       </Modal>
     </>
   );

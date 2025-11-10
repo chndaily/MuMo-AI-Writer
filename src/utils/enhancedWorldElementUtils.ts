@@ -205,10 +205,13 @@ export async function getEnhancedExistingElementsInfo(novelId: string, generatio
     }
 
     // 限制总长度以避免提示词过长，但确保关键信息不被截断
-    if (elementsInfo.length > 8000) {  // 增加长度限制以保留更多关键信息
-      elementsInfo = elementsInfo.substring(0, 8000) + '\n...（信息已截断以控制提示词长度）\n'
+    // 对于内容生成类型，增加长度限制以保留更多关键信息
+    const maxLength = generationType === 'content' || generationType === 'plot' || generationType === 'optimize' ? 18000 : 8000;
+    if (elementsInfo.length > maxLength) {
+      elementsInfo = elementsInfo.substring(0, maxLength) + '\n...（信息已截断以控制提示词长度）\n'
     }
 
+    console.log('增强版元素信息，生成类型:', generationType, '信息长度:', elementsInfo.length);
     return elementsInfo
   } catch (error) {
     console.error('获取已有元素信息失败:', error)

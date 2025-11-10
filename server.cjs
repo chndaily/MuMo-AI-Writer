@@ -1214,6 +1214,29 @@ app.delete('/api/characters/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// 更新大纲
+app.put('/api/outlines/:id', authenticateToken, async (req, res) => {
+  try {
+    const outline = req.body;
+    delete outline.id;
+    
+    // 确保更新时间戳
+    outline.lastModified = new Date().toISOString();
+    // 确保摘要字段也被正确更新
+    // 如果摘要字段是undefined，MongoDB会忽略这个字段，所以我们需要确保它被设置
+    if (outline.summary === undefined) {
+      outline.summary = null; // 或者设置为空字符串
+    }
+    await db.collection('outlines').updateOne(
+      { _id: req.params.id },
+      { $set: outline }
+    );
+    res.json({ ...outline, _id: req.params.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 获取所有地点
 app.get('/api/locations', authenticateToken, async (req, res) => {
   try {
@@ -2124,11 +2147,87 @@ app.put('/api/outlines/:id', authenticateToken, async (req, res) => {
   try {
     const outline = req.body;
     delete outline.id;
+    
+    // 确保更新时间戳
+    outline.lastModified = new Date().toISOString();
+    
+    // 确保摘要字段也被正确更新
+    // 如果摘要字段是undefined，MongoDB会忽略这个字段，所以我们需要确保它被设置
+    if (outline.summary === undefined) {
+      outline.summary = null; // 或者设置为空字符串
+    }
+    
     await db.collection('outlines').updateOne(
       { _id: req.params.id },
       { $set: outline }
     );
     res.json({ ...outline, _id: req.params.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取所有地点
+app.get('/api/locations', optionalAuthenticateToken, async (req, res) => {
+  try {
+    // 检查是否有novelId和type查询参数
+    const novelId = req.query.novelId;
+    const type = req.query.type;
+
+    let query = {};
+    if (novelId) {
+      query.novelId = novelId;
+    }
+    if (type) {
+      query.type = type;
+    }
+
+    const locations = await db.collection('locations').find(query).toArray();
+    res.json(locations);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 创建地点
+app.post('/api/locations', authenticateToken, async (req, res) => {
+  try {
+    const location = req.body;
+
+    // 确保创建时间戳
+    location.created = new Date().toISOString();
+
+    const result = await db.collection('locations').insertOne(location);
+    res.json({ ...location, _id: result.insertedId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 更新地点
+app.put('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    const location = req.body;
+    delete location.id;
+    
+    // 确保更新时间戳
+    location.lastModified = new Date().toISOString();
+    
+    await db.collection('locations').updateOne(
+      { _id: req.params.id },
+      { $set: location }
+    );
+    res.json({ ...location, _id: req.params.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除地点
+app.delete('/api/locations/:id', authenticateToken, async (req, res) => {
+  try {
+    await db.collection('locations').deleteOne({ _id: req.params.id });
+    res.json({ message: 'Location deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

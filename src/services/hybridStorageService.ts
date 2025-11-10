@@ -257,6 +257,7 @@ class HybridStorageService {
             novel_id: outline.novelId,
             title: outline.title,
             content: outline.content,
+            summary: outline.summary, // 确保同步摘要字段
             type: outline.type,
             order: outline.order,
             parent_id: outline.parentId,

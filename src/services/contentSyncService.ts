@@ -27,20 +27,14 @@ class ContentSyncService {
       // 检查内容是否包含摘要分隔符
       const summarySeparator = '#SUMMARY#';
       let contentToSync = content;
-      let summary = undefined; // 默认为undefined而不是空字符串
+      let summary = currentOutline.summary || null; // 默认保留原有摘要，如果没有则为null
 
       if (content.includes(summarySeparator)) {
         const parts = content.split(summarySeparator);
         if (parts.length === 2) {
           contentToSync = parts[0].trim();
-          summary = parts[1].trim();
+          summary = parts[1].trim() || null; // 如果解析出的摘要为空，则设为null
         }
-      }
-
-      // 如果没有解析出摘要，则保持摘要为undefined
-      // 保留原有的摘要，除非新内容包含摘要
-      if (!summary && currentOutline.summary) {
-        summary = currentOutline.summary;
       }
 
       // 检查是否需要替换原有内容
@@ -95,13 +89,13 @@ class ContentSyncService {
       // 检查内容是否包含摘要分隔符
       const summarySeparator = '#SUMMARY#';
       let contentToAppend = content;
-      let summary = undefined; // 默认为undefined而不是空字符串
+      let summary = currentOutline.summary || null; // 默认保留原有摘要，如果没有则为null
 
       if (content.includes(summarySeparator)) {
         const parts = content.split(summarySeparator);
         if (parts.length === 2) {
           contentToAppend = parts[0].trim();
-          summary = parts[1].trim();
+          summary = parts[1].trim() || null; // 如果解析出的摘要为空，则设为null
         }
       }
 
@@ -177,12 +171,6 @@ class ContentSyncService {
       } else {
         // 否则追加内容
         newContent = newContent ? newContent + '\n\n' + contentToAppend : contentToAppend;
-      }
-
-      // 如果没有解析出摘要，则保持摘要为undefined
-      // 保留原有的摘要，除非新内容包含摘要
-      if (!summary && currentOutline.summary) {
-        summary = currentOutline.summary;
       }
 
       // 更新章节内容和摘要

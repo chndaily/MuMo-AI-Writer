@@ -311,10 +311,12 @@ const AINovelWorkspace: React.FC = () => {
           // 更新解析后的内容
           setParsedContent({ content, summary });
           
-          // 将内容添加到画布中
+          // 将内容和摘要一起添加到画布中，摘要保留在内容后面
           setContent(prevContent => {
-            const separator = prevContent.endsWith('\n') ? '\n' : '\n\n'
-            return prevContent + separator + content
+            const separator = prevContent.endsWith('\n') ? '\n' : '\n\n';
+            // 将内容和摘要一起插入，摘要跟在内容后面
+            const contentWithSummary = content + '\n\n#SUMMARY#\n' + summary;
+            return prevContent + separator + contentWithSummary;
           });
           
           message.success('内容和摘要已解析并插入到创意画布中');
@@ -444,6 +446,7 @@ const AINovelWorkspace: React.FC = () => {
           if (selectedChapterId) {
             // 使用解析后的内容和摘要（如果有的话）
             const contentToSync = parsedContent ? parsedContent.content : content;
+            // 确保摘要保留在内容后面
             const fullContentToSync = parsedContent 
               ? `${contentToSync}\n#SUMMARY#\n${parsedContent.summary}` 
               : contentToSync;
@@ -735,8 +738,33 @@ ${prompt}`;
       } else if (targetNovel) {
         // 对于其他类型的生成，添加小说信息和大纲上下文
         try {
+          // 获取选中的章节详细信息（如果有的话）
+          let selectedChapterDetails = '';
+          if (selectedChapterId && ['content', 'optimize', 'plot'].includes(generationType)) {
+            try {
+              // 直接获取选中章节的大纲信息作为上下文
+              const outlines = await hybridStorageService.getOutlines(targetNovel.id);
+              const selectedChapter = outlines.find(outline => outline.type === 'chapter' && outline.id === selectedChapterId);
+              
+              if (selectedChapter) {
+                selectedChapterDetails = `【选中章节标题】${selectedChapter.title}\n`;
+                if (selectedChapter.content) {
+                  selectedChapterDetails += `\n【选中章节内容概述】\n${selectedChapter.content}\n`;
+                }
+                if (selectedChapter.summary) {
+                  selectedChapterDetails += `\n【选中章节摘要】\n${selectedChapter.summary}\n`;
+                }
+              }
+              console.log('获取到的选中章节详细信息:', selectedChapterDetails);
+            } catch (chapterError) {
+              console.warn('获取章节详细信息失败:', chapterError);
+              selectedChapterDetails = '';
+            }
+          }
+          
           // 使用增强的特定指导功能，该功能会自动包含大纲信息
           let enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id);
+          console.log('增强指导内容:', enhancedGuidance);
           
           // 对于角色生成，额外添加大纲中提及的角色信息
           if (generationType === 'character') {
@@ -763,8 +791,7 @@ ${prompt}`;
                   enhancedGuidance += `
 
 【大纲中提及但未详细设定的角色】
-请为以下角色生成详细设定：${undetailedCharacters.join('、')}
-`;
+请为以下角色生成详细设定：${undetailedCharacters.join('、')}`;
                 }
                 
                 // 添加防重复指令
@@ -772,8 +799,7 @@ ${prompt}`;
                   enhancedGuidance += `
 
 【重要提醒】
-请勿生成与以下已存在角色重复的角色：${existingCharacterNames.join('、')}
-`;
+请勿生成与以下已存在角色重复的角色：${existingCharacterNames.join('、')}`;
                 }
               }
             } catch (extractError) {
@@ -781,21 +807,31 @@ ${prompt}`;
             }
           }
           
-          // 构建包含上下文的完整提示词
-          fullPrompt = `${prompt}\n\n${enhancedGuidance}`;
+          // 如果有选中的章节详细信息，添加到增强指导中
+          if (selectedChapterDetails) {
+            enhancedGuidance = `【选中章节详细信息】
+${selectedChapterDetails}
+
+${enhancedGuidance}`;
+            console.log('添加章节详细信息后的增强指导:', enhancedGuidance);
+          }
+          
+          // 构建最终的提示词
+          prompt = `${prompt}
+
+${enhancedGuidance}`;
+          console.log('最终构建的提示词:', prompt);
         } catch (error) {
           console.error('获取增强指导失败:', error);
-          // 如果获取增强指导失败，使用基本的系统提示词
-          fullPrompt = prompt;
         }
       }
       
-      console.log('开始AI生成，配置ID:', configId, '提示词:', fullPrompt);
+      console.log('开始AI生成，配置ID:', configId, '提示词长度:', prompt.length);
       
       // 调用AI服务生成内容
       await generateTextStream(
         {
-          prompt: fullPrompt,
+          prompt: prompt,
           systemPrompt: systemPrompt || getSystemPromptByType(generationType),
           temperature: temperature,
           maxTokens: 128000  // 增加maxTokens到128000以支持更长的内容生成
@@ -1115,27 +1151,31 @@ ${prompt}`;
             padding: '4px 12px',
             backgroundColor: '#f5f5f5',
             borderRadius: '16px',
-            border: '1px solid #e8e8e8'
+            border: '1px solid #e8e8e8',
+            minWidth: '320px', // 固定最小宽度
+            maxWidth: '320px', // 固定最大宽度
+            height: '30px', // 固定高度
+            whiteSpace: 'nowrap', // 防止换行
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>字数:</Text>
               <Text strong style={{ fontSize: '12px' }}>
                 {writingStats.wordCount.toLocaleString()}
               </Text>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>字符:</Text>
               <Text strong style={{ fontSize: '12px' }}>
                 {writingStats.charCount.toLocaleString()}
               </Text>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>段落:</Text>
               <Text strong style={{ fontSize: '12px' }}>
                 {writingStats.paragraphCount}
               </Text>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>AI状态:</Text>
               <div className="ai-status" style={{ display: 'flex', alignItems: 'center', marginTop: 0 }}>
                 {isAIGenerating ? (
