@@ -45,10 +45,12 @@ export async function getSuperLargeOutlineStructureSummary(novelId: string): Pro
       if (chaptersInAct.length > 0) {
         summary += `   章节数量：${chaptersInAct.length}\n`;
         
-        // 显示前几个章节标题
+        // 显示前几个章节标题（不显示摘要以避免与【已完成章节摘要信息】重复）
         const maxChaptersToShow = Math.min(chaptersInAct.length, 5);
         for (let j = 0; j < maxChaptersToShow; j++) {
-          summary += `   - ${chaptersInAct[j].title}\n`;
+          const chapter = chaptersInAct[j];
+          summary += `   - ${chapter.title}\n`;
+          // 移除摘要显示，避免与【已完成章节摘要信息】重复
         }
         if (chaptersInAct.length > maxChaptersToShow) {
           summary += `   ...还有${chaptersInAct.length - maxChaptersToShow}个章节\n`;
@@ -60,6 +62,41 @@ export async function getSuperLargeOutlineStructureSummary(novelId: string): Pro
     if (mainOutlines.length > maxMainToShow) {
       summary += `...还有${mainOutlines.length - maxMainToShow}个卷未显示\n`;
     }
+    
+    // 添加关键故事线索信息（通过内容关键词识别）
+    // 移除全局关键故事线索，因为它们在不同章节生成时没有变化
+    // 改为在具体的内容生成时根据上下文动态识别相关线索
+    /*
+    const keyStoryThreads: any[] = [];
+    // 查找标题或内容中包含关键线索词的大纲项
+    const keyWords = ['主线', '关键情节', '核心冲突', '主要线索', '重要转折'];
+    outlines.forEach(outline => {
+      const hasKeyWord = keyWords.some(keyword => 
+        outline.title.includes(keyword) || 
+        (outline.content && outline.content.includes(keyword))
+      );
+      if (hasKeyWord) {
+        keyStoryThreads.push(outline);
+      }
+    });
+    
+    // 只在关键故事线索数量较多时显示，避免在每个章节都显示相同内容
+    if (keyStoryThreads.length > 3) {
+      summary += `\n【关键故事线索】\n`;
+      // 限制显示数量，避免占用过多提示词长度
+      const maxThreadsToShow = Math.min(keyStoryThreads.length, 5);
+      keyStoryThreads.slice(0, maxThreadsToShow).forEach((thread, index) => {
+        summary += `${index + 1}. ${thread.title}\n`;
+        if (thread.content) {
+          summary += `   内容：${thread.content.substring(0, 100)}${thread.content.length > 100 ? '...' : ''}\n`;
+        }
+      });
+      if (keyStoryThreads.length > maxThreadsToShow) {
+        summary += `   ...还有${keyStoryThreads.length - maxThreadsToShow}个关键线索\n`;
+      }
+      summary += '\n';
+    }
+    */
     
     return summary;
   } catch (error) {

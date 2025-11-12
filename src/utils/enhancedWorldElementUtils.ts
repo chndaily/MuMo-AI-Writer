@@ -208,12 +208,13 @@ export async function getEnhancedExistingElementsInfo(novelId: string, generatio
 
     // 限制总长度以避免提示词过长，但确保关键信息不被截断
     // 对于内容生成类型，增加长度限制以保留更多关键信息
-    const maxLength = generationType === 'content' || generationType === 'plot' || generationType === 'optimize' ? 18000 : 8000;
+    // 根据项目规范，将内容生成类型的提示词长度限制增加到20000字符以缓解长度问题
+    const maxLength = generationType === 'content' || generationType === 'plot' || generationType === 'optimize' ? 20000 : 8000;
     if (elementsInfo.length > maxLength) {
       elementsInfo = elementsInfo.substring(0, maxLength) + '\n...（信息已截断以控制提示词长度）\n'
     }
 
-    // 如果是内容生成类型且提供了选中的章节ID，添加之前章节的摘要信息
+    // 如果是内容生成类型且提供了选中的章节ID，添加所有已完成章节的摘要信息
     if (generationType === 'content' && selectedChapterId) {
       try {
         // 按顺序排列章节
@@ -223,29 +224,86 @@ export async function getEnhancedExistingElementsInfo(novelId: string, generatio
         // 找到选中章节的索引
         const selectedChapterIndex = chapterOutlines.findIndex(chapter => chapter.id === selectedChapterId);
         
-        // 如果找到了选中章节且不是第一个章节，则添加之前章节的摘要信息
+        // 如果找到了选中章节且不是第一个章节，则添加所有已完成章节的摘要信息
         if (selectedChapterIndex > 0) {
-          elementsInfo += '\n【之前章节摘要信息】\n';
+          elementsInfo += '\n【已完成章节摘要信息】\n';
           let hasPreviousSummaries = false;
           
-          // 添加前三个章节的摘要信息（如果有的话）
-          const startIndex = Math.max(0, selectedChapterIndex - 3);
+          // 只添加最近的章节摘要信息，避免提示词过长
+          // 计算起始索引，只显示最近的10个章节摘要（如果有的话）
+          const startIndex = Math.max(0, selectedChapterIndex - 10);
           for (let i = startIndex; i < selectedChapterIndex; i++) {
             const chapter = chapterOutlines[i];
             if (chapter.summary) {
-              elementsInfo += `章节《${chapter.title}》摘要：${chapter.summary}\n`;
+              // 对较早章节的摘要进行压缩处理，以控制提示词长度
+              const summaryText = i < selectedChapterIndex - 5 
+                ? chapter.summary.substring(0, Math.min(120, chapter.summary.length)) + (chapter.summary.length > 120 ? '...' : '')
+                : chapter.summary;
+              elementsInfo += `章节《${chapter.title}》摘要：${summaryText}\n`;
               hasPreviousSummaries = true;
             }
           }
           
-          // 如果没有之前章节的摘要信息，则添加提示
+          // 如果没有已完成章节的摘要信息，则添加提示
           if (!hasPreviousSummaries) {
-            elementsInfo += '暂无之前章节的摘要信息\n';
+            elementsInfo += '暂无已完成章节的摘要信息\n';
           }
+          
+          // 添加与当前章节相关的关键故事线索
+          // 查找与当前章节内容相关的线索
+          const currentChapter = chapterOutlines[selectedChapterIndex];
+          if (currentChapter) {
+            const relatedStoryThreads: any[] = [];
+            // 查找标题或内容中包含关键线索词的大纲项，并且与当前章节相关
+            const keyWords = ['主线', '关键情节', '核心冲突', '主要线索', '重要转折'];
+            // 同时考虑与当前章节标题相关的线索
+            const currentChapterKeywords = currentChapter.title.split(/[\s\-_]+/).filter(word => word.length > 1);
+            
+            outlines.forEach(outline => {
+              // 检查是否包含关键线索词
+              const hasKeyWord = keyWords.some(keyword => 
+                outline.title.includes(keyword) || 
+                (outline.content && outline.content.includes(keyword))
+              );
+              
+              // 检查是否与当前章节标题相关
+              const isRelatedToCurrentChapter = currentChapterKeywords.some(keyword => 
+                outline.title.includes(keyword) || 
+                (outline.content && outline.content.includes(keyword))
+              );
+              
+              if (hasKeyWord || isRelatedToCurrentChapter) {
+                relatedStoryThreads.push(outline);
+              }
+            });
+            
+            // 限制显示数量，避免占用过多提示词长度
+            if (relatedStoryThreads.length > 0) {
+              elementsInfo += '\n【相关故事线索】\n';
+              const maxThreadsToShow = Math.min(relatedStoryThreads.length, 3);
+              relatedStoryThreads.slice(0, maxThreadsToShow).forEach((thread, index) => {
+                elementsInfo += `${index + 1}. ${thread.title}\n`;
+                if (thread.content) {
+                  elementsInfo += `   内容：${thread.content.substring(0, 100)}${thread.content.length > 100 ? '...' : ''}\n`;
+                }
+              });
+              if (relatedStoryThreads.length > maxThreadsToShow) {
+                elementsInfo += `   ...还有${relatedStoryThreads.length - maxThreadsToShow}个相关线索\n`;
+              }
+              elementsInfo += '\n';
+            }
+          }
+          
+          // 添加故事连贯性要求
+          elementsInfo += '\n【故事连贯性要求】\n';
+          elementsInfo += '- 请严格遵循故事时间线发展，确保与已完成章节的时间关系一致\n';
+          elementsInfo += '- 保持角色性格和行为的一致性，避免突兀变化\n';
+          elementsInfo += '- 维持故事主线清晰，确保情节发展符合逻辑\n';
+          elementsInfo += '- 与已完成章节情节无缝衔接，避免出现矛盾或断裂\n';
           elementsInfo += '\n';
         }
       } catch (error) {
-        console.warn('获取之前章节摘要信息失败:', error);
+        console.warn('获取已完成章节摘要信息失败:', error);
       }
     }
 

@@ -872,44 +872,5 @@ export async function enhanceTypeSpecificGuidance(type: string, novelId: string,
                 existingElementsInfo
   }
 
-  // 如果是内容生成类型且提供了选中的章节ID，添加之前章节的摘要信息
-  if (type === 'content' && selectedChapterId) {
-    try {
-      // 获取大纲信息
-      const outlines = await hybridStorageService.getOutlines(novelId);
-      if (outlines && outlines.length > 0) {
-        // 按顺序排列章节
-        const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
-        
-        // 找到选中章节的索引
-        const selectedChapterIndex = chapterOutlines.findIndex(chapter => chapter.id === selectedChapterId);
-        
-        // 如果找到了选中章节且不是第一个章节，则添加之前章节的摘要信息
-        if (selectedChapterIndex > 0) {
-          let previousChaptersInfo = '\n【之前章节摘要信息】\n';
-          let hasPreviousSummaries = false;
-          
-          // 添加前三个章节的摘要信息（如果有的话）
-          const startIndex = Math.max(0, selectedChapterIndex - 3);
-          for (let i = startIndex; i < selectedChapterIndex; i++) {
-            const chapter = chapterOutlines[i];
-            if (chapter.summary) {
-              previousChaptersInfo += `章节《${chapter.title}》摘要：${chapter.summary}\n`;
-              hasPreviousSummaries = true;
-            }
-          }
-          
-          // 如果有之前章节的摘要信息，则添加到指导中
-          if (hasPreviousSummaries) {
-            guidance += previousChaptersInfo;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('获取之前章节摘要信息失败:', error);
-    }
-  }
-
   return guidance
 }

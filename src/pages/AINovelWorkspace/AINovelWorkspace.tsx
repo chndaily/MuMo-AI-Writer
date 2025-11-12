@@ -766,54 +766,25 @@ ${prompt}`;
           let enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id, selectedChapterId);
           console.log('增强指导内容:', enhancedGuidance);
           
-          // 对于角色生成，额外添加大纲中提及的角色信息
-          if (generationType === 'character') {
+          // 如果是内容生成类型且选中了章节，获取选中章节的详细信息
+          if (generationType === 'content' && selectedChapterId) {
             try {
-              // 获取大纲信息
-              const outlines = await hybridStorageService.getOutlines(targetNovel.id);
-              if (outlines && outlines.length > 0) {
-                // 导入角色提取工具
-                const { extractCharactersFromOutline } = await import('@/utils/outlineCharacterExtractor');
-                
-                // 提取大纲中提及的角色
-                const mentionedCharacters = await extractCharactersFromOutline(outlines);
-                
-                // 获取已存在的角色
-                const existingCharacters = await hybridStorageService.getWorldElements('character', targetNovel.id);
-                const existingCharacterNames = existingCharacters.map((char: any) => char.name);
-                
-                // 过滤出未详细设定的角色
-                const undetailedCharacters = mentionedCharacters.filter(
-                  name => !existingCharacterNames.includes(name)
-                );
-                
-                if (undetailedCharacters.length > 0) {
-                  enhancedGuidance += `
-
-【大纲中提及但未详细设定的角色】
-请为以下角色生成详细设定：${undetailedCharacters.join('、')}`;
-                }
-                
-                // 添加防重复指令
-                if (existingCharacterNames.length > 0) {
-                  enhancedGuidance += `
-
-【重要提醒】
-请勿生成与以下已存在角色重复的角色：${existingCharacterNames.join('、')}`;
-                }
-              }
-            } catch (extractError) {
-              console.warn('提取大纲角色信息失败:', extractError);
-            }
-          }
-          
-          // 如果有选中的章节详细信息，添加到增强指导中
-          if (selectedChapterDetails) {
-            enhancedGuidance = `【选中章节详细信息】
-${selectedChapterDetails}
+              // 使用超长大纲处理工具获取章节详细信息
+              const { getSuperLargeChapterDetails } = await import('@/utils/superLargeOutlineHandler');
+              const chapterDetails = await getSuperLargeChapterDetails(targetNovel.id, selectedChapterId);
+              console.log('选中章节详细信息:', chapterDetails);
+              
+              // 如果获取到章节详细信息，则添加到增强指导中
+              if (chapterDetails) {
+                enhancedGuidance = `【选中章节详细信息】
+${chapterDetails}
 
 ${enhancedGuidance}`;
-            console.log('添加章节详细信息后的增强指导:', enhancedGuidance);
+                console.log('添加章节详细信息后的增强指导:', enhancedGuidance);
+              }
+            } catch (error) {
+              console.warn('获取选中章节详细信息失败:', error);
+            }
           }
           
           // 构建最终的提示词
