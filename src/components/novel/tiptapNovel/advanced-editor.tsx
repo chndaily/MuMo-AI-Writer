@@ -91,8 +91,17 @@ const TailwindAdvancedEditor = forwardRef<{ commands?: any; editor?: any; getCon
   // 当propContent变化时，更新编辑器内容
   useEffect(() => {
     console.log('编辑器接收到新内容:', propContent);
+    // 只有当编辑器已经初始化且内容确实发生变化时才更新
     if (propContent !== undefined && tiptapEditorRef.current) {
       try {
+        // 获取当前编辑器内容
+        const currentContent = tiptapEditorRef.current.getHTML();
+        
+        // 如果传入的内容与当前内容相同，则不更新
+        if (currentContent === propContent) {
+          return;
+        }
+        
         console.log('强制更新编辑器内容:', propContent);
         
         // 尝试将字符串内容解析为JSON格式
@@ -341,7 +350,7 @@ const TailwindAdvancedEditor = forwardRef<{ commands?: any; editor?: any; getCon
                 
                 // 使用setTimeout进行简单的防抖
                 clearTimeout((editor as any)._updateTimeout);
-                (editor as any)._updateTimeout = setTimeout(updateContent, 100);
+                (editor as any)._updateTimeout = setTimeout(updateContent, 5000);
               }
             }}
             slotAfter={<ImageResizer />}

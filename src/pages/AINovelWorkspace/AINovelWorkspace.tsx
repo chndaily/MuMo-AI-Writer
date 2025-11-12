@@ -763,7 +763,7 @@ ${prompt}`;
           }
           
           // 使用增强的特定指导功能，该功能会自动包含大纲信息
-          let enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id);
+          let enhancedGuidance = await enhanceTypeSpecificGuidance(generationType, targetNovel.id, selectedChapterId);
           console.log('增强指导内容:', enhancedGuidance);
           
           // 对于角色生成，额外添加大纲中提及的角色信息

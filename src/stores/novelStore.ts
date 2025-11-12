@@ -92,7 +92,8 @@ export const useNovelStore = create<NovelState & NovelActions>()(
 
       // 内容管理
       updateNovelContent: (id, content) => {
-        const wordCount = content.length
+        // 正确计算字数：使用单词分割方式计算实际字数
+        const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
         get().updateNovel(id, { content, wordCount })
       },
 

@@ -221,14 +221,22 @@ const ManuscriptEditor: React.FC = () => {
           [selectedChapterId]: newContent
         }));
       }
-    }, 100); // 100ms防抖延迟
+      
+      // 更新当前小说信息中的字数统计和进度
+      if (novelId) {
+        const progress = calculateProgress();
+        const totalWordCount = calculateTotalWordCount();
+        // 更新当前小说信息状态
+        setCurrentNovelInfo(prev => prev ? { ...prev, wordCount: totalWordCount, progress } : prev);
+      }
+    }, 1000); // 增加防抖延迟到1000ms，给用户足够时间输入
   };
 
   // 编辑器引用
   const editorRef = useRef<any>(null);
   const [editorKey, setEditorKey] = useState(0); // 用于强制重新渲染编辑器
   const contentUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null); // 用于防抖的内容更新
-  
+
   // 格式化大纲内容，处理HTML标记
   const formatOutlineContent = (content: string) => {
     if (!content) return '';
@@ -343,7 +351,10 @@ const ManuscriptEditor: React.FC = () => {
             [chapterId]: syncedContent
           }));
           
-          // 强制重新渲染编辑器组件
+          // 更新大纲概述显示
+          setSelectedChapterOutline(syncedContent);
+          
+          // 在AI内容同步时强制重新渲染编辑器以确保内容正确显示
           setEditorKey(prev => prev + 1);
           
           // 如果是替换内容操作，显示警告信息
@@ -379,19 +390,25 @@ const ManuscriptEditor: React.FC = () => {
       const chapter = chapters.find(c => c.id === selectedChapterId);
       if (chapter) {
         setSelectedChapterOutline(chapter.content || '');
-        
+      
         // 从章节内容映射中获取章节内容并设置到编辑器
         const chapterContent = chapterContentMap[selectedChapterId] || chapter.content || '';
         console.log('设置章节内容到编辑器:', chapterContent);
         setContent(chapterContent);
-        
-        // 强制重新渲染编辑器组件
-        setEditorKey(prev => prev + 1);
+         // 在章节切换时强制重新渲染编辑器以确保内容正确显示
+         setEditorKey(prev => prev + 1);
       } else {
-        // 清空大纲概述显示
-        setSelectedChapterOutline('');
-        // 清空编辑器内容
-        setContent('');
+        // 如果在chapters中找不到该章节，尝试从chapterContentMap中获取
+        const chapterContent = chapterContentMap[selectedChapterId] || '';
+        if (chapterContent) {
+          setContent(chapterContent);
+          setSelectedChapterOutline(chapterContent);
+        } else {
+          // 清空大纲概述显示
+          setSelectedChapterOutline('');
+          // 清空编辑器内容
+          setContent('');
+        }
       }
     } else {
       // 清空大纲概述显示
@@ -403,6 +420,7 @@ const ManuscriptEditor: React.FC = () => {
       } else {
         // 使用默认内容
         setContent('# 新小说\n\n开始你的创作之旅...');
+       
       }
     }
   }, [selectedChapterId, chapters, currentNovelInfo, chapterContentMap]);
@@ -472,10 +490,10 @@ const ManuscriptEditor: React.FC = () => {
       console.log('转换后的章节列表:', chapterList);
       setChapters(chapterList);
       
-      // 初始化章节内容映射为空字符串
+      // 初始化章节内容映射，使用章节的实际内容而不是空字符串
       const contentMap: Record<string, string> = {};
       chapterList.forEach(chapter => {
-        contentMap[chapter.id] = '';
+        contentMap[chapter.id] = chapter.content || '';
       });
       setChapterContentMap(contentMap);
     } catch (error) {
@@ -490,6 +508,24 @@ const ManuscriptEditor: React.FC = () => {
   // 处理章节选择变化
   const handleChapterChange = (chapterId: string) => {
     setSelectedChapterId(chapterId);
+    
+    // 确保章节内容正确加载到编辑器
+    setTimeout(() => {
+      const chapter = chapters.find(c => c.id === chapterId);
+      if (chapter) {
+        const chapterContent = chapterContentMap[chapterId] || chapter.content || '';
+        setContent(chapterContent);
+        setSelectedChapterOutline(chapter.content || '');
+      } else {
+        // 如果在chapters中找不到该章节，尝试从chapterContentMap中获取
+        const chapterContent = chapterContentMap[chapterId] || '';
+        setContent(chapterContent);
+        setSelectedChapterOutline(chapterContent);
+      }
+      
+      // 在章节切换时强制重新渲染编辑器以确保内容正确显示
+      setEditorKey(prev => prev + 1);
+    }, 0);
   };
   
   // 更新文本统计 - 使用防抖机制
@@ -499,7 +535,7 @@ const ManuscriptEditor: React.FC = () => {
       const stats = analyzeText(content);
       setTextStats(stats);
       setWordCount(stats.words);
-    }, 100);
+    }, 300); // 增加防抖延迟到300ms，减少频繁更新
     
     return () => clearTimeout(timer);
   }, [content]);
@@ -570,10 +606,18 @@ const ManuscriptEditor: React.FC = () => {
           
           // 更新大纲概述显示
           setSelectedChapterOutline(content);
+          
+          // 更新小说的字数统计和进度
+          const progress = calculateProgress();
+          const totalWordCount = calculateTotalWordCount();
+          await updateNovel(novelId, { wordCount: totalWordCount, progress });
         }
       } else {
         // 否则保存小说整体内容
-        await updateNovel(novelId, { content, wordCount });
+        // 计算进度
+        const progress = calculateProgress();
+        const totalWordCount = calculateTotalWordCount();
+        await updateNovel(novelId, { content, wordCount: totalWordCount, progress });
         message.success('小说内容保存成功');
       }
       
@@ -691,6 +735,23 @@ const ManuscriptEditor: React.FC = () => {
     
     // 使用整本小说的总字符数来计算进度
     return Math.min(100, Math.round((totalCharacters / writingGoal) * 100));
+  };
+
+  // 计算总字数
+  const calculateTotalWordCount = () => {
+    let totalCharacters = 0;
+    if (chapters.length > 0) {
+      // 遍历所有章节，累加字符数
+      chapters.forEach(chapter => {
+        // 使用章节内容映射中的内容计算字符数
+        const chapterContent = chapterContentMap[chapter.id] || chapter.content || '';
+        totalCharacters += chapterContent.length;
+      });
+    } else if (currentNovelInfo?.content) {
+      // 如果没有章节，使用小说整体内容
+      totalCharacters = currentNovelInfo.content.length;
+    }
+    return totalCharacters;
   };
 
   // 加载章节版本历史

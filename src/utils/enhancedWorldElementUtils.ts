@@ -8,9 +8,11 @@ import { useMembershipStore } from '@/stores/membershipStore'
 /**
  * 获取增强版的已有元素信息，特别针对角色生成场景
  * @param novelId 小说ID
+ * @param generationType 生成类型
+ * @param selectedChapterId 选中的章节ID（可选）
  * @returns 增强版的已有元素信息字符串
  */
-export async function getEnhancedExistingElementsInfo(novelId: string, generationType: string): Promise<string> {
+export async function getEnhancedExistingElementsInfo(novelId: string, generationType: string, selectedChapterId?: string): Promise<string> {
   try {
     // 检查认证状态
     const { isAuthenticated, authToken } = useMembershipStore.getState();
@@ -209,6 +211,42 @@ export async function getEnhancedExistingElementsInfo(novelId: string, generatio
     const maxLength = generationType === 'content' || generationType === 'plot' || generationType === 'optimize' ? 18000 : 8000;
     if (elementsInfo.length > maxLength) {
       elementsInfo = elementsInfo.substring(0, maxLength) + '\n...（信息已截断以控制提示词长度）\n'
+    }
+
+    // 如果是内容生成类型且提供了选中的章节ID，添加之前章节的摘要信息
+    if (generationType === 'content' && selectedChapterId) {
+      try {
+        // 按顺序排列章节
+        const chapterOutlines = outlines.filter(outline => outline.type === 'chapter')
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        // 找到选中章节的索引
+        const selectedChapterIndex = chapterOutlines.findIndex(chapter => chapter.id === selectedChapterId);
+        
+        // 如果找到了选中章节且不是第一个章节，则添加之前章节的摘要信息
+        if (selectedChapterIndex > 0) {
+          elementsInfo += '\n【之前章节摘要信息】\n';
+          let hasPreviousSummaries = false;
+          
+          // 添加前三个章节的摘要信息（如果有的话）
+          const startIndex = Math.max(0, selectedChapterIndex - 3);
+          for (let i = startIndex; i < selectedChapterIndex; i++) {
+            const chapter = chapterOutlines[i];
+            if (chapter.summary) {
+              elementsInfo += `章节《${chapter.title}》摘要：${chapter.summary}\n`;
+              hasPreviousSummaries = true;
+            }
+          }
+          
+          // 如果没有之前章节的摘要信息，则添加提示
+          if (!hasPreviousSummaries) {
+            elementsInfo += '暂无之前章节的摘要信息\n';
+          }
+          elementsInfo += '\n';
+        }
+      } catch (error) {
+        console.warn('获取之前章节摘要信息失败:', error);
+      }
     }
 
     console.log('增强版元素信息，生成类型:', generationType, '信息长度:', elementsInfo.length);

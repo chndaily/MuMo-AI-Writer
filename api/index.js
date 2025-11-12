@@ -414,6 +414,79 @@ app.get('/api/novels/:id', async (req, res) => {
   }
 });
 
+// 添加更新小说的路由
+app.put('/api/novels/:id', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const updateData = req.body;
+    const updatedNovel = {
+      ...updateData,
+      lastModified: new Date().toISOString()
+    };
+    
+    const result = await db.collection('novels').updateOne(
+      { _id: req.params.id },
+      { $set: updatedNovel }
+    );
+    
+    if (result.matchedCount > 0) {
+      const novel = await db.collection('novels').findOne({ _id: req.params.id });
+      res.json(novel);
+    } else {
+      res.status(404).json({ error: 'Novel not found' });
+    }
+  } catch (error) {
+    console.error('Update novel error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 添加创建小说的路由
+app.post('/api/novels', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const novelData = req.body;
+    const newNovel = {
+      ...novelData,
+      _id: 'novel-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+      createdAt: new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    };
+    
+    const result = await db.collection('novels').insertOne(newNovel);
+    res.status(201).json(newNovel);
+  } catch (error) {
+    console.error('Create novel error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 添加删除小说的路由
+app.delete('/api/novels/:id', async (req, res) => {
+  if (!db) {
+    return res.status(500).json({ error: 'Database not connected' });
+  }
+  
+  try {
+    const result = await db.collection('novels').deleteOne({ _id: req.params.id });
+    
+    if (result.deletedCount > 0) {
+      res.json({ message: 'Novel deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Novel not found' });
+    }
+  } catch (error) {
+    console.error('Delete novel error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 健康检查端点
 app.get('/api/health', (req, res) => {
   res.json({ 
