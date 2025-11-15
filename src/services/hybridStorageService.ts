@@ -537,6 +537,7 @@ class HybridStorageService {
             await databaseManager.characters.updateCharacter({
               ...element,
               id: element.id,
+              _id: element.id, // 确保_id字段也被设置
               novelId: element.novelId,
               name: element.name || '未命名角色',
               description: element.description || '',
@@ -557,16 +558,37 @@ class HybridStorageService {
             });
             localElement = element; // 更新操作直接使用传入的元素
           } else {
-            // 元素不存在，记录警告信息并跳过操作
-            console.warn('尝试更新不存在的角色，跳过操作:', element.id, element.name);
-            // 不创建新角色，因为这可能导致重复
-            return;
+            // 元素不存在，添加新角色而不是跳过
+            console.log('元素不存在，添加新角色:', element.name);
+            localElement = await databaseManager.characters.addCharacter({
+              ...element,
+              id: element.id, // 确保ID字段被传递
+              _id: element.id, // 确保_id字段被设置
+              novelId: element.novelId,
+              name: element.name || '未命名角色',
+              description: element.description || '',
+              role: element.role || 'supporting',
+              customRole: element.customRole || '', // 添加自定义角色类型字段
+              appearance: element.appearance || '',
+              personality: element.personality || '',
+              background: element.background || '',
+              abilities: element.abilities || '',
+              relationships: element.relationships || '',
+              characterArc: element.characterArc || '',
+              details: element.details || '',
+              tags: element.tags || [],
+              professionTags: element.professionTags || [],
+              personalityTags: element.personalityTags || [],
+              functionTags: element.functionTags || [],
+            });
+            console.log('角色添加成功:', localElement.name);
           }
         } else {
           // 添加新角色
           console.log('添加新角色:', element.name);
           // 确保所有必需字段都有默认值
           localElement = await databaseManager.characters.addCharacter({
+            ...element,
             novelId: element.novelId,
             name: element.name || '未命名角色',
             description: element.description || '',

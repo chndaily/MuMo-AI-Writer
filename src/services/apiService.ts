@@ -132,6 +132,10 @@ const apiRequest = async <T>(
         if (item._id && !item.id) {
           return { ...item, id: item._id };
         }
+        // 如果对象有id字段但没有_id字段，创建_id字段（用于发送请求）
+        if (item.id && !item._id) {
+          return { ...item, _id: item.id };
+        }
       }
       return item;
     };
@@ -413,9 +417,11 @@ export const characterApi = {
   
   // 创建角色
   createCharacter: async (characterData: Omit<Character, 'id' | 'createdAt' | 'lastModified'>) => {
+    // 确保不发送ID字段，让后端生成
+    const { id, _id, ...dataWithoutId } = characterData as any;
     return apiRequest<Character>('/api/characters', {
       method: 'POST',
-      body: JSON.stringify(characterData),
+      body: JSON.stringify(dataWithoutId),
     })
   },
   

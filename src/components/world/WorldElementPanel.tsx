@@ -833,7 +833,6 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
       
       // 准备保存的数据
       const elementData: any = {
-        id: editingElement?.id || generateUUID(),
         novelId: novelId,
         name: values.name,
         description: values.description,
@@ -842,6 +841,18 @@ const WorldElementPanel: React.FC<WorldElementPanelProps> = ({
         createdAt: editingElement?.createdAt || new Date().toISOString(),
         lastModified: new Date().toISOString(),
       };
+      
+      // 只有在编辑现有元素时才设置ID，添加新元素时不设置ID，让后端生成
+      if (editingElement?.id) {
+        elementData.id = editingElement.id;
+        // 对于后端API，我们需要确保使用_id字段而不是id字段
+        elementData._id = editingElement.id;
+      } else {
+        // 添加新元素时不设置ID，让后端生成
+        // 确保不包含任何ID字段
+        delete elementData.id;
+        delete elementData._id;
+      }
       
       // 根据不同类型添加特定字段
       switch (type) {

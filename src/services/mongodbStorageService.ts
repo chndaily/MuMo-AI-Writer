@@ -266,7 +266,9 @@ export class MongodbStorageService {
    */
   async addCharacter(character: Omit<Character, 'id' | 'createdAt' | 'lastModified'>): Promise<Character> {
     try {
-      return await apiService.characters.createCharacter(character);
+      // 确保不传递ID字段，让后端生成
+      const { id, _id, ...characterWithoutId } = character as any;
+      return await apiService.characters.createCharacter(characterWithoutId);
     } catch (error) {
       console.error('添加角色失败:', error);
       throw error;

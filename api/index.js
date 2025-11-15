@@ -541,9 +541,12 @@ app.post('/api/characters', async (req, res) => {
   
   try {
     const characterData = req.body;
+    // 如果请求中已经提供了ID，则使用它，否则生成新的ID
+    const characterId = characterData.id || characterData._id || ('character-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
     const newCharacter = {
       ...characterData,
-      _id: 'character-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+      id: characterId,
+      _id: characterId,
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString()
     };
@@ -564,8 +567,11 @@ app.put('/api/characters/:id', async (req, res) => {
   
   try {
     const updateData = req.body;
+    // 确保ID字段正确设置
     const updatedCharacter = {
       ...updateData,
+      id: req.params.id,
+      _id: req.params.id,
       lastModified: new Date().toISOString()
     };
     
